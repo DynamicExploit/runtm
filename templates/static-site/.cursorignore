@@ -1,0 +1,8 @@
+# Contract file - owned by runtm CLI
+# To propose changes, edit runtm.requests.yaml and run `runtm apply`
+runtm.yaml
+
+# Secrets - never expose to AI agents
+.env
+.env.*
+.env.local

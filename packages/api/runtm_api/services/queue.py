@@ -1,0 +1,69 @@
+"""Redis queue service for enqueueing deployment jobs."""
+
+from __future__ import annotations
+
+import logging
+from typing import Dict, Optional
+
+from redis import Redis
+from rq import Queue
+
+logger = logging.getLogger(__name__)
+
+
+def enqueue_deployment(
+    deployment_id: str,
+    redis_url: str,
+    redeploy_from: Optional[str] = None,
+    secrets: Optional[Dict[str, str]] = None,
+) -> Optional[str]:
+    """Enqueue a deployment job to the worker queue.
+
+    Args:
+        deployment_id: Deployment ID to process
+        redis_url: Redis connection URL
+        redeploy_from: If this is a redeployment, the previous deployment ID
+                      to get existing infrastructure from
+        secrets: Secrets to inject to the deployment provider (passed through,
+                never stored in Runtm DB)
+
+    Returns:
+        Job ID if successfully enqueued, None otherwise
+
+    Security note:
+        Secrets are passed through the job queue to the worker. They are
+        encrypted in transit via Redis TLS (if configured) and are only
+        held in memory. They are NEVER persisted to the Runtm database.
+    """
+    try:
+        redis_conn = Redis.from_url(redis_url)
+        queue = Queue("deployments", connection=redis_conn)
+
+        # Enqueue the job - worker will import and run this function
+        # Secrets are passed as kwargs to avoid logging them in positional args
+        job = queue.enqueue(
+            "runtm_worker.jobs.process_deployment",
+            deployment_id,
+            redeploy_from,  # Pass the previous deployment ID if redeploying
+            secrets=secrets,  # Pass secrets (never logged, never stored)
+            job_timeout="20m",  # 20 minutes max
+            result_ttl=86400,  # Keep result for 24 hours
+        )
+
+        if redeploy_from:
+            logger.info(
+                f"Enqueued redeployment {deployment_id} (from {redeploy_from}) as job {job.id}"
+            )
+        else:
+            logger.info(f"Enqueued deployment {deployment_id} as job {job.id}")
+
+        # Log secret names only (never values)
+        if secrets:
+            logger.info(f"Deployment {deployment_id} has {len(secrets)} secrets to inject")
+
+        return job.id
+
+    except Exception as e:
+        logger.error(f"Failed to enqueue deployment {deployment_id}: {e}")
+        return None
+

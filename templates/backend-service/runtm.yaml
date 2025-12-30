@@ -1,0 +1,7 @@
+name: my-service
+template: backend-service
+runtime: python
+health_path: /health
+port: 8080
+tier: starter  # Options: starter (cheapest), standard, performance
+

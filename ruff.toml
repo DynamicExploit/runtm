@@ -1,0 +1,29 @@
+# Ruff configuration for Runtm monorepo
+# See pyproject.toml for full settings - this file provides IDE support
+
+target-version = "py39"
+line-length = 100
+src = ["packages/*/"]
+
+[lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B008",   # do not perform function calls in argument defaults
+    "B904",   # raise without from inside except
+    "ARG001", # unused function argument
+]
+
+[lint.isort]
+known-first-party = ["runtm_shared", "runtm_api", "runtm_worker", "runtm_cli"]
+

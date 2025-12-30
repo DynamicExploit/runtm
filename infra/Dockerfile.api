@@ -1,0 +1,41 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install flyctl for runtime log access
+RUN curl -L https://fly.io/install.sh | sh
+ENV FLYCTL_INSTALL="/root/.fly"
+ENV PATH="$FLYCTL_INSTALL/bin:$PATH"
+
+# Copy package files
+COPY packages/shared/pyproject.toml packages/shared/README.md packages/shared/
+COPY packages/shared/runtm_shared packages/shared/runtm_shared/
+
+COPY packages/worker/pyproject.toml packages/worker/README.md packages/worker/
+COPY packages/worker/runtm_worker packages/worker/runtm_worker/
+
+COPY packages/api/pyproject.toml packages/api/README.md packages/api/
+COPY packages/api/runtm_api packages/api/runtm_api/
+COPY packages/api/alembic packages/api/alembic/
+COPY packages/api/alembic.ini packages/api/
+
+# Install packages (include worker for FlyProvider access in destroy endpoint)
+RUN pip install --no-cache-dir ./packages/shared ./packages/worker ./packages/api
+
+# Set working directory for API
+WORKDIR /app/packages/api
+
+# Create artifacts directory
+RUN mkdir -p /artifacts
+
+# Expose port
+EXPOSE 8000
+
+# Run migrations and start server
+CMD ["sh", "-c", "alembic upgrade head && uvicorn runtm_api.main:app --host 0.0.0.0 --port 8000"]
+

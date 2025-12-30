@@ -1,0 +1,48 @@
+# runtm.discovery.yaml - App discovery metadata
+# ⚠️ Fill this in before deploying! Apps with metadata are easier to find and understand.
+
+# Description: 2-3 sentences explaining what this app does
+description: |
+  # TODO: Replace this with your app description
+  # Example: "A fullstack web application with interactive dashboard and real-time updates.
+  # Built with Next.js frontend and FastAPI backend, deployed on Runtm."
+
+# Summary: One-line tagline (shown in search results)
+summary: "# TODO: Add a one-line summary"
+
+# Capabilities: What can this app do?
+capabilities:
+  - "# TODO: List key features"
+  # Examples:
+  # - "User authentication"
+  # - "Real-time dashboard"
+  # - "Data visualization"
+  # - "File uploads"
+
+# Use cases: Who should use this app?
+use_cases:
+  - "# TODO: Describe target users"
+  # Examples:
+  # - "Teams managing internal workflows"
+  # - "Customers accessing their portal"
+  # - "Admins monitoring system status"
+
+# Tags: Keywords for search (lowercase, no spaces)
+tags:
+  - "# TODO: Add tags"
+  # Examples:
+  # - dashboard
+  # - fullstack
+  # - nextjs
+  # - fastapi
+
+# API discovery (this app has a backend API)
+api:
+  openapi_path: /openapi.json
+  endpoints:
+    - "# TODO: List main endpoints"
+    # Examples:
+    # - GET /api/v1/items
+    # - POST /api/v1/items
+    # - GET /health
+

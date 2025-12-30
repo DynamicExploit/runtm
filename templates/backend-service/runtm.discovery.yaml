@@ -1,0 +1,48 @@
+# runtm.discovery.yaml - App discovery metadata
+# ⚠️ Fill this in before deploying! Apps with metadata are easier to find and understand.
+
+# Description: 2-3 sentences explaining what this API does
+description: |
+  # TODO: Replace this with your API description
+  # Example: "A RESTful API service that processes data and returns results.
+  # Built with FastAPI and deployed on Runtm for high availability."
+
+# Summary: One-line tagline (shown in search results)
+summary: "# TODO: Add a one-line summary"
+
+# Capabilities: What can this API do?
+capabilities:
+  - "# TODO: List key features"
+  # Examples:
+  # - "Process and transform data"
+  # - "Webhook integrations"
+  # - "Real-time notifications"
+  # - "Authentication and authorization"
+
+# Use cases: Who should use this API?
+use_cases:
+  - "# TODO: Describe target users"
+  # Examples:
+  # - "Developers integrating with external services"
+  # - "Agents needing tool execution"
+  # - "Applications requiring data processing"
+
+# Tags: Keywords for search (lowercase, no spaces)
+tags:
+  - "# TODO: Add tags"
+  # Examples:
+  # - api
+  # - backend
+  # - fastapi
+  # - webhook
+
+# API discovery (this is a backend service)
+api:
+  openapi_path: /openapi.json
+  endpoints:
+    - "# TODO: List main endpoints"
+    # Examples:
+    # - POST /api/v1/process
+    # - GET /api/v1/status
+    # - GET /health
+

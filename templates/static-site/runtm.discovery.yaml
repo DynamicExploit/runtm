@@ -1,0 +1,40 @@
+# runtm.discovery.yaml - App discovery metadata
+# ⚠️ Fill this in before deploying! Apps with metadata are easier to find and understand.
+
+# Description: 2-3 sentences explaining what this site does
+description: |
+  # TODO: Replace this with your site description
+  # Example: "A modern landing page showcasing our product features, pricing, 
+  # and customer testimonials. Built with Next.js and deployed on Runtm."
+
+# Summary: One-line tagline (shown in search results)
+summary: "# TODO: Add a one-line summary"
+
+# Capabilities: What does this site offer?
+capabilities:
+  - "# TODO: List key features"
+  # Examples:
+  # - "Product showcase"
+  # - "Pricing information"
+  # - "Contact form"
+  # - "Blog articles"
+
+# Use cases: Who is this site for?
+use_cases:
+  - "# TODO: Describe target audience"
+  # Examples:
+  # - "Potential customers evaluating the product"
+  # - "Developers looking for documentation"
+  # - "Marketing team sharing landing pages"
+
+# Tags: Keywords for search (lowercase, no spaces)
+tags:
+  - "# TODO: Add tags"
+  # Examples:
+  # - landing-page
+  # - marketing
+  # - nextjs
+  # - static-site
+
+# Note: Static sites don't need the 'api' section
+

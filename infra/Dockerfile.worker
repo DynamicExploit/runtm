@@ -1,0 +1,37 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install system dependencies (including Docker CLI for building images)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    docker.io \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install flyctl for runtime log access
+RUN curl -L https://fly.io/install.sh | sh
+ENV FLYCTL_INSTALL="/root/.fly"
+ENV PATH="$FLYCTL_INSTALL/bin:$PATH"
+
+# Copy package files
+COPY packages/shared/pyproject.toml packages/shared/README.md packages/shared/
+COPY packages/shared/runtm_shared packages/shared/runtm_shared/
+
+COPY packages/api/pyproject.toml packages/api/README.md packages/api/
+COPY packages/api/runtm_api packages/api/runtm_api/
+
+COPY packages/worker/pyproject.toml packages/worker/README.md packages/worker/
+COPY packages/worker/runtm_worker packages/worker/runtm_worker/
+
+# Install packages
+RUN pip install --no-cache-dir ./packages/shared ./packages/api ./packages/worker
+
+# Create artifacts directory
+RUN mkdir -p /artifacts
+
+# Set working directory
+WORKDIR /app/packages/worker
+
+# Run worker
+CMD ["python", "-m", "runtm_worker.main"]
+

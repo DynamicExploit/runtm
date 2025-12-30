@@ -1,0 +1,7 @@
+name: my-site
+template: static-site
+runtime: node
+health_path: /health
+port: 3000
+tier: starter  # Options: starter (cheapest), standard, performance
+

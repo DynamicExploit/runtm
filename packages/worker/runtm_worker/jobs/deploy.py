@@ -1,0 +1,701 @@
+"""Deploy job - main worker pipeline with optimized builds."""
+
+from __future__ import annotations
+
+import concurrent.futures
+import contextlib
+import os
+
+from sqlalchemy.orm import Session
+
+from runtm_shared import Manifest
+from runtm_shared.errors import (
+    BuildError,
+    DeploymentNotFoundError,
+    DeploymentStateError,
+    DeployTimeoutError,
+    HealthCheckError,
+)
+from runtm_shared.types import (
+    DeploymentState,
+    Limits,
+    LogType,
+    MachineConfig,
+    can_transition,
+    get_tier_spec,
+)
+from runtm_shared.urls import construct_deployment_url, get_subdomain_for_app
+from runtm_worker.build import DockerBuilder
+from runtm_worker.logs import LogCapture
+from runtm_worker.providers import FlyProvider
+from runtm_worker.storage import LocalFileStore
+
+
+class DeployJob:
+    """Main deploy job that orchestrates the build/deploy pipeline.
+
+    Pipeline (Remote Builder - Default, Fastest):
+        1. Load deployment from DB
+        2. Validate state (must be QUEUED)
+        3. Transition to BUILDING
+        4. Create Fly app and allocate IPs
+        5. Build AND deploy via Fly remote builder (single step)
+        6. Transition to DEPLOYING
+        7. Save provider resource and verify health
+        8. Transition to READY with URL
+        9. Handle errors -> FAILED with error message
+
+    Pipeline (Local Build - Fallback):
+        1-4. Same as above
+        5. Build Docker image locally with BuildKit
+        6. Push image to Fly registry
+        7. Transition to DEPLOYING
+        8. Create machine via Fly Machines API
+        9. Wait for health check
+        10. Transition to READY with URL
+
+    Optimizations:
+        - Remote builder (default): Build AND deploy on Fly's infra in one step
+        - Auto-generated fly.toml with optimized health check settings
+        - BuildKit: Parallel multi-stage builds (local fallback)
+        - Concurrent operations: Parallel IP allocation
+
+    Redeployment:
+        When redeploy_from is provided, the job will:
+        - Use the existing Fly app and machine from the previous deployment
+        - Update the machine with the new image instead of creating a new app
+        - Keep the same URL
+    """
+
+    def __init__(
+        self,
+        db: Session,
+        storage_path: str,
+        fly_api_token: str | None = None,
+        redeploy_from: str | None = None,
+        use_remote_builder: bool = True,
+        secrets: dict | None = None,
+    ):
+        """Initialize deploy job.
+
+        Args:
+            db: Database session
+            storage_path: Path to artifact storage
+            fly_api_token: Fly.io API token
+            redeploy_from: Previous deployment ID for redeployments
+            use_remote_builder: Use Fly's remote builder (faster, recommended)
+            secrets: Secrets to inject (passed through to provider, never stored)
+        """
+        self.db = db
+        self.storage = LocalFileStore(storage_path)
+        self.fly_api_token = fly_api_token or os.environ.get("FLY_API_TOKEN")
+        self.redeploy_from = redeploy_from
+        self.use_remote_builder = use_remote_builder
+        self.secrets = secrets or {}
+
+    def _get_deployment(self, deployment_id: str):
+        """Get deployment by human-friendly ID.
+
+        Args:
+            deployment_id: Deployment ID (e.g., dep_abc123)
+
+        Returns:
+            Deployment record
+
+        Raises:
+            DeploymentNotFoundError: If not found
+        """
+        # Import here to avoid circular imports
+        from runtm_api.db.models import Deployment
+
+        deployment = (
+            self.db.query(Deployment).filter(Deployment.deployment_id == deployment_id).first()
+        )
+        if not deployment:
+            raise DeploymentNotFoundError(deployment_id)
+        return deployment
+
+    def _transition_state(
+        self,
+        deployment,
+        new_state: DeploymentState,
+        error_message: str | None = None,
+        url: str | None = None,
+    ) -> None:
+        """Transition deployment to a new state.
+
+        Args:
+            deployment: Deployment record
+            new_state: Target state
+            error_message: Error message (for FAILED state)
+            url: Deployment URL (for READY state)
+
+        Raises:
+            DeploymentStateError: If transition not allowed
+        """
+        current_state = deployment.state
+        if not can_transition(current_state, new_state):
+            raise DeploymentStateError(current_state.value, new_state.value)
+
+        deployment.state = new_state
+        if error_message:
+            deployment.error_message = error_message
+        if url:
+            deployment.url = url
+        self.db.commit()
+
+    def _save_provider_resource(self, deployment, resource) -> None:
+        """Save provider resource mapping to DB.
+
+        Args:
+            deployment: Deployment record
+            resource: ProviderResource from deploy
+        """
+        from runtm_api.db.models import ProviderResource as ProviderResourceModel
+
+        pr = ProviderResourceModel(
+            deployment_id=deployment.id,
+            provider="fly",
+            app_name=resource.app_name,
+            machine_id=resource.machine_id,
+            region=resource.region,
+            image_ref=resource.image_ref,
+        )
+        self.db.add(pr)
+        self.db.commit()
+
+    def _get_previous_provider_resource(self, previous_deployment_id: str):
+        """Get provider resource from a previous deployment.
+
+        Args:
+            previous_deployment_id: Previous deployment ID
+
+        Returns:
+            ProviderResource from the previous deployment, or None
+        """
+        from runtm_api.db.models import Deployment
+        from runtm_shared.types import ProviderResource
+
+        previous = (
+            self.db.query(Deployment)
+            .filter(Deployment.deployment_id == previous_deployment_id)
+            .first()
+        )
+
+        if not previous or not previous.provider_resource:
+            return None
+
+        pr = previous.provider_resource
+        return ProviderResource(
+            app_name=pr.app_name,
+            machine_id=pr.machine_id,
+            region=pr.region,
+            image_ref=pr.image_ref,
+            url=previous.url or construct_deployment_url(pr.app_name),
+        )
+
+    def _get_dns_provider(self):
+        """Get configured DNS provider instance.
+
+        Returns:
+            DnsProvider instance or None if not configured
+        """
+        from runtm_api.core.config import get_settings
+
+        settings = get_settings()
+
+        if not settings.dns_enabled:
+            return None
+
+        if settings.dns_provider == "cloudflare":
+            from runtm_shared.dns.cloudflare import CloudflareDnsProvider
+
+            if not settings.cloudflare_api_token or not settings.cloudflare_zone_id:
+                return None
+
+            return CloudflareDnsProvider(
+                api_token=settings.cloudflare_api_token,
+                zone_id=settings.cloudflare_zone_id,
+            )
+
+        return None
+
+    def _inject_secrets(
+        self,
+        app_name: str,
+        deploy_log,
+    ) -> bool:
+        """Inject secrets to the deployment provider.
+
+        Secrets are passed directly to the provider and are NEVER stored
+        in the Runtm database. Only secret NAMES are logged.
+
+        Args:
+            app_name: Provider app name (e.g., Fly app name)
+            deploy_log: Log capture for writing messages
+
+        Returns:
+            True if secrets were injected successfully (or none to inject)
+        """
+        if not self.secrets:
+            return True
+
+        from runtm_worker.providers import FlySecretsProvider
+
+        # Log only secret NAMES, never values
+        secret_names = list(self.secrets.keys())
+        deploy_log.write(f"Injecting {len(self.secrets)} secrets: {', '.join(secret_names)}")
+
+        secrets_provider = FlySecretsProvider(api_token=self.fly_api_token)
+        result = secrets_provider.set_secrets(app_name, self.secrets)
+
+        if result.success:
+            deploy_log.write(f"Secrets injected successfully ({result.secrets_set} secrets)")
+            return True
+        else:
+            deploy_log.write(f"Warning: Failed to inject secrets: {result.error}")
+            return False
+
+    def _provision_custom_subdomain(
+        self,
+        provider: FlyProvider,
+        app_name: str,
+        deploy_log,
+    ) -> None:
+        """Provision custom subdomain with DNS record and SSL certificate.
+
+        When RUNTM_BASE_DOMAIN is configured (e.g., runtm.com), this method:
+        1. Creates a CNAME record via DNS provider (Cloudflare):
+           runtm-abc123.runtm.com -> runtm-abc123.fly.dev
+        2. Adds SSL certificate for the subdomain to the Fly app
+
+        This hides provider URLs - users only see runtm.com URLs.
+
+        Args:
+            provider: Fly provider instance (for SSL cert)
+            app_name: Fly app name (e.g., "runtm-abc123")
+            deploy_log: Log capture for writing messages
+        """
+        from runtm_shared.urls import get_base_domain
+
+        base_domain = get_base_domain()
+        subdomain = get_subdomain_for_app(app_name)
+
+        if not subdomain or not base_domain:
+            # No custom domain configured, skip
+            return
+
+        deploy_log.write(f"Provisioning custom subdomain: {subdomain}")
+
+        # Step 1: Create DNS CNAME record
+        dns_provider = self._get_dns_provider()
+        if dns_provider:
+            try:
+                # Target is the provider's native URL (e.g., runtm-abc123.fly.dev)
+                target = f"{app_name}.fly.dev"
+
+                success = dns_provider.upsert_cname(
+                    subdomain=app_name,
+                    domain=base_domain,
+                    target=target,
+                    proxied=False,  # Don't proxy - let Fly handle SSL
+                )
+
+                if success:
+                    deploy_log.write(f"DNS record created: {subdomain} -> {target}")
+                else:
+                    deploy_log.write(f"Warning: Failed to create DNS record for {subdomain}")
+
+            except Exception as e:
+                deploy_log.write(f"Warning: DNS record creation failed: {e}")
+                # Continue to try adding certificate anyway
+        else:
+            deploy_log.write("Warning: DNS provider not configured, skipping DNS record")
+            deploy_log.write("DNS record must be created manually for custom domain to work")
+
+        # Step 2: Add SSL certificate to Fly app
+        try:
+            from runtm_shared.types import ProviderResource
+
+            # Create a minimal resource for the add_custom_domain call
+            resource = ProviderResource(
+                app_name=app_name,
+                machine_id="",
+                region="",
+                image_ref="",
+                url="",
+            )
+
+            # Add certificate for the subdomain
+            domain_info = provider.add_custom_domain(resource, subdomain)
+
+            if domain_info.certificate_status == "issued":
+                deploy_log.write(f"SSL certificate ready: https://{subdomain}")
+            elif domain_info.certificate_status in ("pending", "awaiting_dns"):
+                deploy_log.write(f"SSL certificate pending (awaiting DNS): {subdomain}")
+            else:
+                deploy_log.write(f"SSL certificate status: {domain_info.certificate_status}")
+
+        except Exception as e:
+            # Non-fatal: deployment still works on fly.dev
+            deploy_log.write(f"Warning: Could not provision SSL certificate: {e}")
+            deploy_log.write(f"App is still accessible at https://{app_name}.fly.dev")
+
+    def _ensure_fly_app_with_ips(
+        self,
+        provider: FlyProvider,
+        app_name: str,
+        build_log,
+    ) -> bool:
+        """Ensure Fly app exists and has IP addresses allocated.
+
+        Uses concurrent execution for IP allocation to save time.
+
+        Args:
+            provider: Fly provider instance
+            app_name: App name to create/check
+            build_log: Log capture for writing messages
+
+        Returns:
+            True if app was created (new), False if it already existed
+        """
+        build_log.write(f"Ensuring Fly app exists: {app_name}")
+
+        existing_app = provider._get_app(app_name)
+        if existing_app:
+            build_log.write(f"Using existing Fly app: {app_name}")
+            return False
+
+        # Create app
+        provider._create_app(app_name)
+        build_log.write(f"Created Fly app: {app_name}")
+
+        # Allocate IP addresses concurrently
+        build_log.write("Allocating IP addresses...")
+
+        # Use ThreadPoolExecutor for concurrent IP allocation
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+            future = executor.submit(provider._allocate_ip_addresses, app_name)
+            allocated_ips = future.result(timeout=30)
+
+        if allocated_ips:
+            build_log.write(f"Allocated IPs: {', '.join(allocated_ips)}")
+        else:
+            build_log.write("Warning: Could not allocate IP addresses")
+
+        return True
+
+    def run(self, deployment_id: str) -> bool:
+        """Run the deploy pipeline.
+
+        Args:
+            deployment_id: Deployment ID to process
+
+        Returns:
+            True if deployment succeeded, False otherwise
+        """
+        deployment = None
+
+        try:
+            # Load deployment
+            deployment = self._get_deployment(deployment_id)
+
+            # Validate state
+            if deployment.state != DeploymentState.QUEUED:
+                raise DeploymentStateError(
+                    deployment.state.value,
+                    DeploymentState.BUILDING.value,
+                )
+
+            # Get manifest
+            manifest = Manifest.model_validate(deployment.manifest_json)
+
+            # === BUILD PHASE ===
+            self._transition_state(deployment, DeploymentState.BUILDING)
+
+            with LogCapture(
+                self.db,
+                str(deployment.id),
+                LogType.BUILD,
+            ) as build_log:
+                build_log.write(f"Processing deployment: {deployment_id}")
+                build_log.write(f"Name: {manifest.name}")
+                build_log.write(f"Template: {manifest.template}")
+
+                # Get artifact
+                artifact_path = self.storage.get_path(deployment.artifact_key)
+                if not artifact_path.exists():
+                    raise BuildError(f"Artifact not found: {deployment.artifact_key}")
+
+                build_log.write(f"Artifact: {artifact_path}")
+
+                # Build Docker image
+                builder = DockerBuilder(
+                    registry="registry.fly.io",
+                    log_callback=build_log.write,
+                    use_remote_builder=self.use_remote_builder,
+                )
+
+                # Fly app names: lowercase letters, numbers, dashes only (no underscores)
+                app_name = f"runtm-{deployment_id[:12]}".replace("_", "-")
+
+                # Login to Fly registry (skipped for remote builder)
+                if self.fly_api_token and not self.use_remote_builder:
+                    build_log.write("Logging in to Fly registry...")
+                    if not builder.login_fly_registry(self.fly_api_token):
+                        raise BuildError("Failed to login to Fly registry")
+
+                # Create Fly app BEFORE pushing (registry requires app to exist)
+                provider = FlyProvider(api_token=self.fly_api_token)
+                try:
+                    self._ensure_fly_app_with_ips(provider, app_name, build_log)
+                except Exception as e:
+                    raise BuildError(f"Failed to create Fly app: {e}") from e
+
+                # Get machine tier from manifest (defaults to starter)
+                machine_tier = manifest.get_machine_tier()
+                tier_spec = get_tier_spec(machine_tier)
+
+                # Build and push (or use remote builder which also deploys)
+                if self.use_remote_builder:
+                    build_log.write("Using Fly remote builder (builds and deploys)...")
+
+                build_result = builder.build_and_push(
+                    artifact_path=artifact_path,
+                    image_name=app_name,
+                    deployment_id=deployment_id,
+                    build_timeout=Limits.BUILD_TIMEOUT_SECONDS,
+                    fly_api_token=self.fly_api_token,
+                    internal_port=manifest.port,
+                    health_check_path=manifest.health_path,
+                    memory_mb=tier_spec.memory_mb,
+                )
+
+                if not build_result.success:
+                    raise BuildError(build_result.error or "Build failed")
+
+                image_tag = build_result.image_tag
+                build_log.write(f"Built: {image_tag}")
+
+                # Save discovery metadata if found
+                if build_result.discovery_json:
+                    deployment.discovery_json = build_result.discovery_json
+                    self.db.commit()
+                    build_log.write("Discovery metadata saved")
+
+            # Check if remote builder already deployed
+            if build_result.deployed and build_result.url:
+                # Remote builder did the full deployment
+                self._transition_state(deployment, DeploymentState.DEPLOYING)
+
+                with LogCapture(
+                    self.db,
+                    str(deployment.id),
+                    LogType.DEPLOY,
+                ) as deploy_log:
+                    # Add secret values for redaction (never log actual values)
+                    if self.secrets:
+                        deploy_log.add_redact_values(self.secrets)
+                    deploy_log.write("Deployment completed by remote builder")
+                    deploy_log.write(f"Machine tier: {tier_spec.description}")
+                    deploy_log.write("Auto-stop enabled for cost savings")
+
+                    # Create provider to get machine info and save resource
+                    provider = FlyProvider(api_token=self.fly_api_token)
+
+                    # Get machine ID from the app
+                    machines = provider._list_machines(app_name)
+                    if machines:
+                        machine = machines[0]
+                        machine_id = machine.get("id", "unknown")
+                        region = machine.get("region", "iad")
+                    else:
+                        machine_id = "unknown"
+                        region = "iad"
+
+                    # Save provider resource
+                    from runtm_shared.types import ProviderResource
+
+                    resource = ProviderResource(
+                        app_name=app_name,
+                        machine_id=machine_id,
+                        region=region,
+                        image_ref=image_tag,
+                        url=build_result.url,
+                    )
+                    self._save_provider_resource(deployment, resource)
+                    deploy_log.write(f"Provider resource saved: {app_name}")
+
+                    # Verify health check
+                    deploy_log.write("Verifying health check...")
+                    status = provider.get_status(resource)
+                    if not status.healthy:
+                        # Give it a moment and retry
+                        import time
+
+                        time.sleep(10)
+                        status = provider.get_status(resource)
+
+                    if not status.healthy:
+                        deploy_log.write("Warning: Health check not yet passing, but deployment completed")
+                    else:
+                        deploy_log.write("Health check passed!")
+
+                    # Inject secrets to the provider (pass-through, never stored)
+                    self._inject_secrets(app_name, deploy_log)
+
+                    # Provision custom subdomain certificate if configured
+                    self._provision_custom_subdomain(provider, app_name, deploy_log)
+
+                    deploy_log.write(f"URL: {build_result.url}")
+
+                # === SUCCESS ===
+                self._transition_state(
+                    deployment,
+                    DeploymentState.READY,
+                    url=build_result.url,
+                )
+
+            else:
+                # === DEPLOY PHASE (local build path) ===
+                self._transition_state(deployment, DeploymentState.DEPLOYING)
+
+                with LogCapture(
+                    self.db,
+                    str(deployment.id),
+                    LogType.DEPLOY,
+                ) as deploy_log:
+                    # Add secret values for redaction (never log actual values)
+                    if self.secrets:
+                        deploy_log.add_redact_values(self.secrets)
+
+                    # Create provider
+                    provider = FlyProvider(api_token=self.fly_api_token)
+
+                    deploy_log.write(f"Machine tier: {tier_spec.description}")
+                    deploy_log.write("Auto-stop enabled for cost savings")
+
+                    # Configure machine using tier specs
+                    config = MachineConfig.from_tier(
+                        tier=machine_tier,
+                        image=image_tag,
+                        health_check_path=manifest.health_path,
+                        internal_port=manifest.port,
+                    )
+
+                    # Check if this is a redeployment
+                    previous_resource = None
+                    if self.redeploy_from:
+                        previous_resource = self._get_previous_provider_resource(self.redeploy_from)
+
+                    if previous_resource:
+                        # Redeployment - update existing machine
+                        deploy_log.write(f"Redeploying to existing app: {previous_resource.app_name}")
+                        deploy_log.write(f"Previous version URL: {previous_resource.url}")
+                        result = provider.redeploy(previous_resource, config)
+                    else:
+                        # New deployment
+                        deploy_log.write("Starting deployment to Fly.io...")
+                    result = provider.deploy(deployment_id, config)
+
+                    deploy_log.write_lines(result.logs.split("\n"))
+
+                    if not result.success:
+                        raise DeployTimeoutError(Limits.DEPLOY_TIMEOUT_SECONDS)
+
+                    # Save provider resource
+                    self._save_provider_resource(deployment, result.resource)
+                    deploy_log.write(f"Provider resource saved: {result.resource.app_name}")
+
+                    # Wait for health check
+                    deploy_log.write("Waiting for health check...")
+                    status = provider.get_status(result.resource)
+                    if not status.healthy:
+                        # Give it a moment and retry
+                        import time
+
+                        time.sleep(10)
+                        status = provider.get_status(result.resource)
+
+                    if not status.healthy:
+                        raise HealthCheckError(manifest.health_path)
+
+                    deploy_log.write("Health check passed!")
+
+                    # Inject secrets to the provider (pass-through, never stored)
+                    self._inject_secrets(result.resource.app_name, deploy_log)
+
+                    # Provision custom subdomain certificate if configured
+                    self._provision_custom_subdomain(provider, result.resource.app_name, deploy_log)
+
+                    deploy_log.write(f"URL: {result.resource.url}")
+
+                # === SUCCESS ===
+                self._transition_state(
+                    deployment,
+                    DeploymentState.READY,
+                    url=result.resource.url,
+                )
+
+            return True
+
+        except Exception as e:
+            # Handle failure
+            error_message = str(e)
+
+            if deployment:
+                with contextlib.suppress(DeploymentStateError):
+                    self._transition_state(
+                        deployment,
+                        DeploymentState.FAILED,
+                        error_message=error_message,
+                    )
+
+            return False
+
+
+def process_deployment(
+    deployment_id: str,
+    redeploy_from: str | None = None,
+    use_remote_builder: bool | None = None,
+    secrets: dict | None = None,
+) -> bool:
+    """Process a deployment job.
+
+    This is the function called by the worker queue.
+
+    Args:
+        deployment_id: Deployment ID to process
+        redeploy_from: If this is a redeployment, the previous deployment ID
+                      to get existing infrastructure from
+        use_remote_builder: Use Fly's remote builder (defaults to config setting)
+        secrets: Secrets to inject to the provider (passed through, never stored)
+
+    Returns:
+        True if successful
+
+    Security note:
+        Secrets are passed directly to the SecretsProvider and are NEVER
+        stored in the Runtm database. Only secret NAMES are logged.
+    """
+    from runtm_api.core.config import get_settings
+    from runtm_api.db import create_session
+
+    settings = get_settings()
+    db = create_session()
+
+    # Use config setting if not explicitly provided
+    if use_remote_builder is None:
+        use_remote_builder = settings.use_remote_builder
+
+    try:
+        job = DeployJob(
+            db=db,
+            storage_path=settings.artifact_storage_path,
+            redeploy_from=redeploy_from,
+            use_remote_builder=use_remote_builder,
+            secrets=secrets,
+        )
+        return job.run(deployment_id)
+    finally:
+        db.close()
