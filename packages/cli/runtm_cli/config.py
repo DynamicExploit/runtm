@@ -21,8 +21,15 @@ class CLIConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     # API connection
-    api_url: str = "https://api.runtm.dev"
+    # Routes through Cloud Backend proxy which validates API keys
+    # and forwards to internal OSS API with service token
+    api_url: str = "https://app.runtm.com/api"
     token: Optional[str] = None
+
+    # Cloud Backend URL (for API key validation during login)
+    # The CLI validates user API keys against the Cloud Backend,
+    # which is the public-facing auth layer.
+    cloud_url: str = "https://app.runtm.com"
 
     # Default settings
     default_template: str = "backend-service"
@@ -81,6 +88,8 @@ def load_config() -> CLIConfig:
         config_data["api_url"] = os.environ["RUNTM_API_URL"]
     if os.environ.get("RUNTM_TOKEN"):
         config_data["token"] = os.environ["RUNTM_TOKEN"]
+    if os.environ.get("RUNTM_CLOUD_URL"):
+        config_data["cloud_url"] = os.environ["RUNTM_CLOUD_URL"]
 
     return CLIConfig.model_validate(config_data)
 
@@ -129,6 +138,13 @@ def set_token(token: str) -> None:
     save_config(config)
 
 
+def clear_token() -> None:
+    """Remove API token from config file."""
+    config = load_config()
+    config.token = None
+    save_config(config)
+
+
 def get_api_url() -> str:
     """Get API URL from config or environment.
 
@@ -137,6 +153,19 @@ def get_api_url() -> str:
     """
     config = load_config()
     return config.api_url
+
+
+def get_cloud_url() -> str:
+    """Get Cloud Backend URL from config or environment.
+
+    The Cloud Backend is the public-facing auth layer where users
+    create/manage API keys. The CLI validates keys against this endpoint.
+
+    Returns:
+        Cloud Backend URL
+    """
+    config = load_config()
+    return config.cloud_url
 
 
 def get_config() -> dict:
