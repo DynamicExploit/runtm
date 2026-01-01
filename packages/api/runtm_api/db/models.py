@@ -92,6 +92,13 @@ class Deployment(Base):
     # Discovery metadata from runtm.discovery.yaml (for search/discoverability)
     discovery_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
+    # Source hash for config-only deploys (git SHA or source tree hash)
+    # Used to validate --config-only deploys haven't changed source code
+    src_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
+    # Config-only deploy flag (skip build, reuse previous image)
+    config_only: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -156,6 +163,10 @@ class ProviderResource(Base):
     machine_id: Mapped[str] = mapped_column(String(128), nullable=False)
     region: Mapped[str] = mapped_column(String(32), nullable=False)
     image_ref: Mapped[str] = mapped_column(String(256), nullable=False)
+
+    # Image label for rollbacks/reuse (e.g., "dep-abc123")
+    # Used with `flyctl deploy --image registry.fly.io/{app}:{label}`
+    image_label: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

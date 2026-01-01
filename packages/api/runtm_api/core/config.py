@@ -59,6 +59,12 @@ class Settings(BaseSettings):
     port: int = 8000
     debug: bool = False
 
+    # SECURITY: Dev-only bypass for authentication
+    # When True (AND debug=True AND api_token is empty), accepts any token.
+    # This is DANGEROUS and should NEVER be enabled in production.
+    # Requires explicit opt-in to prevent accidental exposure.
+    allow_insecure_dev_auth: bool = False
+
     # Rate limiting
     rate_limit_enabled: bool = True
     rate_limit_requests_per_hour: int = 10

@@ -16,6 +16,7 @@ def enqueue_deployment(
     redis_url: str,
     redeploy_from: Optional[str] = None,
     secrets: Optional[Dict[str, str]] = None,
+    config_only: bool = False,
 ) -> Optional[str]:
     """Enqueue a deployment job to the worker queue.
 
@@ -26,6 +27,8 @@ def enqueue_deployment(
                       to get existing infrastructure from
         secrets: Secrets to inject to the deployment provider (passed through,
                 never stored in Runtm DB)
+        config_only: If True, skip Docker build and reuse previous image
+                    (for config-only changes like env vars or tier)
 
     Returns:
         Job ID if successfully enqueued, None otherwise
@@ -46,11 +49,16 @@ def enqueue_deployment(
             deployment_id,
             redeploy_from,  # Pass the previous deployment ID if redeploying
             secrets=secrets,  # Pass secrets (never logged, never stored)
+            config_only=config_only,  # Skip build and reuse image
             job_timeout="20m",  # 20 minutes max
             result_ttl=86400,  # Keep result for 24 hours
         )
 
-        if redeploy_from:
+        if config_only:
+            logger.info(
+                f"Enqueued config-only deployment {deployment_id} as job {job.id}"
+            )
+        elif redeploy_from:
             logger.info(
                 f"Enqueued redeployment {deployment_id} (from {redeploy_from}) as job {job.id}"
             )

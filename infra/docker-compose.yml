@@ -12,7 +12,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://runtm:runtm@postgres:5432/runtm
       - REDIS_URL=redis://redis:6379
-      - RUNTM_API_TOKEN=${RUNTM_API_TOKEN:-dev-token}
+      - API_TOKEN=${RUNTM_API_TOKEN:-dev-token}
       - ARTIFACT_STORAGE_PATH=/artifacts
       - AUTH_MODE=single_tenant
       - DEBUG=true

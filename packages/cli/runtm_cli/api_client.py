@@ -18,7 +18,7 @@ from runtm_shared.errors import (
     RateLimitError,
 )
 
-from .config import get_api_url, get_token
+from .config import get_api_url, get_cloud_url, get_token
 
 
 @dataclass
@@ -36,6 +36,7 @@ class DeploymentInfo:
     is_latest: bool = True
     previous_deployment_id: Optional[str] = None
     app_name: Optional[str] = None  # Fly.io app name (for domain commands)
+    src_hash: Optional[str] = None  # Source hash for config-only validation
 
 
 @dataclass
@@ -125,6 +126,76 @@ class SearchResponse:
     results: List[SearchResult]
     total: int
     query: str
+
+
+@dataclass
+class CloudKeyVerifyResponse:
+    """Response from Cloud Backend API key verification."""
+
+    valid: bool
+    key_id: str
+    name: str
+    scopes: List[str]
+    expires_at: Optional[str]
+    user_id: str
+
+
+def verify_cloud_api_key(token: str, cloud_url: Optional[str] = None) -> CloudKeyVerifyResponse:
+    """Verify a Cloud API key against the Cloud Backend.
+
+    This should be called during `runtm login` to validate the key
+    before saving it locally. The CLI authenticates against the
+    Cloud Backend (public auth layer), not the OSS API directly.
+
+    Args:
+        token: The API key to verify (runtm_sk_...)
+        cloud_url: Cloud Backend URL (defaults to config)
+
+    Returns:
+        CloudKeyVerifyResponse with key metadata if valid
+
+    Raises:
+        InvalidTokenError: If the key is invalid, expired, or revoked
+        RuntmError: For other errors
+    """
+    url = cloud_url or get_cloud_url()
+
+    try:
+        response = httpx.get(
+            f"{url}/api/keys/verify",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10.0,
+        )
+
+        if response.status_code == 401:
+            # Parse error message from response for logging
+            try:
+                detail = response.json().get("detail", "Invalid API key")
+            except Exception:
+                detail = "Invalid API key"
+            # InvalidTokenError doesn't take a message arg, use RuntmError for specific details
+            raise RuntmError(
+                f"Invalid API key: {detail}",
+                recovery_hint="Create a new key at https://app.runtm.com/api-keys",
+            )
+        elif response.status_code >= 400:
+            raise RuntmError(f"Key verification failed: {response.status_code}")
+
+        data = response.json()
+        return CloudKeyVerifyResponse(
+            valid=data["valid"],
+            key_id=data["key_id"],
+            name=data["name"],
+            scopes=data["scopes"],
+            expires_at=data.get("expires_at"),
+            user_id=data["user_id"],
+        )
+
+    except httpx.RequestError as e:
+        raise RuntmError(
+            f"Could not connect to Cloud Backend: {e}",
+            recovery_hint="Check your internet connection and try again.",
+        )
 
 
 class APIClient:
@@ -276,6 +347,8 @@ class APIClient:
         force_new: bool = False,
         tier: Optional[str] = None,
         secrets: Optional[Dict[str, str]] = None,
+        src_hash: Optional[str] = None,
+        config_only: bool = False,
     ) -> DeploymentInfo:
         """Create a new deployment or redeploy an existing one.
 
@@ -289,6 +362,8 @@ class APIClient:
             force_new: Force creation of new deployment instead of redeploying
             tier: Optional machine tier override (starter, standard, performance)
             secrets: Optional secrets to inject (passed through to provider, never stored)
+            src_hash: Source hash for tracking and config-only validation
+            config_only: Skip Docker build and reuse previous image (for config-only changes)
 
         Returns:
             DeploymentInfo with status
@@ -316,14 +391,18 @@ class APIClient:
                 params.append("new=true")
             if tier:
                 params.append(f"tier={tier}")
+            if config_only:
+                params.append("config_only=true")
             if params:
                 url += "?" + "&".join(params)
 
-            # Add secrets as form data (not logged, passed through to worker)
+            # Add secrets and metadata as form data (not logged, passed through to worker)
             data = {}
             if secrets:
                 # Pass as JSON string in form data
                 data["secrets"] = json.dumps(secrets)
+            if src_hash:
+                data["src_hash"] = src_hash
 
             response = httpx.post(
                 url,
@@ -563,7 +642,38 @@ class APIClient:
             is_latest=data.get("is_latest", True),
             previous_deployment_id=data.get("previous_deployment_id"),
             app_name=data.get("app_name"),
+            src_hash=data.get("src_hash"),
         )
+
+    def get_latest_deployment_for_name(self, name: str) -> Optional[DeploymentInfo]:
+        """Get the latest deployment for a given project name.
+
+        Used to validate --config-only deploys by checking previous src_hash.
+
+        Args:
+            name: Project name from runtm.yaml
+
+        Returns:
+            DeploymentInfo if found, None otherwise
+        """
+        try:
+            response = httpx.get(
+                f"{self.api_url}/v0/deployments",
+                params={"name": name, "limit": 1},
+                headers=self._headers(),
+                timeout=self.timeout,
+            )
+
+            if response.status_code >= 400:
+                return None
+
+            data = response.json()
+            deployments = data.get("deployments", [])
+            if deployments:
+                return self._parse_deployment(deployments[0])
+            return None
+        except Exception:
+            return None
 
     def add_custom_domain(
         self,
@@ -804,4 +914,135 @@ def _parse_ignore_file(ignore_path: Path) -> list[str]:
     except Exception:
         pass  # Ignore read errors
     return patterns
+
+
+def compute_src_hash(project_path: Path) -> str:
+    """Compute a hash of source files for config-only deploy validation.
+
+    Used to validate that --config-only deploys haven't changed source code.
+    If source has changed, the deploy should do a full build, not skip it.
+
+    Strategy:
+    1. Try git SHA (preferred - cleaner, faster, handles uncommitted changes)
+    2. Fall back to hashing source tree (for non-git projects)
+
+    Args:
+        project_path: Path to project directory
+
+    Returns:
+        16-character hash string (git SHA prefix or source tree hash)
+    """
+    import hashlib
+    import subprocess
+
+    # Option 1: Use git commit SHA if in git repo
+    # This is preferred because it's cleaner and handles the common case
+    try:
+        # First check if there are uncommitted changes
+        status_result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=project_path,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        if status_result.returncode == 0:
+            # Get HEAD SHA
+            sha_result = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=project_path,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            if sha_result.returncode == 0:
+                git_sha = sha_result.stdout.strip()
+
+                # If there are uncommitted changes, append dirty marker to hash
+                has_changes = bool(status_result.stdout.strip())
+                if has_changes:
+                    # Include hash of uncommitted changes
+                    diff_result = subprocess.run(
+                        ["git", "diff", "HEAD"],
+                        cwd=project_path,
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                    )
+                    if diff_result.returncode == 0 and diff_result.stdout:
+                        # Hash the diff content and combine with SHA
+                        diff_hash = hashlib.sha256(
+                            diff_result.stdout.encode()
+                        ).hexdigest()[:8]
+                        return f"{git_sha[:8]}-{diff_hash}"
+
+                return git_sha[:16]
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass  # Git not available or timeout, fall back to file hash
+
+    # Option 2: Hash source tree (excluding deps/lockfiles/config)
+    # This is used for non-git projects
+    hasher = hashlib.sha256()
+
+    # Files/dirs to exclude from source hash
+    # These don't affect the Docker image content meaningfully
+    exclude_patterns = {
+        # Dependencies (rebuilt in container)
+        "node_modules",
+        "__pycache__",
+        ".venv",
+        "venv",
+        ".git",
+        # Build outputs
+        ".next",
+        "out",
+        "dist",
+        "build",
+        # Lockfiles (deps changes are handled separately)
+        "package-lock.json",
+        "bun.lockb",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "uv.lock",
+        "poetry.lock",
+        "Pipfile.lock",
+        # Config files (env vars handled via API)
+        ".env",
+        ".env.local",
+        ".env.production",
+        "runtm.yaml",
+        # IDE/OS
+        ".vscode",
+        ".idea",
+        ".DS_Store",
+    }
+
+    def should_exclude(path: Path) -> bool:
+        """Check if path should be excluded from hash."""
+        for part in path.parts:
+            if part in exclude_patterns:
+                return True
+            # Also check file extensions
+            if part.endswith((".pyc", ".pyo", ".pyd")):
+                return True
+        return False
+
+    # Sort files for deterministic hash
+    files = []
+    for file in project_path.rglob("*"):
+        if file.is_file() and not should_exclude(file.relative_to(project_path)):
+            files.append(file)
+
+    for file in sorted(files):
+        try:
+            # Include relative path in hash (so renames are detected)
+            relative_path = str(file.relative_to(project_path))
+            hasher.update(relative_path.encode())
+            hasher.update(file.read_bytes())
+        except Exception:
+            pass  # Skip files we can't read
+
+    return hasher.hexdigest()[:16]
 

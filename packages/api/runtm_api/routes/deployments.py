@@ -81,6 +81,7 @@ class DeploymentResponse(BaseModel):
     app_name: Optional[str] = None  # Fly.io app name (for domain commands)
     template: Optional[str] = None  # Template type (backend-service, static-site, web-app)
     runtime: Optional[str] = None  # Runtime (python, node)
+    src_hash: Optional[str] = None  # Source hash for config-only validation
     created_at: datetime
     updated_at: datetime
     # Discovery metadata (if available)
@@ -134,6 +135,7 @@ class DeploymentResponse(BaseModel):
             app_name=app_name,
             template=template,
             runtime=runtime,
+            src_hash=deployment.src_hash,
             created_at=deployment.created_at,
             updated_at=deployment.updated_at,
             discovery=discovery,
@@ -293,6 +295,7 @@ class SearchResponse(BaseModel):
 @router.get("", response_model=DeploymentsListResponse, dependencies=[require_scope(ApiKeyScope.READ)])
 async def list_deployments(
     state: Optional[str] = None,
+    name: Optional[str] = Query(None, description="Filter by project name"),
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
@@ -302,6 +305,7 @@ async def list_deployments(
 
     Query params:
     - state: Filter by state (queued, building, deploying, ready, failed, destroyed)
+    - name: Filter by project name (exact match)
     - limit: Maximum number of results (default: 50, max: 100)
     - offset: Pagination offset (default: 0)
 
@@ -319,6 +323,10 @@ async def list_deployments(
 
     # Build base query with tenant scoping
     query = repo._scoped_query()
+
+    # Filter by name if provided
+    if name:
+        query = query.filter(Deployment.name == name)
 
     # Filter by state if provided
     if state:
@@ -480,6 +488,7 @@ async def create_deployment(
     idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
     force_new: bool = Query(False, alias="new", description="Force new deployment instead of redeploying"),
     tier: Optional[str] = Query(None, description="Machine tier override: starter, standard, or performance"),
+    config_only: bool = Query(False, description="Skip Docker build - reuse previous image (for env/tier changes only)"),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context),
     settings: Settings = Depends(get_settings),
@@ -490,12 +499,14 @@ async def create_deployment(
     - manifest: runtm.yaml file
     - artifact: zip file containing project
     - secrets: (optional) JSON string of secrets to inject to the provider
+    - src_hash: (optional) Source hash for tracking and config-only validation
 
     Redeployment behavior:
     - If a deployment with the same name exists and is ready/failed, this will
       create a new version that updates the existing infrastructure.
     - The URL stays the same across versions.
     - Use ?new=true to force a completely new deployment.
+    - Use ?config_only=true to skip Docker build and reuse previous image.
 
     Returns deployment info with status.
 
@@ -509,10 +520,12 @@ async def create_deployment(
     """
     import json
 
-    # Parse secrets from form data (if provided)
+    # Parse secrets and metadata from form data
     # Secrets are passed through to worker, never stored in DB
     secrets_to_inject: Optional[dict] = None
+    src_hash: Optional[str] = None
     form = await request.form()
+    
     secrets_json = form.get("secrets")
     if secrets_json:
         try:
@@ -526,6 +539,11 @@ async def create_deployment(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"error": "Invalid secrets JSON format"},
             )
+
+    # Extract src_hash from form data
+    src_hash_value = form.get("src_hash")
+    if src_hash_value:
+        src_hash = str(src_hash_value)
     # Check idempotency first
     if idempotency_key:
         idempotency_service = IdempotencyService(db)
@@ -611,6 +629,30 @@ async def create_deployment(
         .first()
     )
 
+    # If no is_latest deployment found, check for any READY deployment with the same name
+    # This handles the edge case where the latest was destroyed but there's still
+    # a READY deployment that should be used as the base for redeployment
+    if not existing_latest and not force_new:
+        any_ready = (
+            db.query(Deployment)
+            .filter(
+                Deployment.tenant_id == auth.tenant_id,
+                Deployment.name == parsed_manifest.name,
+                Deployment.state == DeploymentState.READY,
+            )
+            .order_by(Deployment.created_at.desc())
+            .with_for_update()
+            .first()
+        )
+        if any_ready:
+            existing_latest = any_ready
+            # Mark it as latest first (it will be unmarked below)
+            any_ready.is_latest = True
+            logger.info(
+                "Found READY deployment %s to redeploy (recovering from destroyed is_latest)",
+                any_ready.deployment_id,
+            )
+
     if existing_latest:
         previous_deployment = existing_latest
         previous_version = existing_latest.version
@@ -669,6 +711,8 @@ async def create_deployment(
         version=previous_version + 1,
         is_latest=True,
         previous_deployment_id=previous_deployment.deployment_id if previous_deployment else None,
+        src_hash=src_hash,
+        config_only=config_only,
     )
     db.add(deployment)
     db.flush()  # Get the ID
@@ -691,6 +735,7 @@ async def create_deployment(
         settings.redis_url,
         redeploy_from=redeploy_from,
         secrets=secrets_to_inject,
+        config_only=config_only,
     )
 
     return DeploymentResponse.from_db(deployment)
@@ -1296,6 +1341,31 @@ async def destroy_deployment(
     # Update deployment state
     deployment.state = DeploymentState.DESTROYED
     deployment.url = None
+
+    if deployment.is_latest:
+        deployment.is_latest = False
+
+        # Find the most recent READY deployment with the same name to promote
+        # This ensures the redeployment chain stays intact
+        previous_ready = (
+            db.query(Deployment)
+            .filter(
+                Deployment.tenant_id == auth.tenant_id,
+                Deployment.name == deployment.name,
+                Deployment.state == DeploymentState.READY,
+                Deployment.deployment_id != deployment.deployment_id,
+            )
+            .order_by(Deployment.created_at.desc())
+            .first()
+        )
+        if previous_ready:
+            previous_ready.is_latest = True
+            logger.info(
+                "Promoted %s to is_latest after destroying %s",
+                previous_ready.deployment_id,
+                deployment_id,
+            )
+
     db.commit()
 
     return DestroyResponse(

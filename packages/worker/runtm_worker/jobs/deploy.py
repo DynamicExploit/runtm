@@ -75,6 +75,7 @@ class DeployJob:
         redeploy_from: str | None = None,
         use_remote_builder: bool = True,
         secrets: dict | None = None,
+        config_only: bool = False,
     ):
         """Initialize deploy job.
 
@@ -85,6 +86,7 @@ class DeployJob:
             redeploy_from: Previous deployment ID for redeployments
             use_remote_builder: Use Fly's remote builder (faster, recommended)
             secrets: Secrets to inject (passed through to provider, never stored)
+            config_only: Skip Docker build and reuse previous image
         """
         self.db = db
         self.storage = LocalFileStore(storage_path)
@@ -92,6 +94,7 @@ class DeployJob:
         self.redeploy_from = redeploy_from
         self.use_remote_builder = use_remote_builder
         self.secrets = secrets or {}
+        self.config_only = config_only
 
     def _get_deployment(self, deployment_id: str):
         """Get deployment by human-friendly ID.
@@ -144,12 +147,13 @@ class DeployJob:
             deployment.url = url
         self.db.commit()
 
-    def _save_provider_resource(self, deployment, resource) -> None:
+    def _save_provider_resource(self, deployment, resource, image_label: str | None = None) -> None:
         """Save provider resource mapping to DB.
 
         Args:
             deployment: Deployment record
             resource: ProviderResource from deploy
+            image_label: Optional image label for rollbacks/reuse
         """
         from runtm_api.db.models import ProviderResource as ProviderResourceModel
 
@@ -160,6 +164,7 @@ class DeployJob:
             machine_id=resource.machine_id,
             region=resource.region,
             image_ref=resource.image_ref,
+            image_label=image_label,
         )
         self.db.add(pr)
         self.db.commit()
@@ -171,7 +176,7 @@ class DeployJob:
             previous_deployment_id: Previous deployment ID
 
         Returns:
-            ProviderResource from the previous deployment, or None
+            Tuple of (ProviderResource, image_label) from the previous deployment, or (None, None)
         """
         from runtm_api.db.models import Deployment
         from runtm_shared.types import ProviderResource
@@ -183,16 +188,17 @@ class DeployJob:
         )
 
         if not previous or not previous.provider_resource:
-            return None
+            return None, None
 
         pr = previous.provider_resource
-        return ProviderResource(
+        resource = ProviderResource(
             app_name=pr.app_name,
             machine_id=pr.machine_id,
             region=pr.region,
             image_ref=pr.image_ref,
             url=previous.url or construct_deployment_url(pr.app_name),
         )
+        return resource, pr.image_label
 
     def _get_dns_provider(self):
         """Get configured DNS provider instance.
@@ -410,6 +416,108 @@ class DeployJob:
             # Get manifest
             manifest = Manifest.model_validate(deployment.manifest_json)
 
+            # Check for redeployment - compute ONCE before build phase
+            # This ensures both remote and local builder paths use the same logic
+            previous_resource = None
+            previous_image_label = None
+            is_redeployment = False
+            if self.redeploy_from:
+                previous_resource, previous_image_label = self._get_previous_provider_resource(self.redeploy_from)
+                if previous_resource:
+                    is_redeployment = True
+
+            # === CONFIG-ONLY DEPLOY PATH ===
+            # Skip build entirely and reuse previous image (for env var/tier changes)
+            if self.config_only:
+                if not is_redeployment or not previous_resource or not previous_image_label:
+                    raise BuildError(
+                        "Config-only deploy requires a previous deployment with a valid image. "
+                        "Use a regular deploy instead."
+                    )
+                
+                # Skip BUILDING state, go directly to DEPLOYING
+                self._transition_state(deployment, DeploymentState.DEPLOYING)
+
+                with LogCapture(
+                    self.db,
+                    str(deployment.id),
+                    LogType.DEPLOY,
+                ) as deploy_log:
+                    # Add secret values for redaction (never log actual values)
+                    if self.secrets:
+                        deploy_log.add_redact_values(self.secrets)
+
+                    deploy_log.write("Config-only deployment - skipping Docker build")
+                    deploy_log.write(f"Reusing image: {previous_resource.app_name}:{previous_image_label}")
+
+                    # Get machine tier from manifest
+                    machine_tier = manifest.get_machine_tier()
+                    tier_spec = get_tier_spec(machine_tier)
+                    deploy_log.write(f"Machine tier: {tier_spec.description}")
+
+                    # Use flyctl deploy --image to deploy the existing image
+                    import subprocess
+                    
+                    app_name = previous_resource.app_name
+                    image_ref = f"registry.fly.io/{app_name}:{previous_image_label}"
+                    
+                    env = os.environ.copy()
+                    env["FLY_API_TOKEN"] = self.fly_api_token
+
+                    deploy_log.write(f"Deploying image: {image_ref}")
+
+                    cmd = [
+                        "flyctl", "deploy",
+                        "--app", app_name,
+                        "--image", image_ref,
+                        "--yes",
+                        "--wait-timeout", "3m",
+                    ]
+
+                    result = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=300,
+                        env=env,
+                    )
+
+                    # Log output
+                    if result.stdout:
+                        for line in result.stdout.strip().split("\n"):
+                            if line.strip():
+                                deploy_log.write(line)
+
+                    if result.returncode != 0:
+                        error_msg = result.stderr.strip() if result.stderr else "Config-only deploy failed"
+                        deploy_log.write(f"ERROR: {error_msg}")
+                        raise DeployTimeoutError(300)
+
+                    # Inject secrets to the provider (pass-through, never stored)
+                    self._inject_secrets(app_name, deploy_log)
+
+                    # Save provider resource (reuse previous but update deployment link)
+                    from runtm_shared.types import ProviderResource
+
+                    resource = ProviderResource(
+                        app_name=app_name,
+                        machine_id=previous_resource.machine_id,
+                        region=previous_resource.region,
+                        image_ref=image_ref,
+                        url=previous_resource.url,
+                    )
+                    self._save_provider_resource(deployment, resource, previous_image_label)
+
+                    deploy_log.write(f"URL: {previous_resource.url}")
+
+                # === SUCCESS (config-only) ===
+                self._transition_state(
+                    deployment,
+                    DeploymentState.READY,
+                    url=previous_resource.url,
+                )
+                return True
+
             # === BUILD PHASE ===
             self._transition_state(deployment, DeploymentState.BUILDING)
 
@@ -436,8 +544,16 @@ class DeployJob:
                     use_remote_builder=self.use_remote_builder,
                 )
 
-                # Fly app names: lowercase letters, numbers, dashes only (no underscores)
-                app_name = f"runtm-{deployment_id[:12]}".replace("_", "-")
+                # Determine app name - reuse existing for redeployments (idempotency)
+                if is_redeployment and previous_resource:
+                    app_name = previous_resource.app_name
+                    build_log.write(f"Redeployment detected - reusing existing app: {app_name}")
+                    build_log.write(f"Previous URL: {previous_resource.url}")
+                else:
+                    # New deployment - generate app name from deployment ID
+                    # Fly app names: lowercase letters, numbers, dashes only (no underscores)
+                    app_name = f"runtm-{deployment_id[:12]}".replace("_", "-")
+                    build_log.write(f"New deployment - creating app: {app_name}")
 
                 # Login to Fly registry (skipped for remote builder)
                 if self.fly_api_token and not self.use_remote_builder:
@@ -446,6 +562,7 @@ class DeployJob:
                         raise BuildError("Failed to login to Fly registry")
 
                 # Create Fly app BEFORE pushing (registry requires app to exist)
+                # For redeployments, the app already exists so this is a no-op
                 provider = FlyProvider(api_token=self.fly_api_token)
                 try:
                     self._ensure_fly_app_with_ips(provider, app_name, build_log)
@@ -523,7 +640,8 @@ class DeployJob:
                         image_ref=image_tag,
                         url=build_result.url,
                     )
-                    self._save_provider_resource(deployment, resource)
+                    # Pass image_label from build result for rollbacks
+                    self._save_provider_resource(deployment, resource, build_result.image_label)
                     deploy_log.write(f"Provider resource saved: {app_name}")
 
                     # Verify health check
@@ -583,12 +701,8 @@ class DeployJob:
                         internal_port=manifest.port,
                     )
 
-                    # Check if this is a redeployment
-                    previous_resource = None
-                    if self.redeploy_from:
-                        previous_resource = self._get_previous_provider_resource(self.redeploy_from)
-
-                    if previous_resource:
+                    # Use redeployment info computed earlier (same as remote builder path)
+                    if is_redeployment and previous_resource:
                         # Redeployment - update existing machine
                         deploy_log.write(f"Redeploying to existing app: {previous_resource.app_name}")
                         deploy_log.write(f"Previous version URL: {previous_resource.url}")
@@ -596,7 +710,7 @@ class DeployJob:
                     else:
                         # New deployment
                         deploy_log.write("Starting deployment to Fly.io...")
-                    result = provider.deploy(deployment_id, config)
+                        result = provider.deploy(deployment_id, config)
 
                     deploy_log.write_lines(result.logs.split("\n"))
 
@@ -659,6 +773,7 @@ def process_deployment(
     redeploy_from: str | None = None,
     use_remote_builder: bool | None = None,
     secrets: dict | None = None,
+    config_only: bool = False,
 ) -> bool:
     """Process a deployment job.
 
@@ -670,6 +785,7 @@ def process_deployment(
                       to get existing infrastructure from
         use_remote_builder: Use Fly's remote builder (defaults to config setting)
         secrets: Secrets to inject to the provider (passed through, never stored)
+        config_only: Skip Docker build and reuse previous image
 
     Returns:
         True if successful
@@ -695,6 +811,7 @@ def process_deployment(
             redeploy_from=redeploy_from,
             use_remote_builder=use_remote_builder,
             secrets=secrets,
+            config_only=config_only,
         )
         return job.run(deployment_id)
     finally:

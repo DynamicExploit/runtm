@@ -51,6 +51,11 @@ def validate_project(path: Path) -> tuple[bool, list[str], list[str]]:
     dockerfile_path = path / "Dockerfile"
     if not dockerfile_path.exists():
         result.add_error("Missing Dockerfile")
+    else:
+        # Validate Dockerfile cache hygiene for optimal layer caching
+        cache_warnings = validate_dockerfile_cache_hygiene(dockerfile_path)
+        for warning in cache_warnings:
+            result.add_warning(warning)
 
     # Check artifact size
     total_size = 0
@@ -592,6 +597,98 @@ def validate_health_config(manifest: Manifest) -> tuple[list[str], list[str]]:
         )
 
     return errors, warnings
+
+
+def validate_dockerfile_cache_hygiene(dockerfile_path: Path) -> list[str]:
+    """Validate Dockerfile structure for optimal layer caching.
+    
+    Checks that dependency manifests are copied and dependencies installed
+    BEFORE copying the full source code. This ensures that code-only changes
+    only invalidate the final layers, not the expensive dependency install layers.
+    
+    Correct pattern:
+        COPY package.json .
+        RUN npm install
+        COPY . .
+    
+    Anti-pattern (busts cache on every code change):
+        COPY . .
+        RUN npm install
+    
+    Args:
+        dockerfile_path: Path to Dockerfile
+        
+    Returns:
+        List of warning messages (not errors - user may have valid reasons)
+    """
+    warnings = []
+    
+    if not dockerfile_path.exists():
+        return warnings
+    
+    try:
+        content = dockerfile_path.read_text()
+    except Exception:
+        return warnings
+    
+    # Remove comments to avoid false positives
+    lines = []
+    for line in content.split('\n'):
+        # Strip comments but preserve the line structure
+        comment_pos = line.find('#')
+        if comment_pos != -1:
+            line = line[:comment_pos]
+        lines.append(line)
+    content_no_comments = '\n'.join(lines)
+    
+    # Find positions of key patterns
+    # Look for "COPY . ." or "COPY . ./" which copies everything
+    copy_all_pattern = re.compile(r'COPY\s+\.\s+\./?', re.IGNORECASE)
+    copy_all_match = copy_all_pattern.search(content_no_comments)
+    
+    if not copy_all_match:
+        # No "COPY . ." found - either good structure or no source copy at all
+        return warnings
+    
+    copy_all_pos = copy_all_match.start()
+    
+    # Find dependency install commands
+    install_patterns = [
+        (r'RUN\s+.*npm\s+(install|ci)', 'npm'),
+        (r'RUN\s+.*bun\s+install', 'bun'),
+        (r'RUN\s+.*pip\s+install', 'pip'),
+        (r'RUN\s+.*uv\s+(sync|pip)', 'uv'),
+        (r'RUN\s+.*yarn\s+(install)?', 'yarn'),
+        (r'RUN\s+.*pnpm\s+install', 'pnpm'),
+    ]
+    
+    # Find the first install command position
+    first_install_pos = None
+    install_tool = None
+    
+    for pattern, tool in install_patterns:
+        match = re.search(pattern, content_no_comments, re.IGNORECASE)
+        if match:
+            if first_install_pos is None or match.start() < first_install_pos:
+                first_install_pos = match.start()
+                install_tool = tool
+    
+    if first_install_pos is None:
+        # No install command found - nothing to warn about
+        return warnings
+    
+    # Check if COPY . . comes BEFORE the first install command
+    if copy_all_pos < first_install_pos:
+        warnings.append(
+            f"Dockerfile: 'COPY . .' appears before '{install_tool} install'. "
+            "This will bust the layer cache on every code change, causing slow rebuilds. "
+            "For faster deploys, copy lockfiles first, install deps, then copy source:\n"
+            "    COPY package*.json ./\n"
+            "    RUN npm install\n"
+            "    COPY . ."
+        )
+    
+    return warnings
 
 
 def validate_command(

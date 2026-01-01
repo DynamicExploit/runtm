@@ -218,45 +218,40 @@ def approve_command(
     # Apply changes
     changes_made = []
 
-    # Merge features
+    # Prepare all merged values first (before creating new Manifest)
+    # This ensures dependent changes (e.g., auth + AUTH_SECRET) are applied together
+    merged_features = manifest.features
+    feature_changes: List[str] = []
     if requests.requested.features and requests.requested.features.has_changes():
         merged_features, feature_changes = merge_features(
             manifest.features, requests.requested.features
         )
-        if feature_changes:
-            manifest = Manifest(
-                name=manifest.name,
-                template=manifest.template,
-                runtime=manifest.runtime,
-                health_path=manifest.health_path,
-                port=manifest.port,
-                tier=manifest.tier,
-                features=merged_features,
-                volumes=manifest.volumes,
-                env_schema=manifest.env_schema,
-                connections=manifest.connections,
-                policy=manifest.policy,
-            )
-            changes_made.append(f"Updated features: {', '.join(feature_changes)}")
 
-    # Merge env vars
+    merged_env = manifest.env_schema
+    added_env: List[str] = []
     if requests.requested.env_vars:
         new_env_vars = [ev.to_env_var() for ev in requests.requested.env_vars]
         merged_env, added_env = merge_env_vars(manifest.env_schema, new_env_vars)
+
+    # Create new manifest with ALL changes together (features + env_vars)
+    # This avoids validation errors from partial updates (e.g., auth=True without AUTH_SECRET)
+    if feature_changes or added_env:
+        manifest = Manifest(
+            name=manifest.name,
+            template=manifest.template,
+            runtime=manifest.runtime,
+            health_path=manifest.health_path,
+            port=manifest.port,
+            tier=manifest.tier,
+            features=merged_features,
+            volumes=manifest.volumes,
+            env_schema=merged_env,
+            connections=manifest.connections,
+            policy=manifest.policy,
+        )
+        if feature_changes:
+            changes_made.append(f"Updated features: {', '.join(feature_changes)}")
         if added_env:
-            manifest = Manifest(
-                name=manifest.name,
-                template=manifest.template,
-                runtime=manifest.runtime,
-                health_path=manifest.health_path,
-                port=manifest.port,
-                tier=manifest.tier,
-                features=manifest.features,
-                volumes=manifest.volumes,
-                env_schema=merged_env,
-                connections=manifest.connections,
-                policy=manifest.policy,
-            )
             changes_made.append(f"Added {len(added_env)} env vars: {', '.join(added_env)}")
 
     # Merge connections

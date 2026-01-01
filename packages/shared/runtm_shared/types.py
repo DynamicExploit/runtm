@@ -109,7 +109,8 @@ class DeploymentState(str, Enum):
 
 # Allowed state transitions
 ALLOWED_TRANSITIONS: Dict[DeploymentState, Set[DeploymentState]] = {
-    DeploymentState.QUEUED: {DeploymentState.BUILDING, DeploymentState.FAILED, DeploymentState.DESTROYED},
+    # DEPLOYING allowed from QUEUED for config-only deploys (skip build)
+    DeploymentState.QUEUED: {DeploymentState.BUILDING, DeploymentState.DEPLOYING, DeploymentState.FAILED, DeploymentState.DESTROYED},
     DeploymentState.BUILDING: {DeploymentState.DEPLOYING, DeploymentState.FAILED},
     DeploymentState.DEPLOYING: {DeploymentState.READY, DeploymentState.FAILED},
     DeploymentState.READY: {DeploymentState.QUEUED, DeploymentState.DESTROYED},  # QUEUED for redeploy

@@ -17,7 +17,7 @@ from runtm_shared.lockfiles import check_lockfile, fix_lockfile
 from runtm_shared.manifest import Manifest
 from runtm_shared.types import MachineTier, MACHINE_TIER_SPECS
 
-from ..api_client import APIClient, create_artifact_zip
+from ..api_client import APIClient, create_artifact_zip, compute_src_hash
 from ..config import get_token
 from .validate import validate_project
 
@@ -31,6 +31,7 @@ def deploy_command(
     new: bool = False,
     tier: Optional[str] = None,
     yes: bool = False,
+    config_only: bool = False,
 ) -> None:
     """Deploy a project to a live URL.
 
@@ -40,6 +41,8 @@ def deploy_command(
 
     Use --new to force creation of a completely new deployment.
     Use --yes to auto-fix lockfile issues without prompting.
+    Use --config-only to skip Docker build and reuse the previous image.
+    (Requires unchanged source code - only for env var or tier changes.)
 
     Machine tiers (all use auto-stop for cost savings):
       - starter: 1 shared CPU, 256MB RAM (~$2/month, much less with auto-stop)
@@ -218,6 +221,51 @@ def deploy_command(
         # Deploy
         client = APIClient()
 
+        # Compute source hash for tracking and config-only validation
+        src_hash: Optional[str] = None
+        with phase_span("src_hash"):
+            try:
+                src_hash = compute_src_hash(path)
+                console.print(f"[dim]Source hash: {src_hash}[/dim]")
+            except Exception as e:
+                console.print(f"[yellow]⚠[/yellow] Could not compute source hash: {e}")
+
+        # Validate --config-only flag
+        if config_only:
+            with phase_span("config_only_validation"):
+                if new:
+                    console.print("[red]✗[/red] --config-only cannot be used with --new")
+                    console.print("    Config-only deploys require a previous deployment to reuse.")
+                    raise typer.Exit(1)
+
+                # Get previous deployment to check src_hash
+                try:
+                    previous = client.get_latest_deployment_for_name(manifest.name)
+                except Exception:
+                    previous = None
+
+                if not previous:
+                    console.print("[red]✗[/red] --config-only requires a previous deployment")
+                    console.print("    No existing deployment found for this project name.")
+                    console.print("    Use `runtm deploy` (without --config-only) for first deploy.")
+                    raise typer.Exit(1)
+
+                # Check if source has changed
+                if previous.src_hash and src_hash and previous.src_hash != src_hash:
+                    console.print("[red]✗[/red] Source code has changed since last deploy")
+                    console.print(f"    Previous: {previous.src_hash}")
+                    console.print(f"    Current:  {src_hash}")
+                    console.print()
+                    console.print("--config-only requires unchanged source code.")
+                    console.print("Use `runtm deploy` (without --config-only) for a full rebuild.")
+                    raise typer.Exit(1)
+
+                if not previous.src_hash:
+                    console.print("[yellow]⚠[/yellow] Previous deployment has no src_hash")
+                    console.print("    Cannot validate source unchanged. Proceeding anyway.")
+
+                console.print("[green]✓[/green] Config-only deploy - skipping Docker build")
+
         with phase_span("api_call"):
             # Emit deploy started event
             is_redeploy = not new  # Will be updated after API call
@@ -229,13 +277,21 @@ def deploy_command(
             )
 
             try:
-                if new:
+                if config_only:
+                    console.print("Creating config-only deployment (reusing previous image)...")
+                elif new:
                     console.print("Creating new deployment...")
                 else:
                     console.print("Creating deployment (will redeploy if name exists)...")
 
                 deployment = client.create_deployment(
-                    manifest_path, artifact_path, force_new=new, tier=tier, secrets=resolved_secrets
+                    manifest_path,
+                    artifact_path,
+                    force_new=new,
+                    tier=tier,
+                    secrets=resolved_secrets,
+                    src_hash=src_hash,
+                    config_only=config_only,
                 )
 
                 if deployment.version > 1:
