@@ -198,7 +198,7 @@ dockerfile = "Dockerfile"
 [http_service]
 internal_port = {internal_port}
 force_https = true
-auto_stop_machines = "stop"
+auto_stop_machines = "suspend"
 auto_start_machines = true
 min_machines_running = 0
 
