@@ -200,21 +200,22 @@ class TelemetryService:
             List of trace summaries
         """
         # Get unique trace IDs for this deployment
-        query = (
-            self._db.query(
+        query = self._db.query(
                 TelemetrySpan.trace_id,
                 func.min(TelemetrySpan.start_time_ns).label("start_time"),
                 func.max(TelemetrySpan.end_time_ns).label("end_time"),
                 func.count(TelemetrySpan.id).label("span_count"),
-            )
-            .filter(TelemetrySpan.deployment_id == deployment_id)
-            .group_by(TelemetrySpan.trace_id)
-            .order_by(func.min(TelemetrySpan.start_time_ns).desc())
-            .limit(limit)
-        )
+        ).filter(TelemetrySpan.deployment_id == deployment_id)
 
         if owner_id:
             query = query.filter(TelemetrySpan.owner_id == owner_id)
+
+        # Apply grouping, ordering, and limit AFTER all filters
+        query = (
+            query.group_by(TelemetrySpan.trace_id)
+            .order_by(func.min(TelemetrySpan.start_time_ns).desc())
+            .limit(limit)
+        )
 
         traces = query.all()
 
@@ -253,18 +254,13 @@ class TelemetryService:
         Returns:
             List of trace summaries
         """
-        query = (
-            self._db.query(
+        query = self._db.query(
                 TelemetrySpan.trace_id,
                 func.min(TelemetrySpan.name).label("root_name"),
                 func.min(TelemetrySpan.start_time_ns).label("start_time"),
                 func.max(TelemetrySpan.end_time_ns).label("end_time"),
                 func.count(TelemetrySpan.id).label("span_count"),
                 func.min(TelemetrySpan.service_name).label("service"),
-            )
-            .group_by(TelemetrySpan.trace_id)
-            .order_by(func.min(TelemetrySpan.start_time_ns).desc())
-            .limit(limit)
         )
 
         if owner_id:
@@ -272,6 +268,13 @@ class TelemetryService:
 
         if service_name:
             query = query.filter(TelemetrySpan.service_name == service_name)
+
+        # Apply grouping, ordering, and limit AFTER all filters
+        query = (
+            query.group_by(TelemetrySpan.trace_id)
+            .order_by(func.min(TelemetrySpan.start_time_ns).desc())
+            .limit(limit)
+        )
 
         traces = query.all()
 
