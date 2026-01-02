@@ -237,6 +237,7 @@ class DeployJob:
         self,
         app_name: str,
         deploy_log,
+        stage: bool = False,
     ) -> bool:
         """Inject secrets to the deployment provider.
 
@@ -246,6 +247,7 @@ class DeployJob:
         Args:
             app_name: Provider app name (e.g., Fly app name)
             deploy_log: Log capture for writing messages
+            stage: If True, stage secrets without releasing (picked up by next deploy)
 
         Returns:
             True if secrets were injected successfully (or none to inject)
@@ -257,13 +259,15 @@ class DeployJob:
 
         # Log only secret NAMES, never values
         secret_names = list(self.secrets.keys())
-        deploy_log.write(f"Injecting {len(self.secrets)} secrets: {', '.join(secret_names)}")
+        action = "Staging" if stage else "Injecting"
+        deploy_log.write(f"{action} {len(self.secrets)} secrets: {', '.join(secret_names)}")
 
         secrets_provider = FlySecretsProvider(api_token=self.fly_api_token)
-        result = secrets_provider.set_secrets(app_name, self.secrets)
+        result = secrets_provider.set_secrets(app_name, self.secrets, stage=stage)
 
         if result.success:
-            deploy_log.write(f"Secrets injected successfully ({result.secrets_set} secrets)")
+            status = "staged" if stage else "injected"
+            deploy_log.write(f"Secrets {status} successfully ({result.secrets_set} secrets)")
             return True
         else:
             deploy_log.write(f"Warning: Failed to inject secrets: {result.error}")
@@ -472,6 +476,11 @@ class DeployJob:
                     app_name = previous_resource.app_name
                     image_ref = f"registry.fly.io/{app_name}:{previous_image_label}"
 
+                    # Stage secrets BEFORE deploy - they'll be picked up by flyctl deploy
+                    # This avoids a second release/restart after deploy completes
+                    if self.secrets:
+                        self._inject_secrets(app_name, deploy_log, stage=True)
+
                     env = os.environ.copy()
                     env["FLY_API_TOKEN"] = self.fly_api_token
 
@@ -510,8 +519,7 @@ class DeployJob:
                         deploy_log.write(f"ERROR: {error_msg}")
                         raise DeployTimeoutError(300)
 
-                    # Inject secrets to the provider (pass-through, never stored)
-                    self._inject_secrets(app_name, deploy_log)
+                    # Secrets were staged before deploy, no need to inject again
 
                     # Save provider resource (reuse previous but update deployment link)
                     from runtm_shared.types import ProviderResource
@@ -597,6 +605,12 @@ class DeployJob:
                 except Exception as e:
                     raise BuildError(f"Failed to create Fly app: {e}") from e
 
+                # Stage secrets BEFORE deploy - they'll be picked up by flyctl deploy
+                # This avoids a second release/restart after deploy completes
+                if self.secrets:
+                    build_log.add_redact_values(self.secrets)
+                    self._inject_secrets(app_name, build_log, stage=True)
+
                 # Get machine tier from manifest (defaults to starter)
                 machine_tier = manifest.get_machine_tier()
                 tier_spec = get_tier_spec(machine_tier)
@@ -676,8 +690,7 @@ class DeployJob:
                     # The remote builder only returns success if health checks pass
                     deploy_log.write("Health verified by remote builder")
 
-                    # Inject secrets to the provider (pass-through, never stored)
-                    self._inject_secrets(app_name, deploy_log)
+                    # Secrets were staged before deploy, no need to inject again
 
                     # Provision custom subdomain certificate if configured
                     self._provision_custom_subdomain(provider, app_name, deploy_log)
@@ -755,8 +768,7 @@ class DeployJob:
 
                     deploy_log.write("Health check passed!")
 
-                    # Inject secrets to the provider (pass-through, never stored)
-                    self._inject_secrets(result.resource.app_name, deploy_log)
+                    # Secrets were staged before build, machine has them already
 
                     # Provision custom subdomain certificate if configured
                     self._provision_custom_subdomain(provider, result.resource.app_name, deploy_log)

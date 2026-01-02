@@ -48,6 +48,7 @@ class FlySecretsProvider(SecretsProvider):
         self,
         app_name: str,
         secrets: Dict[str, str],
+        stage: bool = False,
     ) -> SecretSetResult:
         """Set secrets for a Fly app.
 
@@ -57,6 +58,7 @@ class FlySecretsProvider(SecretsProvider):
         Args:
             app_name: Fly app name
             secrets: Key-value pairs to set
+            stage: If True, stage secrets without releasing (--stage flag)
 
         Returns:
             SecretSetResult with success/error status
@@ -75,9 +77,14 @@ class FlySecretsProvider(SecretsProvider):
             # Using stdin avoids exposing values in process args
             secrets_input = "\n".join(f"{k}={v}" for k, v in secrets.items())
 
+            # Build command - use --stage to avoid immediate release
+            cmd = ["fly", "secrets", "import", "-a", app_name]
+            if stage:
+                cmd.append("--stage")
+
             # Use fly secrets import which reads from stdin
             result = subprocess.run(
-                ["fly", "secrets", "import", "-a", app_name],
+                cmd,
                 input=secrets_input,
                 capture_output=True,
                 text=True,

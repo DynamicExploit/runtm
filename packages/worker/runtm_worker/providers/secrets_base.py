@@ -59,6 +59,7 @@ class SecretsProvider(ABC):
         self,
         app_name: str,
         secrets: Dict[str, str],
+        stage: bool = False,
     ) -> SecretSetResult:
         """Set secrets for an app.
 
@@ -68,6 +69,7 @@ class SecretsProvider(ABC):
         Args:
             app_name: Target app identifier (provider-specific)
             secrets: Key-value pairs to set (values in memory only)
+            stage: If True, stage secrets without releasing (provider-specific)
 
         Returns:
             SecretSetResult with success/error status
