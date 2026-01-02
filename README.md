@@ -6,6 +6,13 @@ Deploy AI-generated tools and apps to live URLs in minutes. One command → depl
 
 🌐 **Website:** [runtm.com](https://runtm.com) · **Try it free:** [app.runtm.com](https://app.runtm.com)
 
+### Who is Runtm for?
+
+- **AI-assisted developers** who want fast, safe deployments for code they're building with agents
+- **Teams building internal tools** generated partially or fully by AI
+- **OSS hackers** who want a reproducible runtime for agent-built apps  
+- **Infra-curious founders** who want control without rebuilding a PaaS
+
 ## Design Principles
 
 1. **Simplify to the most basic primitives** – Remove complexity, not add it
@@ -65,7 +72,11 @@ runtm run
 runtm deploy
 ```
 
+**That's it.** You now have a live HTTPS endpoint on auto-stopping infrastructure, ready to share.
+
 ## Architecture
+
+The **CLI** talks to the **API** control plane, which coordinates **workers** that build and deploy artifacts to Fly.io.
 
 ```
 packages/
@@ -152,38 +163,35 @@ pytest packages/api/tests
 
 ## CLI Commands
 
-### Core Commands
+> **Most users only need:** `login`, `init`, `run`, `deploy`, `logs`, `destroy`
+
+### Essential Commands
 
 | Command | Description |
 |---------|-------------|
+| `runtm login` | Authenticate with Runtm ([get your key](https://app.runtm.com)) |
 | `runtm init <template>` | Scaffold from template (backend-service, static-site, web-app) |
 | `runtm run` | Run project locally (auto-detects runtime) |
-| `runtm validate` | Validate project before deployment |
 | `runtm deploy [path]` | Deploy project to a live URL |
-| `runtm fix` | Fix common project issues (lockfiles, etc.) |
-| `runtm status <id>` | Show deployment status |
 | `runtm logs <id>` | View logs (build, deploy, runtime) |
-| `runtm list` | List all deployments |
-| `runtm search <query>` | Search deployments by description/tags |
 | `runtm destroy <id>` | Destroy a deployment |
 
-### Authentication
-
-Get your free API key at **[app.runtm.com](https://app.runtm.com)**.
+### Additional Commands
 
 | Command | Description |
 |---------|-------------|
-| `runtm login` | Authenticate with Runtm (token or device flow) |
+| `runtm validate` | Validate project before deployment |
+| `runtm fix` | Fix common project issues (lockfiles, etc.) |
+| `runtm status <id>` | Show deployment status |
+| `runtm list` | List all deployments |
+| `runtm search <query>` | Search deployments by description/tags |
 | `runtm logout` | Remove saved API credentials |
-
-### Secrets Management
-
-| Command | Description |
-|---------|-------------|
 | `runtm secrets set KEY=VALUE` | Set a secret in `.env.local` |
-| `runtm secrets get KEY` | Get a secret value |
 | `runtm secrets list` | List all secrets and their status |
-| `runtm secrets unset KEY` | Remove a secret |
+| `runtm version` | Show CLI version |
+
+<details>
+<summary><strong>Advanced Commands</strong> (custom domains, agent workflow, self-hosting)</summary>
 
 ### Custom Domains
 
@@ -200,7 +208,7 @@ Get your free API key at **[app.runtm.com](https://app.runtm.com)**.
 | `runtm approve` | Apply agent-proposed changes from `runtm.requests.yaml` |
 | `runtm approve --dry-run` | Preview changes without applying |
 
-### Admin Commands (Self-Hosting)
+### Admin Commands (Self-Hosting Only)
 
 For self-hosting operators with direct database access:
 
@@ -211,11 +219,7 @@ For self-hosting operators with direct database access:
 | `runtm admin list-tokens` | List API tokens (metadata only) |
 | `runtm admin rotate-pepper` | Guide through pepper rotation |
 
-### Other
-
-| Command | Description |
-|---------|-------------|
-| `runtm version` | Show CLI version |
+</details>
 
 ### Machine Tiers
 
@@ -281,6 +285,16 @@ The `run` command auto-detects the runtime from `runtm.yaml` and uses Bun if ava
 | `--template TEMPLATE` | `-t` | Filter by template type |
 | `--limit N` | `-n` | Maximum results (default: 20) |
 | `--json` | | Output as JSON |
+
+### Guardrails (V0)
+
+Runtm is opinionated about safety:
+
+- **Artifact size:** 20 MB max
+- **Build timeout:** 10 minutes
+- **Deploy timeout:** 5 minutes
+- **Rate limit:** 10 deployments/hour per token
+- **Auto-stop:** All machines stop when idle (cost protection)
 
 ## Environment Variables & Secrets
 
@@ -579,15 +593,6 @@ import { useSession, signIn, signOut } from "@/lib/auth-client";
 ```
 
 **Included components:** `LoginForm`, `SocialButtons`, `MagicLinkForm`, `AuthGuard`
-
-## Guardrails (V0)
-
-- Artifact size: 20 MB max
-- Build timeout: 10 minutes
-- Deploy timeout: 5 minutes
-- Machine tiers: starter (256MB, 1 CPU), standard (512MB, 1 CPU), performance (1GB, 2 CPUs)
-- All machines use auto-stop for cost savings
-- Max deployments/hour: 10 per token
 
 ## Self-Hosting
 
