@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Ensure .env is loaded from project root before reading settings
@@ -47,7 +47,7 @@ class Settings(BaseSettings):
 
     # Authentication
     auth_mode: AuthMode = AuthMode.SINGLE_TENANT
-    api_secret: str = ""  # Required in production (single-tenant mode), maps to RUNTM_API_SECRET
+    api_secret: str = Field(default="", validation_alias="RUNTM_API_SECRET")
 
     # Token hashing peppers (versioned for rotation)
     # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
