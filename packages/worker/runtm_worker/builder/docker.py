@@ -563,7 +563,16 @@ kill_timeout = "30s"
                     self._log(f"Warning: Could not parse runtm.discovery.yaml: {e}", all_logs)
 
             # Use remote builder if enabled and token available
-            if self.use_remote_builder and fly_api_token:
+            if self.use_remote_builder:
+                if not fly_api_token:
+                    # Remote builder requires API token - fail fast with clear error
+                    error_msg = "FLY_API_TOKEN is required for remote builder"
+                    self._log(f"ERROR: {error_msg}", all_logs)
+                    return BuildResult(
+                        success=False,
+                        error=error_msg,
+                        logs=all_logs,
+                    )
                 self._log("Using Fly remote builder (builds and deploys)...", all_logs)
                 result = self.build_remote(
                     context_path=context_path,
@@ -587,7 +596,7 @@ kill_timeout = "30s"
                     discovery_json=discovery_json,
                 )
 
-            # Fall back to local build + push
+            # Fall back to local build + push (only when use_remote_builder=False)
             # Build image
             build_result = self.build(
                 context_path=context_path,
