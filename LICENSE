@@ -1,22 +1,47 @@
-MIT License
+Runtm - Split License Structure
 
 Copyright (c) 2025 Runtm
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This repository contains multiple components with different licenses:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+--------------------------------------------------------------------------------
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Server Components (AGPLv3):
+  - packages/api/       Control plane API
+  - packages/worker/    Build and deploy worker
+  - infra/              Deployment configurations
 
+Licensed under the GNU Affero General Public License v3.0 (AGPLv3).
+See packages/api/LICENSE for the full license text.
+
+--------------------------------------------------------------------------------
+
+Client Components (Apache-2.0):
+  - packages/cli/       Command-line interface
+  - packages/shared/    Shared contracts, types, and utilities
+
+Licensed under the Apache License, Version 2.0.
+See packages/cli/LICENSE for the full license text.
+
+--------------------------------------------------------------------------------
+
+Templates (MIT):
+  - templates/          Starter templates for deployments
+
+Licensed under the MIT License.
+See templates/LICENSE for the full license text.
+
+--------------------------------------------------------------------------------
+
+Why this split?
+
+The server components (API and Worker) are licensed under AGPLv3 to ensure that
+improvements to hosted deployments remain open source. This follows the pattern
+used by Grafana, MinIO, and other open-core projects.
+
+The CLI and shared libraries are Apache-2.0 licensed for maximum adoption and
+ease of integration.
+
+Templates are MIT licensed with zero friction for users to build upon.
+
+For specific license terms, see the LICENSE file in each package directory.

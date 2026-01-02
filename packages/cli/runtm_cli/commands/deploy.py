@@ -10,14 +10,13 @@ import typer
 from rich.console import Console
 from rich.live import Live
 from rich.spinner import Spinner
-from rich.text import Text
 
 from runtm_shared.errors import RuntmError
 from runtm_shared.lockfiles import check_lockfile, fix_lockfile
 from runtm_shared.manifest import Manifest
-from runtm_shared.types import MachineTier, MACHINE_TIER_SPECS
+from runtm_shared.types import MACHINE_TIER_SPECS, MachineTier
 
-from ..api_client import APIClient, create_artifact_zip, compute_src_hash
+from ..api_client import APIClient, compute_src_hash, create_artifact_zip
 from ..config import get_token
 from .validate import validate_project
 
@@ -27,11 +26,13 @@ console = Console()
 def deploy_command(
     path: Path = Path("."),
     wait: bool = True,
-    timeout: int = 300,
+    timeout: int = 500,
     new: bool = False,
     tier: Optional[str] = None,
     yes: bool = False,
     config_only: bool = False,
+    skip_validation: bool = False,
+    force_validation: bool = False,
 ) -> None:
     """Deploy a project to a live URL.
 
@@ -43,6 +44,8 @@ def deploy_command(
     Use --yes to auto-fix lockfile issues without prompting.
     Use --config-only to skip Docker build and reuse the previous image.
     (Requires unchanged source code - only for env var or tier changes.)
+    Use --skip-validation to skip Python import validation (faster but riskier).
+    Use --force-validation to ignore validation cache and re-run checks.
 
     Machine tiers (all use auto-stop for cost savings):
       - starter: 1 shared CPU, 256MB RAM (~$2/month, much less with auto-stop)
@@ -80,13 +83,17 @@ def deploy_command(
             emit_auth_failed("missing_token")
             console.print("[red]✗[/red] Not authenticated. Run `runtm login` first.")
             console.print()
-            console.print("Or set RUNTM_TOKEN environment variable.")
+            console.print("Or set RUNTM_API_KEY environment variable.")
             raise typer.Exit(1)
 
         # Validate first
         with phase_span("validate"):
             console.print("Validating project...")
-            is_valid, errors, warnings = validate_project(path)
+            is_valid, errors, warnings = validate_project(
+                path,
+                skip_validation=skip_validation,
+                force_validation=force_validation,
+            )
 
             for warning in warnings:
                 console.print(f"[yellow]⚠[/yellow] {warning}")
@@ -106,7 +113,7 @@ def deploy_command(
             try:
                 manifest = Manifest.from_file(path / "runtm.yaml")
                 lockfile_status = check_lockfile(path, manifest.runtime)
-                
+
                 if lockfile_status.needs_fix:
                     if yes:
                         action = "Creating" if not lockfile_status.exists else "Fixing"
@@ -116,14 +123,14 @@ def deploy_command(
                         if fix_lockfile(path, lockfile_status):
                             console.print("[green]✓[/green] Lockfile fixed")
                         else:
-                            console.print(f"[red]✗[/red] Failed to fix lockfile")
+                            console.print("[red]✗[/red] Failed to fix lockfile")
                             console.print(f"    Run manually: {lockfile_status.install_cmd}")
                             raise typer.Exit(1)
                     else:
                         issue = "missing" if not lockfile_status.exists else "out of sync"
                         console.print(f"[red]✗[/red] Lockfile {issue}")
                         console.print(f"    Run: [bold]{lockfile_status.install_cmd}[/bold]")
-                        console.print(f"    Or deploy with: [bold]runtm deploy --yes[/bold]")
+                        console.print("    Or deploy with: [bold]runtm deploy --yes[/bold]")
                         raise typer.Exit(1)
                 else:
                     console.print("[green]✓[/green] Lockfile in sync")
@@ -160,9 +167,13 @@ def deploy_command(
                 resolved_secrets = {k: v for k, v in resolved.items() if k in secret_names}
 
                 if resolved:
-                    console.print(f"[green]✓[/green] Environment variables resolved ({len(resolved)} vars)")
+                    console.print(
+                        f"[green]✓[/green] Environment variables resolved ({len(resolved)} vars)"
+                    )
                     if resolved_secrets:
-                        console.print(f"    [dim]{len(resolved_secrets)} secrets will be injected[/dim]")
+                        console.print(
+                            f"    [dim]{len(resolved_secrets)} secrets will be injected[/dim]"
+                        )
 
         # Check for discovery metadata (optional, just warn)
         discovery_path = path / "runtm.discovery.yaml"
@@ -197,7 +208,9 @@ def deploy_command(
                     original_manifest_content = manifest_path.read_text()
                     manifest_data = yaml.safe_load(original_manifest_content)
                     manifest_data["tier"] = tier
-                    manifest_path.write_text(yaml.safe_dump(manifest_data, default_flow_style=False, sort_keys=False))
+                    manifest_path.write_text(
+                        yaml.safe_dump(manifest_data, default_flow_style=False, sort_keys=False)
+                    )
                     console.print(f"[dim]Using tier: {tier_spec.description}[/dim]")
                 except Exception as e:
                     console.print(f"[yellow]⚠[/yellow] Could not update manifest tier: {e}")
@@ -247,7 +260,9 @@ def deploy_command(
                 if not previous:
                     console.print("[red]✗[/red] --config-only requires a previous deployment")
                     console.print("    No existing deployment found for this project name.")
-                    console.print("    Use `runtm deploy` (without --config-only) for first deploy.")
+                    console.print(
+                        "    Use `runtm deploy` (without --config-only) for first deploy."
+                    )
                     raise typer.Exit(1)
 
                 # Check if source has changed
@@ -301,7 +316,9 @@ def deploy_command(
                     )
                     console.print(f"    Updating from: {deployment.previous_deployment_id}")
                 else:
-                    console.print(f"[green]✓[/green] Deployment created: {deployment.deployment_id}")
+                    console.print(
+                        f"[green]✓[/green] Deployment created: {deployment.deployment_id}"
+                    )
             except RuntmError as e:
                 emit_deploy_failed("api_error")
                 console.print(f"[red]✗[/red] {e.message}")
@@ -355,7 +372,7 @@ def deploy_command(
                     elif deployment.state == "failed":
                         live.stop()
                         emit_deploy_failed("deployment_failed", state_reached="failed")
-                        console.print(f"[red]✗[/red] Deployment failed")
+                        console.print("[red]✗[/red] Deployment failed")
                         if deployment.error_message:
                             console.print(f"    {deployment.error_message}")
                         console.print()
@@ -379,4 +396,3 @@ def deploy_command(
         console.print(f"  runtm status {deployment.deployment_id}")
         console.print(f"  runtm logs {deployment.deployment_id}")
         console.print(f"  curl {deployment.url}/health")
-

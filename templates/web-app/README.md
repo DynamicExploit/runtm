@@ -1,6 +1,6 @@
 # My Web App - Fullstack Template
 
-A production-ready fullstack web application template with Next.js frontend and FastAPI backend, deployed as a single container on Runtm.
+A production-ready fullstack web application template with Next.js frontend and FastAPI backend, deployed as a single container on [Runtm](https://runtm.com)—the runtime + control plane for agent-built software.
 
 ## What is a Web App?
 
@@ -239,6 +239,8 @@ export async function getMyPageData(): Promise<MyData> {
 | DELETE | `/api/v1/items/:id` | Delete item |
 
 ## Deployment
+
+Get your free API key at **[app.runtm.com](https://app.runtm.com)** and deploy:
 
 ```bash
 # Login (first time only)

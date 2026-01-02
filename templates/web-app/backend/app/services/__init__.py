@@ -10,4 +10,3 @@ from app.services.items import ItemsService
 __all__ = [
     "ItemsService",
 ]
-

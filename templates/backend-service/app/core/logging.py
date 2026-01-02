@@ -23,4 +23,3 @@ def setup_logging(level: str = "INFO") -> logging.Logger:
 
 
 logger = setup_logging()
-

@@ -3,10 +3,15 @@
 from __future__ import annotations
 
 import ast
+import hashlib
+import os
+import platform
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 import typer
@@ -16,12 +21,105 @@ from runtm_shared import Limits, Manifest, create_validation_result
 
 console = Console()
 
+# Bump this when validation logic changes to invalidate cache
+VALIDATOR_VERSION = "1"
 
-def validate_project(path: Path) -> tuple[bool, list[str], list[str]]:
+# Cache location for successful validations
+VALIDATION_CACHE_DIR = Path.home() / ".cache" / "runtm" / "validation"
+
+
+def _compute_validation_cache_key(project_path: Path, pyproject: Path) -> str:
+    """Compute cache key including deps + environment + validator version.
+
+    The cache key includes:
+    - pyproject.toml content
+    - Lockfile content (uv.lock, poetry.lock, requirements.txt, or requirements.lock)
+    - Python version (major.minor)
+    - Platform (Darwin, Linux, Windows)
+    - Architecture (x86_64, arm64)
+    - Validator version (to invalidate cache when logic changes)
+
+    This ensures cached validation results are only used when all factors match.
+
+    Args:
+        project_path: Path to project directory (for lockfile lookup)
+        pyproject: Path to pyproject.toml
+
+    Returns:
+        24-character hash string for cache key
+    """
+    h = hashlib.sha256()
+
+    # Include pyproject.toml content
+    if pyproject.exists():
+        h.update(pyproject.read_bytes())
+
+    # Include lockfile content (check in priority order)
+    lockfile_names = ["uv.lock", "poetry.lock", "requirements.txt", "requirements.lock"]
+    for lockfile_name in lockfile_names:
+        lockfile = project_path / lockfile_name
+        if lockfile.exists():
+            h.update(lockfile.read_bytes())
+            break
+
+    # Include Python version (major.minor)
+    h.update(f"{sys.version_info.major}.{sys.version_info.minor}".encode())
+
+    # Include platform info
+    h.update(platform.system().encode())  # Darwin, Linux, Windows
+    h.update(platform.machine().encode())  # x86_64, arm64
+
+    # Include validator version to invalidate cache when logic changes
+    h.update(VALIDATOR_VERSION.encode())
+
+    return h.hexdigest()[:24]
+
+
+def _check_validation_cache(cache_key: str) -> bool:
+    """Check if a successful validation exists in cache.
+
+    Args:
+        cache_key: Cache key from _compute_validation_cache_key
+
+    Returns:
+        True if cached success exists, False otherwise
+    """
+    cache_file = VALIDATION_CACHE_DIR / f"{cache_key}.validated"
+    return cache_file.exists()
+
+
+def _write_validation_cache(cache_key: str) -> None:
+    """Write successful validation to cache.
+
+    Only call this after a successful validation (no errors).
+    Never cache failures to avoid "why won't it revalidate?" confusion.
+
+    Args:
+        cache_key: Cache key from _compute_validation_cache_key
+    """
+    try:
+        VALIDATION_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        cache_file = VALIDATION_CACHE_DIR / f"{cache_key}.validated"
+        cache_file.write_text(datetime.now().isoformat())
+    except Exception:
+        pass  # Don't fail validation due to cache write errors
+
+
+def validate_project(
+    path: Path,
+    skip_validation: bool = False,
+    force_validation: bool = False,
+) -> tuple[bool, list[str], list[str]]:
     """Validate a project before deployment.
+
+    This validation is for **developer experience** - catching obvious errors early.
+    It is NOT a correctness proof for production. Local imports can pass while
+    container build fails (different OS/glibc, Python version, missing system packages).
 
     Args:
         path: Path to project directory
+        skip_validation: Skip Python import validation entirely (faster but riskier)
+        force_validation: Force re-validation even if cached
 
     Returns:
         Tuple of (is_valid, errors, warnings)
@@ -32,12 +130,14 @@ def validate_project(path: Path) -> tuple[bool, list[str], list[str]]:
     # Check runtm.yaml exists
     manifest_path = path / "runtm.yaml"
     if not manifest_path.exists():
-        result.add_error("Missing runtm.yaml - run `runtm init backend-service`, `runtm init static-site`, or `runtm init web-app`")
+        result.add_error(
+            "Missing runtm.yaml - run `runtm init backend-service`, `runtm init static-site`, or `runtm init web-app`"
+        )
     else:
         # Validate manifest
         try:
             manifest = Manifest.from_file(manifest_path)
-            
+
             # Validate health configuration
             health_errors, health_warnings = validate_health_config(manifest)
             for error in health_errors:
@@ -116,7 +216,11 @@ def validate_project(path: Path) -> tuple[bool, list[str], list[str]]:
             result.add_error(error)
 
         # Validate Python imports with production dependencies
-        import_errors, import_warnings = validate_python_imports(path)
+        import_errors, import_warnings = validate_python_imports(
+            path,
+            skip_validation=skip_validation,
+            force_validation=force_validation,
+        )
         for error in import_errors:
             result.add_error(error)
         for warning in import_warnings:
@@ -140,7 +244,12 @@ def validate_project(path: Path) -> tuple[bool, list[str], list[str]]:
                 result.add_error(error)
 
             # Validate Python imports in backend
-            import_errors, import_warnings = validate_python_imports(path, backend_path)
+            import_errors, import_warnings = validate_python_imports(
+                path,
+                backend_path,
+                skip_validation=skip_validation,
+                force_validation=force_validation,
+            )
             for error in import_errors:
                 result.add_error(error)
             for warning in import_warnings:
@@ -198,9 +307,7 @@ def validate_node_project(path: Path, manifest: Manifest | None) -> tuple[list[s
         if next_config_path.exists():
             config_content = next_config_path.read_text()
             if "output" not in config_content or "'export'" not in config_content:
-                warnings.append(
-                    "next.config.js should have output: 'export' for static deployment"
-                )
+                warnings.append("next.config.js should have output: 'export' for static deployment")
 
     return errors, warnings
 
@@ -227,50 +334,48 @@ def validate_python_syntax(path: Path, exclude_dirs: set) -> list[str]:
             ast.parse(source, filename=str(py_file))
         except SyntaxError as e:
             relative_path = py_file.relative_to(path)
-            errors.append(
-                f"Syntax error in {relative_path}:{e.lineno}: {e.msg}"
-            )
+            errors.append(f"Syntax error in {relative_path}:{e.lineno}: {e.msg}")
 
     return errors
 
 
 def _parse_pyproject_dependencies(pyproject_path: Path) -> tuple[list[str], list[str]]:
     """Parse production and dev dependencies from pyproject.toml.
-    
+
     Uses regex parsing to avoid external TOML dependencies.
-    
+
     Args:
         pyproject_path: Path to pyproject.toml file
-        
+
     Returns:
         Tuple of (production_dependencies, dev_dependencies) as lists of package names
     """
     if not pyproject_path.exists():
         return [], []
-    
+
     try:
         content = pyproject_path.read_text()
     except Exception:
         return [], []
-    
+
     prod_deps = []
     dev_deps = []
-    
+
     # Parse [project] dependencies section
     # Find the [project] section, then look for dependencies = [...]
-    project_section_match = re.search(r'\[project\](.*?)(?=\n\[|\Z)', content, re.DOTALL)
+    project_section_match = re.search(r"\[project\](.*?)(?=\n\[|\Z)", content, re.DOTALL)
     if project_section_match:
         project_section = project_section_match.group(1)
         # Find dependencies = [...] using bracket counting to handle nested brackets
-        deps_start = project_section.find('dependencies = [')
+        deps_start = project_section.find("dependencies = [")
         if deps_start != -1:
             bracket_count = 0
-            start_idx = deps_start + len('dependencies = [')
+            start_idx = deps_start + len("dependencies = [")
             i = start_idx
             while i < len(project_section):
-                if project_section[i] == '[':
+                if project_section[i] == "[":
                     bracket_count += 1
-                elif project_section[i] == ']':
+                elif project_section[i] == "]":
                     if bracket_count == 0:
                         deps_content = project_section[start_idx:i]
                         # Extract individual dependencies (handle multi-line, quotes, etc.)
@@ -285,25 +390,29 @@ def _parse_pyproject_dependencies(pyproject_path: Path) -> tuple[list[str], list
                         break
                     bracket_count -= 1
                 i += 1
-    
+
     # Parse [project.optional-dependencies] dev section
     optional_section_match = re.search(
-        r'\[project\.optional-dependencies\](.*?)(?=\n\[|\Z)', content, re.DOTALL
+        r"\[project\.optional-dependencies\](.*?)(?=\n\[|\Z)", content, re.DOTALL
     )
     if optional_section_match:
         optional_section = optional_section_match.group(1)
         # Find dev = [...] using bracket counting
-        dev_start = optional_section.find('dev = [')
+        dev_start = optional_section.find("dev = [")
         if dev_start == -1:
-            dev_start = optional_section.find('dev=[')
+            dev_start = optional_section.find("dev=[")
         if dev_start != -1:
             bracket_count = 0
-            start_idx = dev_start + len('dev = [') if 'dev = [' in optional_section[dev_start:dev_start+10] else dev_start + len('dev=[')
+            start_idx = (
+                dev_start + len("dev = [")
+                if "dev = [" in optional_section[dev_start : dev_start + 10]
+                else dev_start + len("dev=[")
+            )
             i = start_idx
             while i < len(optional_section):
-                if optional_section[i] == '[':
+                if optional_section[i] == "[":
                     bracket_count += 1
-                elif optional_section[i] == ']':
+                elif optional_section[i] == "]":
                     if bracket_count == 0:
                         dev_deps_content = optional_section[start_idx:i]
                         dep_pattern = r'["\']([^"\']+)["\']'
@@ -315,13 +424,13 @@ def _parse_pyproject_dependencies(pyproject_path: Path) -> tuple[list[str], list
                         break
                     bracket_count -= 1
                 i += 1
-    
+
     return prod_deps, dev_deps
 
 
 def _normalize_package_name(module_name: str) -> str:
     """Normalize module name to package name.
-    
+
     Maps common import names to their package names (e.g., 'yaml' -> 'pyyaml').
     """
     # Common mappings
@@ -330,34 +439,380 @@ def _normalize_package_name(module_name: str) -> str:
         "dotenv": "python-dotenv",
         "pkg_resources": "setuptools",
     }
-    
+
     # Check if it's a direct mapping
     if module_name.lower() in mappings:
         return mappings[module_name.lower()]
-    
+
     # Return as-is (most packages have the same import and package name)
     return module_name.lower()
 
 
-def validate_python_imports(
-    project_path: Path,
-    backend_path: Path | None = None,
-) -> tuple[list[str], list[str]]:
-    """Validate Python imports by testing in a clean venv with production deps only.
+def _detect_lockfile_type(package_path: Path) -> str | None:
+    """Detect which lockfile type is present.
 
-    This is deterministic - it exactly mirrors what happens in production.
-    Creates a temporary venv, installs only production dependencies (not dev),
-    and tries to import the main module.
+    Returns:
+        Lockfile type: 'uv', 'poetry', or None if no lockfile found
+    """
+    if (package_path / "uv.lock").exists():
+        return "uv"
+    elif (package_path / "poetry.lock").exists():
+        return "poetry"
+    return None
+
+
+def _run_validation_with_uv_sync(
+    package_path: Path,
+    main_module: str,
+) -> tuple[list[str], list[str]]:
+    """Run validation using uv sync (fastest, for projects with uv.lock).
 
     Args:
-        project_path: Path to project root
-        backend_path: Path to backend directory (for fullstack apps)
+        package_path: Path to Python package
+        main_module: Module to test import (e.g., "app.main")
 
     Returns:
         Tuple of (errors, warnings)
     """
     errors = []
     warnings = []
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        venv_path = Path(temp_dir) / ".venv"
+
+        try:
+            # uv sync creates venv and installs deps in one fast step
+            result = subprocess.run(
+                ["uv", "sync", "--frozen", "--no-dev"],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=str(package_path),
+                env={**os.environ, "UV_PROJECT_ENVIRONMENT": str(venv_path)},
+            )
+
+            if result.returncode != 0:
+                errors.append(
+                    f"Failed to install dependencies with uv sync.\n"
+                    f"  Error: {result.stderr.strip()[:200]}"
+                )
+                return errors, warnings
+
+            # Get venv python path
+            venv_python = venv_path / "bin" / "python"
+            if sys.platform == "win32":
+                venv_python = venv_path / "Scripts" / "python.exe"
+
+            # Test import
+            result = subprocess.run(
+                [
+                    str(venv_python),
+                    "-c",
+                    f"import sys; sys.path.insert(0, '.'); import {main_module}; print('OK')",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=str(package_path),
+            )
+
+            if result.returncode != 0:
+                errors.append(f"Import error: {result.stderr.strip()[:300]}")
+            else:
+                console.print("  [green]✓[/green] Python imports validated (uv sync)")
+
+        except subprocess.TimeoutExpired:
+            warnings.append("Import validation timed out")
+        except Exception as e:
+            warnings.append(f"Import validation failed: {e}")
+
+    return errors, warnings
+
+
+def _run_validation_with_uv_pip(
+    package_path: Path,
+    main_module: str,
+) -> tuple[list[str], list[str]]:
+    """Run validation using uv venv + uv pip install (fast fallback).
+
+    Args:
+        package_path: Path to Python package
+        main_module: Module to test import (e.g., "app.main")
+
+    Returns:
+        Tuple of (errors, warnings)
+    """
+    errors = []
+    warnings = []
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        venv_path = Path(temp_dir) / ".venv"
+
+        try:
+            # Create venv with uv (much faster than python -m venv)
+            result = subprocess.run(
+                ["uv", "venv", str(venv_path)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+
+            if result.returncode != 0:
+                warnings.append("Could not create venv with uv")
+                return errors, warnings
+
+            # Get venv python path
+            venv_python = venv_path / "bin" / "python"
+            if sys.platform == "win32":
+                venv_python = venv_path / "Scripts" / "python.exe"
+
+            # Install with uv pip (much faster than pip)
+            result = subprocess.run(
+                ["uv", "pip", "install", "--python", str(venv_python), "."],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=str(package_path),
+            )
+
+            if result.returncode != 0:
+                errors.append(
+                    f"Failed to install dependencies with uv pip.\n"
+                    f"  Error: {result.stderr.strip()[:200]}"
+                )
+                return errors, warnings
+
+            # Test import
+            result = subprocess.run(
+                [
+                    str(venv_python),
+                    "-c",
+                    f"import sys; sys.path.insert(0, '.'); import {main_module}; print('OK')",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=str(package_path),
+            )
+
+            if result.returncode != 0:
+                errors.append(f"Import error: {result.stderr.strip()[:300]}")
+            else:
+                console.print("  [green]✓[/green] Python imports validated (uv)")
+
+        except subprocess.TimeoutExpired:
+            warnings.append("Import validation timed out")
+        except Exception as e:
+            warnings.append(f"Import validation failed: {e}")
+
+    return errors, warnings
+
+
+def _run_validation_with_pip(
+    package_path: Path,
+    pyproject: Path,
+    main_module: str,
+) -> tuple[list[str], list[str]]:
+    """Run validation using pip (slow fallback when uv not available).
+
+    Args:
+        package_path: Path to Python package
+        pyproject: Path to pyproject.toml
+        main_module: Module to test import (e.g., "app.main")
+
+    Returns:
+        Tuple of (errors, warnings)
+    """
+    errors = []
+    warnings = []
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        venv_path = Path(temp_dir) / "venv"
+
+        try:
+            # Create venv
+            result = subprocess.run(
+                [sys.executable, "-m", "venv", str(venv_path)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if result.returncode != 0:
+                warnings.append("Could not create venv for import validation")
+                return errors, warnings
+
+            # Get venv python path
+            if sys.platform == "win32":
+                venv_python = venv_path / "Scripts" / "python.exe"
+            else:
+                venv_python = venv_path / "bin" / "python"
+
+            # Install production dependencies only (not dev)
+            result = subprocess.run(
+                [
+                    str(venv_python),
+                    "-m",
+                    "pip",
+                    "install",
+                    "--no-cache-dir",
+                    ".",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=180,
+                cwd=str(package_path),
+            )
+            if result.returncode != 0:
+                stderr = result.stderr
+                if "No module named" in stderr:
+                    errors.append(f"Failed to install package: {stderr.strip()}")
+                else:
+                    errors.append(
+                        f"Failed to install Python package. Check pyproject.toml.\n"
+                        f"  Error: {stderr.strip()[:200]}"
+                    )
+                return errors, warnings
+
+            # Verify that dependencies were actually installed
+            check_result = subprocess.run(
+                [str(venv_python), "-m", "pip", "list"],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            installed_packages = check_result.stdout.lower() if check_result.returncode == 0 else ""
+
+            # Try to import the main module
+            result = subprocess.run(
+                [
+                    str(venv_python),
+                    "-c",
+                    f"import sys; sys.path.insert(0, '.'); import {main_module}; print('OK')",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=str(package_path),
+            )
+
+            if result.returncode != 0:
+                stderr = result.stderr
+                # Parse common import errors
+                if "ModuleNotFoundError: No module named" in stderr:
+                    match = re.search(r"No module named '([^']+)'", stderr)
+                    if match:
+                        missing_module = match.group(1)
+                        prod_deps, dev_deps = _parse_pyproject_dependencies(pyproject)
+                        normalized_module = _normalize_package_name(missing_module)
+
+                        def normalize_dep(dep: str) -> str:
+                            base = dep.split("[")[0]
+                            return _normalize_package_name(base)
+
+                        prod_deps_normalized = [normalize_dep(dep) for dep in prod_deps]
+                        dev_deps_normalized = [normalize_dep(dep) for dep in dev_deps]
+
+                        is_in_prod = normalized_module in prod_deps_normalized
+                        is_in_dev = normalized_module in dev_deps_normalized
+
+                        reverse_mappings = {
+                            "pyyaml": "yaml",
+                            "python-dotenv": "dotenv",
+                            "setuptools": "pkg_resources",
+                        }
+                        for pkg_name, import_name in reverse_mappings.items():
+                            if (
+                                normalized_module == import_name
+                                and pkg_name in prod_deps_normalized
+                            ):
+                                is_in_prod = True
+                            if normalized_module == import_name and pkg_name in dev_deps_normalized:
+                                is_in_dev = True
+
+                        if is_in_prod:
+                            pkg_installed = normalized_module in installed_packages
+                            if pkg_installed:
+                                errors.append(
+                                    f"Dependency '{missing_module}' is installed but cannot be imported.\n"
+                                    f"  This may be a Python path issue. Verify your project structure.\n"
+                                    f"  Error: {stderr.strip()[:300]}"
+                                )
+                            else:
+                                errors.append(
+                                    f"Dependency '{missing_module}' is listed in pyproject.toml but pip failed to install it.\n"
+                                    f"  Found in dependencies: {', '.join(prod_deps[:5])}{'...' if len(prod_deps) > 5 else ''}\n"
+                                    f"  Try running: pip install {missing_module}\n"
+                                    f"  Error: {stderr.strip()[:300]}"
+                                )
+                        elif is_in_dev:
+                            errors.append(
+                                f"Missing dependency: '{missing_module}' is imported but only listed in "
+                                f"[project.optional-dependencies] dev.\n"
+                                f"  Add it to [project] dependencies (not dev) for production use."
+                            )
+                        else:
+                            deps_preview = ", ".join(prod_deps[:5]) + (
+                                "..." if len(prod_deps) > 5 else ""
+                            )
+                            if not prod_deps:
+                                deps_preview = "(none found)"
+                            errors.append(
+                                f"Missing dependency: '{missing_module}' is imported but not in "
+                                f"pyproject.toml dependencies.\n"
+                                f"  Found dependencies: {deps_preview}\n"
+                                f"  Add '{missing_module}' to [project] dependencies (not [project.optional-dependencies] dev)"
+                            )
+                    else:
+                        errors.append(f"Import error: {stderr.strip()[:300]}")
+                elif "ImportError" in stderr:
+                    errors.append(f"Import error in {main_module}: {stderr.strip()[:300]}")
+                else:
+                    errors.append(f"Failed to import {main_module}: {stderr.strip()[:300]}")
+            else:
+                console.print("  [green]✓[/green] Python imports validated (pip)")
+
+        except subprocess.TimeoutExpired:
+            warnings.append("Import validation timed out")
+        except Exception as e:
+            warnings.append(f"Import validation failed: {e}")
+
+    return errors, warnings
+
+
+def validate_python_imports(
+    project_path: Path,
+    backend_path: Path | None = None,
+    skip_validation: bool = False,
+    force_validation: bool = False,
+) -> tuple[list[str], list[str]]:
+    """Validate Python imports by testing in a clean venv with production deps only.
+
+    This is **developer experience** validation - it catches obvious errors early.
+    It is NOT a correctness proof (local imports can pass while container build fails
+    due to different OS/Python version/missing system packages).
+
+    Optimization strategy:
+    1. Skip entirely if --skip-validation
+    2. Check cache if deps+env unchanged (unless --force-validation)
+    3. Use fastest available tool: uv sync > uv pip > pip
+    4. Cache success only (never cache failures)
+
+    Args:
+        project_path: Path to project root
+        backend_path: Path to backend directory (for fullstack apps)
+        skip_validation: Skip validation entirely (faster but riskier)
+        force_validation: Force re-validation even if cached
+
+    Returns:
+        Tuple of (errors, warnings)
+    """
+    errors = []
+    warnings = []
+
+    # 1. Skip if explicitly requested
+    if skip_validation:
+        console.print("  [yellow]⚠[/yellow] Skipping Python import validation (--skip-validation)")
+        return errors, warnings
 
     # Determine the Python package path
     if backend_path and backend_path.exists():
@@ -387,208 +842,58 @@ def validate_python_imports(
         warnings.append("No 'app/main.py' found - skipping import validation")
         return errors, warnings
 
+    # 2. Check cache (unless --force-validation)
+    cache_key = _compute_validation_cache_key(package_path, pyproject)
+
+    if not force_validation and _check_validation_cache(cache_key):
+        console.print("  [dim]Deps unchanged - skipping import validation (cached)[/dim]")
+        return errors, warnings
+
     console.print("  Checking Python imports with production dependencies...")
 
-    # Create temporary venv and test imports
-    with tempfile.TemporaryDirectory() as temp_dir:
-        venv_path = Path(temp_dir) / "venv"
+    # 3. Detect lockfile type and choose best validation method
+    lockfile_type = _detect_lockfile_type(package_path)
+    has_uv = shutil.which("uv") is not None
 
-        try:
-            # Create venv
-            result = subprocess.run(
-                [sys.executable, "-m", "venv", str(venv_path)],
-                capture_output=True,
-                text=True,
-                timeout=60,
-            )
-            if result.returncode != 0:
-                warnings.append("Could not create venv for import validation")
-                return errors, warnings
+    if lockfile_type == "uv" and has_uv:
+        # Best case: uv.lock exists and uv is available
+        # Use uv sync --frozen for fastest, most reproducible validation
+        errors, warnings = _run_validation_with_uv_sync(package_path, main_module)
+    elif has_uv:
+        # uv is available but no uv.lock - use uv venv + uv pip install
+        errors, warnings = _run_validation_with_uv_pip(package_path, main_module)
+    else:
+        # Fallback: use pip (slower)
+        errors, warnings = _run_validation_with_pip(package_path, pyproject, main_module)
 
-            # Get venv python path
-            if sys.platform == "win32":
-                venv_python = venv_path / "Scripts" / "python.exe"
-            else:
-                venv_python = venv_path / "bin" / "python"
-
-            # Install production dependencies only (not dev)
-            # Use "." as the path since we're running from package_path
-            result = subprocess.run(
-                [
-                    str(venv_python), "-m", "pip", "install",
-                    "--no-cache-dir",
-                    ".",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=180,  # Increase timeout for slow networks
-                cwd=str(package_path),
-            )
-            if result.returncode != 0:
-                # Parse the error to give a helpful message
-                stderr = result.stderr
-                if "No module named" in stderr:
-                    errors.append(f"Failed to install package: {stderr.strip()}")
-                else:
-                    errors.append(
-                        f"Failed to install Python package. Check pyproject.toml.\n"
-                        f"  Error: {stderr.strip()[:200]}"
-                    )
-                return errors, warnings
-            
-            # Verify that dependencies were actually installed
-            check_result = subprocess.run(
-                [str(venv_python), "-m", "pip", "list"],
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-            installed_packages = check_result.stdout.lower() if check_result.returncode == 0 else ""
-
-            # Try to import the main module
-            # The package is installed in the venv, so its dependencies are available.
-            # We need to run from the package directory so Python can find the local
-            # app/ module, but use the venv's Python which has the dependencies installed.
-            #
-            # The key insight: `pip install .` installs the package AND its dependencies
-            # into the venv. When we run `venv_python -c "import app.main"` from the
-            # package directory, Python will:
-            # 1. Find app/ in the current directory (local module)
-            # 2. When app/main.py does `from fastapi import FastAPI`, Python looks in
-            #    the venv's site-packages (because we're using venv_python)
-            #
-            # If this fails with ModuleNotFoundError, it means the dependency wasn't
-            # installed properly.
-            result = subprocess.run(
-                [
-                    str(venv_python),
-                    "-c",
-                    f"import sys; sys.path.insert(0, '.'); import {main_module}; print('OK')",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                cwd=str(package_path),
-            )
-
-            if result.returncode != 0:
-                stderr = result.stderr
-                # Parse common import errors
-                if "ModuleNotFoundError: No module named" in stderr:
-                    # Extract the missing module name
-                    match = re.search(r"No module named '([^']+)'", stderr)
-                    if match:
-                        missing_module = match.group(1)
-                        # Parse pyproject.toml to check if dependency is actually missing
-                        prod_deps, dev_deps = _parse_pyproject_dependencies(pyproject)
-                        normalized_module = _normalize_package_name(missing_module)
-                        
-                        # Normalize dependencies: extract base package name (before [extras] or version)
-                        def normalize_dep(dep: str) -> str:
-                            # Remove extras like "uvicorn[standard]" -> "uvicorn"
-                            base = dep.split("[")[0]
-                            return _normalize_package_name(base)
-                        
-                        prod_deps_normalized = [normalize_dep(dep) for dep in prod_deps]
-                        dev_deps_normalized = [normalize_dep(dep) for dep in dev_deps]
-                        
-                        # Check if the module name matches any dependency
-                        # Handle cases where package name differs from import name
-                        is_in_prod = normalized_module in prod_deps_normalized
-                        is_in_dev = normalized_module in dev_deps_normalized
-                        
-                        # Also check reverse mapping (e.g., if dependency is "pyyaml" but import is "yaml")
-                        reverse_mappings = {
-                            "pyyaml": "yaml",
-                            "python-dotenv": "dotenv",
-                            "setuptools": "pkg_resources",
-                        }
-                        for pkg_name, import_name in reverse_mappings.items():
-                            if normalized_module == import_name and pkg_name in prod_deps_normalized:
-                                is_in_prod = True
-                            if normalized_module == import_name and pkg_name in dev_deps_normalized:
-                                is_in_dev = True
-                        
-                        if is_in_prod:
-                            # Dependency is listed in pyproject.toml but not importable
-                            # Check if it was actually installed in the venv
-                            pkg_installed = normalized_module in installed_packages
-                            if pkg_installed:
-                                # Package is installed but still can't import - likely a path issue
-                                errors.append(
-                                    f"Dependency '{missing_module}' is installed but cannot be imported.\n"
-                                    f"  This may be a Python path issue. Verify your project structure.\n"
-                                    f"  Error: {stderr.strip()[:300]}"
-                                )
-                            else:
-                                # Package was supposed to be installed but wasn't
-                                errors.append(
-                                    f"Dependency '{missing_module}' is listed in pyproject.toml but pip failed to install it.\n"
-                                    f"  Found in dependencies: {', '.join(prod_deps[:5])}{'...' if len(prod_deps) > 5 else ''}\n"
-                                    f"  Try running: pip install {missing_module}\n"
-                                    f"  Error: {stderr.strip()[:300]}"
-                                )
-                        elif is_in_dev:
-                            # Dependency is in dev deps but not production
-                            errors.append(
-                                f"Missing dependency: '{missing_module}' is imported but only listed in "
-                                f"[project.optional-dependencies] dev.\n"
-                                f"  Add it to [project] dependencies (not dev) for production use."
-                            )
-                        else:
-                            # Actually missing - show what dependencies were found
-                            deps_preview = ', '.join(prod_deps[:5]) + ('...' if len(prod_deps) > 5 else '')
-                            if not prod_deps:
-                                deps_preview = "(none found)"
-                            errors.append(
-                                f"Missing dependency: '{missing_module}' is imported but not in "
-                                f"pyproject.toml dependencies.\n"
-                                f"  Found dependencies: {deps_preview}\n"
-                                f"  Add '{missing_module}' to [project] dependencies (not [project.optional-dependencies] dev)"
-                            )
-                    else:
-                        errors.append(f"Import error: {stderr.strip()[:300]}")
-                elif "ImportError" in stderr:
-                    errors.append(f"Import error in {main_module}: {stderr.strip()[:300]}")
-                else:
-                    errors.append(f"Failed to import {main_module}: {stderr.strip()[:300]}")
-            else:
-                console.print("  [green]✓[/green] Python imports validated")
-
-        except subprocess.TimeoutExpired:
-            warnings.append("Import validation timed out")
-        except Exception as e:
-            warnings.append(f"Import validation failed: {e}")
+    # 4. Cache success only (never cache failures)
+    if not errors:
+        _write_validation_cache(cache_key)
 
     return errors, warnings
 
 
 def validate_health_config(manifest: Manifest) -> tuple[list[str], list[str]]:
     """Validate health endpoint configuration in manifest.
-    
+
     Checks that health_path is properly configured. The actual health
     endpoint behavior is checked at runtime, not statically.
-    
+
     Args:
         manifest: Parsed manifest
-        
+
     Returns:
         Tuple of (errors, warnings)
     """
     errors = []
     warnings = []
-    
+
     # Check health_path exists and is valid
     if not manifest.health_path:
-        errors.append(
-            "Manifest missing health_path. "
-            "Add 'health_path: /health' to runtm.yaml"
-        )
+        errors.append("Manifest missing health_path. Add 'health_path: /health' to runtm.yaml")
     elif not manifest.health_path.startswith("/"):
-        errors.append(
-            f"health_path must start with /. Got: {manifest.health_path}"
-        )
-    
+        errors.append(f"health_path must start with /. Got: {manifest.health_path}")
+
     # Warn if non-standard health path
     if manifest.health_path and manifest.health_path != "/health":
         warnings.append(
@@ -601,82 +906,82 @@ def validate_health_config(manifest: Manifest) -> tuple[list[str], list[str]]:
 
 def validate_dockerfile_cache_hygiene(dockerfile_path: Path) -> list[str]:
     """Validate Dockerfile structure for optimal layer caching.
-    
+
     Checks that dependency manifests are copied and dependencies installed
     BEFORE copying the full source code. This ensures that code-only changes
     only invalidate the final layers, not the expensive dependency install layers.
-    
+
     Correct pattern:
         COPY package.json .
         RUN npm install
         COPY . .
-    
+
     Anti-pattern (busts cache on every code change):
         COPY . .
         RUN npm install
-    
+
     Args:
         dockerfile_path: Path to Dockerfile
-        
+
     Returns:
         List of warning messages (not errors - user may have valid reasons)
     """
     warnings = []
-    
+
     if not dockerfile_path.exists():
         return warnings
-    
+
     try:
         content = dockerfile_path.read_text()
     except Exception:
         return warnings
-    
+
     # Remove comments to avoid false positives
     lines = []
-    for line in content.split('\n'):
+    for line in content.split("\n"):
         # Strip comments but preserve the line structure
-        comment_pos = line.find('#')
+        comment_pos = line.find("#")
         if comment_pos != -1:
             line = line[:comment_pos]
         lines.append(line)
-    content_no_comments = '\n'.join(lines)
-    
+    content_no_comments = "\n".join(lines)
+
     # Find positions of key patterns
     # Look for "COPY . ." or "COPY . ./" which copies everything
-    copy_all_pattern = re.compile(r'COPY\s+\.\s+\./?', re.IGNORECASE)
+    copy_all_pattern = re.compile(r"COPY\s+\.\s+\./?", re.IGNORECASE)
     copy_all_match = copy_all_pattern.search(content_no_comments)
-    
+
     if not copy_all_match:
         # No "COPY . ." found - either good structure or no source copy at all
         return warnings
-    
+
     copy_all_pos = copy_all_match.start()
-    
+
     # Find dependency install commands
     install_patterns = [
-        (r'RUN\s+.*npm\s+(install|ci)', 'npm'),
-        (r'RUN\s+.*bun\s+install', 'bun'),
-        (r'RUN\s+.*pip\s+install', 'pip'),
-        (r'RUN\s+.*uv\s+(sync|pip)', 'uv'),
-        (r'RUN\s+.*yarn\s+(install)?', 'yarn'),
-        (r'RUN\s+.*pnpm\s+install', 'pnpm'),
+        (r"RUN\s+.*npm\s+(install|ci)", "npm"),
+        (r"RUN\s+.*bun\s+install", "bun"),
+        (r"RUN\s+.*pip\s+install", "pip"),
+        (r"RUN\s+.*uv\s+(sync|pip)", "uv"),
+        (r"RUN\s+.*yarn\s+(install)?", "yarn"),
+        (r"RUN\s+.*pnpm\s+install", "pnpm"),
     ]
-    
+
     # Find the first install command position
     first_install_pos = None
     install_tool = None
-    
+
     for pattern, tool in install_patterns:
         match = re.search(pattern, content_no_comments, re.IGNORECASE)
         if match:
             if first_install_pos is None or match.start() < first_install_pos:
                 first_install_pos = match.start()
                 install_tool = tool
-    
+
     if first_install_pos is None:
         # No install command found - nothing to warn about
         return warnings
-    
+
     # Check if COPY . . comes BEFORE the first install command
     if copy_all_pos < first_install_pos:
         warnings.append(
@@ -687,7 +992,7 @@ def validate_dockerfile_cache_hygiene(dockerfile_path: Path) -> list[str]:
             "    RUN npm install\n"
             "    COPY . ."
         )
-    
+
     return warnings
 
 
@@ -728,4 +1033,3 @@ def validate_command(
     else:
         console.print("[red]✗[/red] Validation failed. Fix the errors above and try again.")
         raise typer.Exit(1)
-

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import AsyncGenerator, Generator
+from collections.abc import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -60,4 +60,3 @@ def create_session() -> Session:
     """
     session_factory = get_session_factory()
     return session_factory()
-

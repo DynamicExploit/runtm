@@ -3,8 +3,28 @@ name = "runtm-api"
 version = "0.1.0"
 description = "FastAPI control plane for Runtm"
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "AGPL-3.0-or-later" }
 requires-python = ">=3.9"
+authors = [
+    { name = "Gustavo Trigos", email = "gus@runtm.com" },
+]
+maintainers = [
+    { name = "Gustavo Trigos", email = "gus@runtm.com" },
+]
+keywords = ["api", "fastapi", "deployment", "control-plane"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+]
 dependencies = [
     "runtm-shared>=0.1.0",
     "fastapi>=0.100.0,<1.0",
@@ -28,6 +48,12 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.0,<2.0",
 ]
+
+[project.urls]
+Homepage = "https://runtm.com"
+Documentation = "https://docs.runtm.com"
+Repository = "https://github.com/runtm-ai/runtm"
+Issues = "https://github.com/runtm-ai/runtm/issues"
 
 [build-system]
 requires = ["hatchling"]

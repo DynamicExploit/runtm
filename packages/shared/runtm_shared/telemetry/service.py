@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import logging
 import os
-import time
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Generator, Optional
+from typing import Any, Optional
 
 from .base import (
     BaseExporter,
@@ -26,7 +26,7 @@ from .exporter import BatchExporter, ExporterConfig
 from .identity import IdentityManager
 from .metrics import MetricsManager
 from .spans import SpanManager
-from .spool import DiskSpool, SpoolConfig
+from .spool import DiskSpool
 
 logger = logging.getLogger(__name__)
 
@@ -59,12 +59,8 @@ class TelemetryConfig:
         - RUNTM_TELEMETRY_ENDPOINT: Custom OTLP endpoint
         - RUNTM_TELEMETRY_SAMPLE_RATE: Trace sampling rate (0.0-1.0)
         """
-        disabled = os.environ.get("RUNTM_TELEMETRY_DISABLED", "").lower() in (
-            "1", "true", "yes"
-        )
-        debug = os.environ.get("RUNTM_TELEMETRY_DEBUG", "").lower() in (
-            "1", "true", "yes"
-        )
+        disabled = os.environ.get("RUNTM_TELEMETRY_DISABLED", "").lower() in ("1", "true", "yes")
+        debug = os.environ.get("RUNTM_TELEMETRY_DEBUG", "").lower() in ("1", "true", "yes")
         endpoint = os.environ.get("RUNTM_TELEMETRY_ENDPOINT")
 
         sample_rate_str = os.environ.get("RUNTM_TELEMETRY_SAMPLE_RATE", "1.0")
@@ -477,6 +473,7 @@ class TelemetryService:
 
 # === Helper Functions ===
 
+
 def create_command_span_attributes(
     command: str,
     exit_code: Optional[int] = None,
@@ -508,4 +505,3 @@ def create_command_span_attributes(
         attrs["runtm.runtime"] = runtime
 
     return attrs
-

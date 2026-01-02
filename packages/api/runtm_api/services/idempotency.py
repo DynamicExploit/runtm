@@ -96,4 +96,3 @@ def get_idempotency_key(headers: dict) -> Optional[str]:
         return key
 
     return None
-

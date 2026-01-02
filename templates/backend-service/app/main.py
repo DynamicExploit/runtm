@@ -51,4 +51,3 @@ async def root():
         "version": "0.1.0",
         "docs": "/docs",
     }
-

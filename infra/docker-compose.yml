@@ -5,6 +5,8 @@ services:
     build:
       context: ..
       dockerfile: infra/Dockerfile.api
+    # SECURITY: Run as non-root user (matches UID/GID in Dockerfile)
+    user: "1000:1000"
     ports:
       - "8000:8000"
     env_file:
@@ -12,7 +14,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://runtm:runtm@postgres:5432/runtm
       - REDIS_URL=redis://redis:6379
-      - API_TOKEN=${RUNTM_API_TOKEN:-dev-token}
+      - API_SECRET=${RUNTM_API_SECRET:?Set RUNTM_API_SECRET environment variable}
       - ARTIFACT_STORAGE_PATH=/artifacts
       - AUTH_MODE=single_tenant
       - DEBUG=true
@@ -34,6 +36,8 @@ services:
     build:
       context: ..
       dockerfile: infra/Dockerfile.worker
+    # SECURITY: Run as non-root user (matches UID/GID in Dockerfile)
+    user: "1000:1000"
     env_file:
       - ../.env  # Load from project root .env file
     environment:
@@ -41,10 +45,12 @@ services:
       - REDIS_URL=redis://redis:6379
       - FLY_ORG=${FLY_ORG:-personal}
       - ARTIFACT_STORAGE_PATH=/artifacts
+      - USE_REMOTE_BUILDER=true
+      # ALLOW_LOCAL_BUILDS is intentionally NOT set - forbidden in production
       # FLY_API_TOKEN is loaded from .env via env_file above
     volumes:
       - artifacts:/artifacts
-      - /var/run/docker.sock:/var/run/docker.sock
+      # SECURITY: Docker socket mount removed - use remote builder instead
     depends_on:
       postgres:
         condition: service_healthy
@@ -67,12 +73,14 @@ services:
       timeout: 5s
       retries: 5
     ports:
-      - "5432:5432"
+      # SECURITY: Bind to localhost only - prevent external access
+      - "127.0.0.1:5432:5432"
 
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      # SECURITY: Bind to localhost only - prevent external access
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

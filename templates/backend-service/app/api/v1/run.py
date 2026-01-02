@@ -30,7 +30,7 @@ class RunResponse(BaseModel):
 
 def get_processor_service() -> ProcessorService:
     """Get the processor service instance.
-    
+
     This function can be replaced with proper dependency injection
     if needed (e.g., for testing or different environments).
     """
@@ -50,11 +50,11 @@ async def run(request: RunRequest) -> RunResponse:
         Tool output and metadata
     """
     service = get_processor_service()
-    
+
     # Validate input
     if not service.validate_input(request.input):
         raise HTTPException(status_code=400, detail="Invalid input")
-    
+
     # Process the input
     result = service.process(request.input, request.options)
 

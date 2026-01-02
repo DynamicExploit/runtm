@@ -127,4 +127,3 @@ def validate_token_format(token: str) -> bool:
     if len(token) < 20:
         return False
     return True
-

@@ -1,6 +1,6 @@
 # My Site - Static Site Template
 
-A beautiful static site built with Next.js and deployed on Runtm.
+A beautiful static site built with Next.js and deployed on [Runtm](https://runtm.com)—the runtime + control plane for agent-built software.
 
 ## What is a Static Site?
 
@@ -33,7 +33,7 @@ npm run format   # Format code
 
 ## Deploy
 
-⚠️ **Authentication is required before deploying.**
+Get your free API key at **[app.runtm.com](https://app.runtm.com)** and deploy:
 
 ```bash
 # Step 1: Check auth status

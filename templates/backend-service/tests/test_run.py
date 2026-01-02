@@ -43,4 +43,3 @@ def test_run_returns_metadata():
     data = response.json()
     assert "metadata" in data
     assert data["metadata"]["input_length"] == 10
-

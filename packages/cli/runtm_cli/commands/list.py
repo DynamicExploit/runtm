@@ -71,4 +71,3 @@ def list_command(
     console.print()
     console.print(table)
     console.print()
-

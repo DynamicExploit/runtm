@@ -137,7 +137,7 @@ class RequestsFile(BaseModel):
     notes: List[str] = []
 
     @classmethod
-    def from_yaml(cls, yaml_content: str) -> "RequestsFile":
+    def from_yaml(cls, yaml_content: str) -> RequestsFile:
         """Parse requests file from YAML string.
 
         Args:
@@ -160,7 +160,7 @@ class RequestsFile(BaseModel):
         return cls.model_validate(data)
 
     @classmethod
-    def from_file(cls, path: Path) -> "RequestsFile":
+    def from_file(cls, path: Path) -> RequestsFile:
         """Parse requests file from disk.
 
         Args:
@@ -255,4 +255,3 @@ class RequestsFile(BaseModel):
             return "No pending requests"
 
         return f"Pending: {', '.join(parts)}"
-

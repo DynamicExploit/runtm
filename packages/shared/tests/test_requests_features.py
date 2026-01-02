@@ -1,7 +1,5 @@
 """Tests for feature requests in runtm.requests.yaml."""
 
-import pytest
-
 from runtm_shared.requests import (
     RequestedChanges,
     RequestedFeatures,
@@ -203,4 +201,3 @@ notes:
         assert "database" in summary
         assert "auth" in summary
         assert "3 env vars" in summary
-

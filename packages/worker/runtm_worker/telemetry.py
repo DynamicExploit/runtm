@@ -16,9 +16,7 @@ import os
 from typing import Any, Optional
 
 from runtm_shared.telemetry import (
-    BaseExporter,
     EventType,
-    SpanManager,
     TelemetryConfig,
     TelemetryService,
     TelemetrySpan,
@@ -72,7 +70,7 @@ def init_telemetry(
 
     # Determine API URL and token from args or environment
     api_url = api_url or os.environ.get("RUNTM_API_URL", "http://api:8000")
-    api_token = api_token or os.environ.get("RUNTM_API_TOKEN", "dev-token")
+    api_token = api_token or os.environ.get("RUNTM_API_SECRET", "dev-token")
 
     # Create exporter based on configuration
     if disabled or not config.enabled:
@@ -112,6 +110,7 @@ def shutdown_telemetry() -> None:
 
 # === Trace Context Propagation ===
 
+
 def start_job_span(
     job_name: str,
     trace_id: Optional[str] = None,
@@ -143,6 +142,7 @@ def start_job_span(
 
 
 # === Event Helpers ===
+
 
 def emit_build_started(deployment_id: str) -> None:
     """Emit build started event.
@@ -210,4 +210,3 @@ def emit_deploy_failed(deployment_id: str, error_type: str) -> None:
         EventType.WORKER_DEPLOY_FAILED,
         {"deployment_id": deployment_id, "error_type": error_type},
     )
-

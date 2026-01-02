@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import List, Tuple
 
 import typer
-import yaml
 from rich.console import Console
 from rich.table import Table
 
@@ -257,8 +256,7 @@ def approve_command(
     # Merge connections
     if requests.requested.connections:
         new_connections = [
-            Connection(name=c.name, env_vars=c.env_vars)
-            for c in requests.requested.connections
+            Connection(name=c.name, env_vars=c.env_vars) for c in requests.requested.connections
         ]
         merged_conn, added_conn = merge_connections(manifest.connections, new_connections)
         if added_conn:
@@ -331,4 +329,3 @@ def approve_command(
         console.print("[bold]Next steps:[/bold] Set secret values:")
         for ev in secret_vars:
             console.print(f"  runtm secrets set {ev.name}=<value>")
-

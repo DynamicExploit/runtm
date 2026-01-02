@@ -1,6 +1,6 @@
 # My Service - Backend Service Template
 
-A FastAPI-based backend service template for building and deploying APIs on Runtm.
+A FastAPI-based backend service template for building and deploying APIs on [Runtm](https://runtm.com)—the runtime + control plane for agent-built software.
 
 ## What is a Backend Service?
 
@@ -155,6 +155,8 @@ def test_my_feature():
 | POST | `/api/v1/run` | Main tool endpoint |
 
 ## Deployment
+
+Get your free API key at **[app.runtm.com](https://app.runtm.com)** and deploy:
 
 ```bash
 # Login (first time only)

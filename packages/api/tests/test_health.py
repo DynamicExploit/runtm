@@ -24,4 +24,3 @@ def test_health_returns_status(client):
     data = response.json()
     assert data["status"] == "healthy"
     assert "version" in data
-

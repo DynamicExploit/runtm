@@ -9,13 +9,16 @@ Add tables for storing telemetry data:
 - telemetry_events: Discrete events (lifecycle, errors)
 - telemetry_metrics: Aggregated metrics (counters, histograms)
 """
+
 from __future__ import annotations
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "0002"
@@ -159,4 +162,3 @@ def downgrade() -> None:
     op.drop_table("telemetry_metrics")
     op.drop_table("telemetry_events")
     op.drop_table("telemetry_spans")
-

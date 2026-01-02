@@ -109,10 +109,7 @@ class IdentityManager:
         """
         if self._identity is None:
             self._load_or_create_identity()
-        return (
-            self._previous_version is not None
-            and self._previous_version != current_version
-        )
+        return self._previous_version is not None and self._previous_version != current_version
 
     def get_system_info(self) -> dict[str, str]:
         """Get system information for first_run event.
@@ -158,10 +155,7 @@ class IdentityManager:
 
         try:
             self._identity_path.parent.mkdir(parents=True, exist_ok=True)
-            self._identity_path.write_text(
-                json.dumps(self._identity.model_dump(), indent=2)
-            )
+            self._identity_path.write_text(json.dumps(self._identity.model_dump(), indent=2))
         except OSError:
             # Best effort - don't fail if we can't write
             pass
-

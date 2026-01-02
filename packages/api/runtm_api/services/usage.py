@@ -220,4 +220,3 @@ class UsageService:
             .order_by(UsageEvent.created_at)
             .all()
         )
-

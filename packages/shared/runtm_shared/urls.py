@@ -67,4 +67,3 @@ def get_subdomain_for_app(app_name: str, base_domain: str | None = None) -> str 
     if base_domain:
         return f"{app_name}.{base_domain}"
     return None
-

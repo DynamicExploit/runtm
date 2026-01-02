@@ -61,7 +61,7 @@ class EnvVar(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def validate_secret_no_default(self) -> "EnvVar":
+    def validate_secret_no_default(self) -> EnvVar:
         """Secret env vars should not have defaults (security risk)."""
         if self.secret and self.default is not None:
             raise ValueError(
@@ -297,10 +297,7 @@ class Manifest(BaseModel):
         """Validate machine tier."""
         allowed_tiers = {t.value for t in MachineTier}
         if v not in allowed_tiers:
-            raise ValueError(
-                f"tier must be one of: {', '.join(sorted(allowed_tiers))}. "
-                f"Got: {v}"
-            )
+            raise ValueError(f"tier must be one of: {', '.join(sorted(allowed_tiers))}. Got: {v}")
         return v
 
     def get_machine_tier(self) -> MachineTier:
@@ -323,7 +320,7 @@ class Manifest(BaseModel):
         return []
 
     @model_validator(mode="after")
-    def validate_connections_reference_schema(self) -> "Manifest":
+    def validate_connections_reference_schema(self) -> Manifest:
         """Validate that connections reference declared env vars."""
         declared_names = {ev.name for ev in self.env_schema}
         for conn in self.connections:
@@ -336,7 +333,7 @@ class Manifest(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_fullstack_tier(self) -> "Manifest":
+    def validate_fullstack_tier(self) -> Manifest:
         """Validate that fullstack apps use adequate resources.
 
         Fullstack apps run both Node.js and Python simultaneously,
@@ -352,7 +349,7 @@ class Manifest(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def validate_features(self) -> "Manifest":
+    def validate_features(self) -> Manifest:
         """Validate feature requirements and auto-populate volumes.
 
         - Auth requires database (Better Auth needs storage)
@@ -377,8 +374,7 @@ class Manifest(BaseModel):
         # Auth requires AUTH_SECRET env var
         if self.features.auth:
             has_auth_secret = any(
-                ev.name == "AUTH_SECRET" and ev.required
-                for ev in self.env_schema
+                ev.name == "AUTH_SECRET" and ev.required for ev in self.env_schema
             )
             if not has_auth_secret:
                 raise ValueError(
@@ -398,7 +394,7 @@ class Manifest(BaseModel):
         return self
 
     @classmethod
-    def from_yaml(cls, yaml_content: str) -> "Manifest":
+    def from_yaml(cls, yaml_content: str) -> Manifest:
         """Parse manifest from YAML string.
 
         Args:
@@ -421,7 +417,7 @@ class Manifest(BaseModel):
         return cls.model_validate(data)
 
     @classmethod
-    def from_file(cls, path: Path) -> "Manifest":
+    def from_file(cls, path: Path) -> Manifest:
         """Parse manifest from file.
 
         Args:
@@ -475,14 +471,16 @@ class Manifest(BaseModel):
         # Only include policy if set
         if self.policy:
             data["policy"] = {
-                k: v for k, v in self.policy.model_dump(mode="json").items()
+                k: v
+                for k, v in self.policy.model_dump(mode="json").items()
                 if v is not None and v != []
             }
 
         # Only include features if any are enabled
         if self.features.database or self.features.auth:
             data["features"] = {
-                k: v for k, v in self.features.model_dump(mode="json").items()
+                k: v
+                for k, v in self.features.model_dump(mode="json").items()
                 if v  # Only include enabled features
             }
 
@@ -491,4 +489,3 @@ class Manifest(BaseModel):
             data["volumes"] = [vol.model_dump(mode="json") for vol in self.volumes]
 
         return data
-

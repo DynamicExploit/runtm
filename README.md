@@ -1,14 +1,19 @@
 # Runtm
 
-> Runtm: deploy AI-generated tools and apps to live URLs in minutes.
+> **runtm is the runtime + control plane for agent-built software: create, run, deploy, observe, reuse and destroy apps with guardrails and speed.**
 
-Runtm is an open-source runtime that turns AI-generated code into live, governed endpoints. One command → deployed URL.
+Deploy AI-generated tools and apps to live URLs in minutes. One command → deployed URL.
+
+🌐 **Website:** [runtm.com](https://runtm.com) · **Try it free:** [app.runtm.com](https://app.runtm.com)
 
 ## Quick Start
 
 ```bash
 # Install the CLI
-pip install runtm-cli
+pip install runtm
+
+# Get your free API key at app.runtm.com
+runtm login
 
 # Initialize a new backend service project
 runtm init backend-service
@@ -65,7 +70,7 @@ cp infra/local.env.example .env
 
 # Configure CLI to use local API
 export RUNTM_API_URL=http://localhost:8000
-export RUNTM_TOKEN=dev-token-change-in-production
+export RUNTM_API_KEY=dev-token-change-in-production
 ```
 
 ### Dev Script Commands
@@ -107,19 +112,70 @@ pytest packages/api/tests
 
 ## CLI Commands
 
+### Core Commands
+
 | Command | Description |
 |---------|-------------|
-| `runtm init backend-service` | Scaffold from template |
+| `runtm init <template>` | Scaffold from template (backend-service, static-site, web-app) |
 | `runtm run` | Run project locally (auto-detects runtime) |
 | `runtm validate` | Validate project before deployment |
 | `runtm deploy [path]` | Deploy project to a live URL |
+| `runtm fix` | Fix common project issues (lockfiles, etc.) |
 | `runtm status <id>` | Show deployment status |
-| `runtm logs <id>` | Show logs (build, deploy, and runtime) |
+| `runtm logs <id>` | View logs (build, deploy, runtime) |
 | `runtm list` | List all deployments |
+| `runtm search <query>` | Search deployments by description/tags |
 | `runtm destroy <id>` | Destroy a deployment |
-| `runtm login` | Authenticate with Runtm |
-| `runtm secrets set/get/list/unset` | Manage environment secrets |
-| `runtm approve` | Apply agent-proposed changes |
+
+### Authentication
+
+Get your free API key at **[app.runtm.com](https://app.runtm.com)**.
+
+| Command | Description |
+|---------|-------------|
+| `runtm login` | Authenticate with Runtm (token or device flow) |
+| `runtm logout` | Remove saved API credentials |
+
+### Secrets Management
+
+| Command | Description |
+|---------|-------------|
+| `runtm secrets set KEY=VALUE` | Set a secret in `.env.local` |
+| `runtm secrets get KEY` | Get a secret value |
+| `runtm secrets list` | List all secrets and their status |
+| `runtm secrets unset KEY` | Remove a secret |
+
+### Custom Domains
+
+| Command | Description |
+|---------|-------------|
+| `runtm domain add <id> <hostname>` | Add custom domain to deployment |
+| `runtm domain status <id> <hostname>` | Check domain/certificate status |
+| `runtm domain remove <id> <hostname>` | Remove custom domain |
+
+### Agent Workflow
+
+| Command | Description |
+|---------|-------------|
+| `runtm approve` | Apply agent-proposed changes from `runtm.requests.yaml` |
+| `runtm approve --dry-run` | Preview changes without applying |
+
+### Admin Commands (Self-Hosting)
+
+For self-hosting operators with direct database access:
+
+| Command | Description |
+|---------|-------------|
+| `runtm admin create-token` | Create API token with specified permissions |
+| `runtm admin revoke-token <id>` | Revoke an API token |
+| `runtm admin list-tokens` | List API tokens (metadata only) |
+| `runtm admin rotate-pepper` | Guide through pepper rotation |
+
+### Other
+
+| Command | Description |
+|---------|-------------|
+| `runtm version` | Show CLI version |
 
 ### Machine Tiers
 
@@ -154,6 +210,37 @@ template: backend-service
 runtime: python
 tier: standard  # Options: starter, standard, performance
 ```
+
+### Deploy Options Reference
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--tier TIER` | | Machine tier: starter, standard, performance |
+| `--wait/--no-wait` | | Wait for deployment to complete (default: wait) |
+| `--timeout N` | `-t` | Timeout in seconds (default: 500) |
+| `--yes` | `-y` | Auto-fix lockfile issues without prompting |
+| `--config-only` | | Skip Docker build, reuse previous image (for env/tier changes) |
+| `--skip-validation` | | Skip Python import validation (use with caution) |
+| `--force-validation` | | Force re-validation even if cached |
+| `--new` | | Create new deployment (loses custom domains/secrets) |
+
+### Run Options Reference
+
+| Option | Description |
+|--------|-------------|
+| `--no-install` | Skip dependency installation |
+| `--no-autofix` | Don't auto-fix lockfile drift |
+
+The `run` command auto-detects the runtime from `runtm.yaml` and uses Bun if available (3x faster), falling back to npm for Node.js projects.
+
+### Search Options Reference
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--state STATE` | `-s` | Filter by state (ready, failed, etc.) |
+| `--template TEMPLATE` | `-t` | Filter by template type |
+| `--limit N` | `-n` | Maximum results (default: 20) |
+| `--json` | | Output as JSON |
 
 ## Environment Variables & Secrets
 
@@ -363,8 +450,8 @@ for log in logs['logs']:
 
 ```bash
 # Create deployment with tier override
-curl -X POST "https://api.runtm.dev/v0/deployments?tier=performance" \
-  -H "Authorization: Bearer $RUNTM_TOKEN" \
+curl -X POST "https://app.runtm.com/api/v0/deployments?tier=performance" \
+  -H "Authorization: Bearer $RUNTM_API_KEY" \
   -F "manifest=@runtm.yaml" \
   -F "artifact=@artifact.zip"
 ```
@@ -375,7 +462,7 @@ curl -X POST "https://api.runtm.dev/v0/deployments?tier=performance" \
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `RUNTM_API_TOKEN` | API authentication token | Yes |
+| `RUNTM_API_SECRET` | API authentication secret (server-side) | Yes |
 | `DATABASE_URL` | PostgreSQL connection string | Yes |
 | `REDIS_URL` | Redis connection string | Yes |
 | `FLY_API_TOKEN` | Fly.io API token | Yes (worker) |
@@ -462,7 +549,43 @@ import { useSession, signIn, signOut } from "@/lib/auth-client";
 - All machines use auto-stop for cost savings
 - Max deployments/hour: 10 per token
 
+## Self-Hosting
+
+Runtm is fully self-hostable. Start the local stack with Docker Compose:
+
+```bash
+# Clone and setup
+git clone https://github.com/runtm-ai/runtm.git
+cd runtm
+cp infra/local.env.example .env
+
+# Start services
+docker compose -f infra/docker-compose.yml up -d
+```
+
+Configure your CLI to use your self-hosted instance:
+
+```bash
+export RUNTM_API_URL=https://your-runtm-instance.com
+```
+
+Or in `~/.runtm/config.yaml`:
+
+```yaml
+api_url: https://your-runtm-instance.com
+```
+
 ## License
 
-MIT
+Runtm uses split licensing to balance open-source contribution with sustainable development:
+
+| Component | License | Rationale |
+|-----------|---------|-----------|
+| Server (api, worker, infra) | [AGPLv3](packages/api/LICENSE) | Protects hosted deployments |
+| CLI, Shared | [Apache-2.0](packages/cli/LICENSE) | Maximum adoption |
+| Templates | [MIT](templates/LICENSE) | Zero friction for users |
+
+The server components are AGPL to ensure improvements to hosted deployments remain open source. The CLI and shared libraries are Apache-2.0 for broad integration. Templates are MIT for maximum flexibility.
+
+See [LICENSE](LICENSE) for the full split license explanation.
 

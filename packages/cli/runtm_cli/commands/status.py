@@ -85,4 +85,3 @@ def status_command(
     elif deployment.state in ("queued", "building", "deploying"):
         console.print()
         console.print("Deployment in progress. Check again in a moment.")
-

@@ -46,7 +46,7 @@ def test_update_item():
         json={"title": "Original Title"},
     )
     item_id = create_response.json()["id"]
-    
+
     # Update it
     update_response = client.patch(
         f"/api/v1/items/{item_id}",
@@ -66,12 +66,11 @@ def test_delete_item():
         json={"title": "To Be Deleted"},
     )
     item_id = create_response.json()["id"]
-    
+
     # Delete it
     delete_response = client.delete(f"/api/v1/items/{item_id}")
     assert delete_response.status_code == 200
-    
+
     # Verify it's gone
     get_response = client.get(f"/api/v1/items/{item_id}")
     assert get_response.status_code == 404
-

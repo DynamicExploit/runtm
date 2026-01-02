@@ -1,7 +1,5 @@
 """Tests for runtm_shared.ids."""
 
-import pytest
-
 from runtm_shared.ids import (
     generate_artifact_key,
     generate_deployment_id,
@@ -95,4 +93,3 @@ class TestArtifactKey:
         """Artifact key should have correct format."""
         key = generate_artifact_key("dep_a1b2c3d4e5f6")
         assert key == "artifacts/dep_a1b2c3d4e5f6/artifact.zip"
-

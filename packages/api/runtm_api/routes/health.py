@@ -27,4 +27,3 @@ async def health_check() -> HealthResponse:
         status="healthy",
         version=__version__,
     )
-

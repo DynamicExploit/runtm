@@ -378,4 +378,3 @@ requested:
             captured = capsys.readouterr()
             assert "runtm secrets set" in captured.out
             assert "API_SECRET" in captured.out
-

@@ -3,8 +3,13 @@
 # Telemetry module is available as runtm_shared.telemetry
 # Import specific items with: from runtm_shared.telemetry import TelemetryService
 
+from runtm_shared.discovery import (
+    ApiDiscovery,
+    AppDiscovery,
+    GeneratedInfo,
+)
+from runtm_shared.env import ensure_env_loaded, find_project_root, load_env_file
 from runtm_shared.errors import (
-    RuntmError,
     ArtifactError,
     ArtifactNotFoundError,
     ArtifactTooLargeError,
@@ -25,6 +30,7 @@ from runtm_shared.errors import (
     ProviderError,
     ProviderNotConfiguredError,
     RateLimitError,
+    RuntmError,
     SecretsNotSupportedError,
     StorageError,
     StorageReadError,
@@ -38,6 +44,14 @@ from runtm_shared.ids import (
     is_valid_deployment_id,
     parse_deployment_id,
 )
+from runtm_shared.lockfiles import (
+    LockfileStatus,
+    check_all_lockfiles,
+    check_lockfile,
+    check_node_lockfile,
+    check_python_lockfile,
+    fix_lockfile,
+)
 from runtm_shared.manifest import (
     Connection,
     EnvVar,
@@ -46,32 +60,13 @@ from runtm_shared.manifest import (
     Policy,
     PolicyMode,
 )
-from runtm_shared.env import ensure_env_loaded, find_project_root, load_env_file
-from runtm_shared.storage.base import ArtifactStore
-from runtm_shared.urls import (
-    construct_deployment_url,
-    get_base_domain,
-    get_subdomain_for_app,
-)
-from runtm_shared.lockfiles import (
-    LockfileStatus,
-    check_lockfile,
-    check_all_lockfiles,
-    check_node_lockfile,
-    check_python_lockfile,
-    fix_lockfile,
-)
-from runtm_shared.discovery import (
-    ApiDiscovery,
-    AppDiscovery,
-    GeneratedInfo,
-)
 from runtm_shared.requests import (
     RequestedChanges,
     RequestedConnection,
     RequestedEnvVar,
     RequestsFile,
 )
+from runtm_shared.storage.base import ArtifactStore
 
 # NOTE: We intentionally do NOT auto-load .env when runtm_shared is imported.
 # The CLI runs in user projects and shouldn't load the monorepo's .env.
@@ -97,6 +92,11 @@ from runtm_shared.types import (
     create_validation_result,
     get_tier_spec,
     is_terminal_state,
+)
+from runtm_shared.urls import (
+    construct_deployment_url,
+    get_base_domain,
+    get_subdomain_for_app,
 )
 
 __all__ = [

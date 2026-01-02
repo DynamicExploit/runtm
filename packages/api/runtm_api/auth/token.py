@@ -9,18 +9,22 @@ Multi-tenant mode features:
 - Versioned peppers for rotation without breaking existing keys
 - 16-character prefix for near-O(1) database lookup
 - Throttled last_used_at updates (max every 5 minutes)
-- Rate limiting on failed auth attempts per IP
+- Rate limiting on failed auth attempts per IP (fail-closed in production)
 - Client IP tracking for audit
+- Structured audit logging for security monitoring
 
 Security Notes:
 - Rate limiting prevents prefix enumeration attacks
 - Constant-time comparison used throughout
 - Failed auths return identical errors (no enumeration)
+- All auth events logged for security monitoring
 """
 
 from __future__ import annotations
 
 import hmac
+import json
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -38,14 +42,61 @@ from runtm_shared.types import ApiKeyScope, AuthContext, AuthMode
 # Only update if more than 5 minutes since last update
 LAST_USED_UPDATE_THRESHOLD_SECONDS = 300
 
-# Rate limiting: max failed attempts per IP per minute
-# Note: In production, use Redis for distributed rate limiting
-MAX_FAILED_ATTEMPTS_PER_MINUTE = 10
-_failed_attempts: dict[str, list[float]] = {}  # In-memory for now
+# Structured logger for auth events
+_audit_logger = logging.getLogger("runtm.auth.audit")
+
+
+def _log_auth_event(
+    event: str,
+    ip: str,
+    success: bool,
+    reason: str = "",
+    identifier: str = "",
+    tenant_id: str = "",
+) -> None:
+    """Log auth events for security monitoring.
+
+    SECURITY: Logs structured auth events for:
+    - Security monitoring and alerting
+    - Incident investigation and forensics
+    - Compliance and audit trails
+
+    Never logs full tokens - only the first 16 chars (identifier) which
+    is the same prefix stored in the database.
+
+    Args:
+        event: Event type (e.g., "auth_success", "auth_failed", "rate_limited")
+        ip: Client IP address
+        success: Whether authentication succeeded
+        reason: Failure reason if applicable
+        identifier: Token prefix (first 16 chars) or username
+        tenant_id: Tenant ID if known (on success)
+    """
+    # Build structured log entry as JSON
+    log_entry = {
+        "event": event,
+        "ip": ip,
+        "success": success,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+    if reason:
+        log_entry["reason"] = reason
+    if identifier:
+        # Never log more than 16 chars of token/identifier
+        log_entry["identifier"] = identifier[:16]
+    if tenant_id:
+        log_entry["tenant_id"] = tenant_id
+
+    # Log as JSON for easy parsing by log aggregators
+    _audit_logger.info(json.dumps(log_entry))
 
 
 def _get_client_ip(request: Request) -> str:
     """Extract client IP from request, handling proxies.
+
+    Note: This is a basic implementation. For production with untrusted
+    networks, use the trusted proxy middleware from runtm_api.middleware.proxy.
 
     Args:
         request: FastAPI request
@@ -68,41 +119,40 @@ def _get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _check_rate_limit(ip: str) -> bool:
-    """Check if IP is rate limited for auth attempts.
+def _check_auth_rate_limit(ip: str, identifier: str = "") -> bool:
+    """Check auth rate limit using Redis. Fails CLOSED in production.
 
-    Simple in-memory implementation. For production, use Redis.
+    SECURITY: This function fails closed in production - if Redis is
+    unavailable, authentication requests are rejected with 503.
+    In debug mode, it fails open to allow local development.
 
     Args:
         ip: Client IP address
+        identifier: Token prefix for rate limiting (first 16 chars)
 
     Returns:
         True if allowed, False if rate limited
+
+    Raises:
+        HTTPException: 503 if rate limiter unavailable in production
     """
-    import time
+    from runtm_api.services.rate_limit import get_rate_limiter
 
-    now = time.time()
-    window_start = now - 60  # 1 minute window
+    settings = get_settings()
+    limiter = get_rate_limiter()
 
-    # Clean old entries and check count
-    if ip in _failed_attempts:
-        _failed_attempts[ip] = [t for t in _failed_attempts[ip] if t > window_start]
-        if len(_failed_attempts[ip]) >= MAX_FAILED_ATTEMPTS_PER_MINUTE:
-            return False
-    return True
+    if limiter is None:
+        if settings.debug:
+            # Dev mode: allow if Redis unavailable
+            return True
+        # Production: fail closed - no Redis = no auth
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "Rate limiter unavailable. Try again later."},
+        )
 
-
-def _record_failed_attempt(ip: str) -> None:
-    """Record a failed auth attempt for rate limiting.
-
-    Args:
-        ip: Client IP address
-    """
-    import time
-
-    if ip not in _failed_attempts:
-        _failed_attempts[ip] = []
-    _failed_attempts[ip].append(time.time())
+    allowed, _remaining, _reset_at = limiter.check_auth_rate_limit(ip, identifier)
+    return allowed
 
 
 def extract_bearer_token(request: Request) -> Optional[str]:
@@ -132,7 +182,7 @@ async def get_auth_context(
 ) -> AuthContext:
     """Validate request authentication and return AuthContext.
 
-    In single-tenant mode, validates against RUNTM_API_TOKEN.
+    In single-tenant mode, validates against RUNTM_API_SECRET.
     In multi-tenant mode, looks up API key by prefix and verifies with HMAC.
 
     Args:
@@ -170,7 +220,7 @@ async def get_auth_context(
 def _authenticate_single_tenant(token: str, settings: Settings) -> AuthContext:
     """Authenticate in single-tenant mode using static token.
 
-    SECURITY: In production, RUNTM_API_TOKEN must be set. The insecure
+    SECURITY: In production, RUNTM_API_SECRET must be set. The insecure
     bypass (accept any token) requires BOTH debug=True AND
     allow_insecure_dev_auth=True to prevent accidental exposure.
 
@@ -186,7 +236,7 @@ def _authenticate_single_tenant(token: str, settings: Settings) -> AuthContext:
     """
     import logging
 
-    if not settings.api_token:
+    if not settings.api_secret:
         # SECURITY: Only allow bypass if BOTH flags are explicitly set
         if settings.debug and settings.allow_insecure_dev_auth:
             logging.warning(
@@ -208,13 +258,13 @@ def _authenticate_single_tenant(token: str, settings: Settings) -> AuthContext:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
-                "error": "RUNTM_API_TOKEN not configured",
-                "hint": "Set RUNTM_API_TOKEN environment variable",
+                "error": "RUNTM_API_SECRET not configured",
+                "hint": "Set RUNTM_API_SECRET environment variable",
             },
         )
 
     # Use constant-time comparison to prevent timing attacks
-    if not hmac.compare_digest(token, settings.api_token):
+    if not hmac.compare_digest(token, settings.api_secret):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=InvalidTokenError().to_dict(),
@@ -242,7 +292,7 @@ async def _authenticate_multi_tenant(
     """Authenticate in multi-tenant mode using API keys.
 
     Lookup flow:
-    1. Check rate limit for client IP
+    1. Check rate limit for client IP + token prefix
     2. Validate token format (starts with "runtm_")
     3. Extract prefix for near-O(1) DB lookup
     4. Query candidates by prefix (non-revoked keys)
@@ -251,7 +301,7 @@ async def _authenticate_multi_tenant(
     7. Update last_used_at and last_used_ip (throttled)
 
     Security:
-    - Rate limiting prevents prefix enumeration attacks
+    - Rate limiting prevents prefix enumeration attacks (uses Redis, fail-closed)
     - Constant-time comparison used even when no candidates
     - Identical error responses for all auth failures
 
@@ -269,16 +319,33 @@ async def _authenticate_multi_tenant(
     """
     client_ip = _get_client_ip(request)
 
-    # Check rate limit first
-    if not _check_rate_limit(client_ip):
+    # Extract identifier from token prefix for rate limiting
+    # (We don't have username at this point, but prefix is unique enough)
+    identifier = token[:16] if len(token) >= 16 else ""
+
+    # Check rate limit first (fail-closed in production)
+    if not _check_auth_rate_limit(client_ip, identifier):
+        _log_auth_event(
+            "rate_limited",
+            client_ip,
+            False,
+            reason="too_many_attempts",
+            identifier=identifier,
+        )
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail={"error": "Too many authentication attempts. Try again later."},
         )
 
-    # Helper to raise auth error and record failed attempt
-    def _auth_failed() -> None:
-        _record_failed_attempt(client_ip)
+    # Helper to raise auth error with logging
+    def _auth_failed(reason: str = "invalid_token") -> None:
+        _log_auth_event(
+            "auth_failed",
+            client_ip,
+            False,
+            reason=reason,
+            identifier=identifier,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=InvalidTokenError().to_dict(),
@@ -287,7 +354,7 @@ async def _authenticate_multi_tenant(
 
     # Validate token format
     if not validate_token_format(token):
-        _auth_failed()
+        _auth_failed("invalid_format")
 
     # Check pepper configuration
     if not settings.peppers:
@@ -314,7 +381,7 @@ async def _authenticate_multi_tenant(
         # This ensures the response time is similar whether or not the prefix exists
         fake_hash = hash_key(token, list(settings.peppers.values())[0])
         hmac.compare_digest(fake_hash, "0" * 64)
-        _auth_failed()
+        _auth_failed("no_matching_key")
 
     # Verify hash with versioned HMAC
     api_key = None
@@ -330,12 +397,12 @@ async def _authenticate_multi_tenant(
             break
 
     if not api_key:
-        _auth_failed()
+        _auth_failed("hash_mismatch")
 
     # Check expiration
     now = datetime.now(timezone.utc)
     if api_key.expires_at and api_key.expires_at < now:
-        _auth_failed()
+        _auth_failed("token_expired")
 
     # Throttled last_used_at update (avoid write amplification)
     should_update = False
@@ -357,6 +424,15 @@ async def _authenticate_multi_tenant(
         if hasattr(api_key, "last_used_ip"):
             api_key.last_used_ip = client_ip
         db.commit()
+
+    # Log successful authentication
+    _log_auth_event(
+        "auth_success",
+        client_ip,
+        True,
+        identifier=identifier,
+        tenant_id=api_key.tenant_id,
+    )
 
     return AuthContext(
         token=token,

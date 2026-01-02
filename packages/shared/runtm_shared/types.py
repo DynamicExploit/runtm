@@ -110,10 +110,18 @@ class DeploymentState(str, Enum):
 # Allowed state transitions
 ALLOWED_TRANSITIONS: Dict[DeploymentState, Set[DeploymentState]] = {
     # DEPLOYING allowed from QUEUED for config-only deploys (skip build)
-    DeploymentState.QUEUED: {DeploymentState.BUILDING, DeploymentState.DEPLOYING, DeploymentState.FAILED, DeploymentState.DESTROYED},
+    DeploymentState.QUEUED: {
+        DeploymentState.BUILDING,
+        DeploymentState.DEPLOYING,
+        DeploymentState.FAILED,
+        DeploymentState.DESTROYED,
+    },
     DeploymentState.BUILDING: {DeploymentState.DEPLOYING, DeploymentState.FAILED},
     DeploymentState.DEPLOYING: {DeploymentState.READY, DeploymentState.FAILED},
-    DeploymentState.READY: {DeploymentState.QUEUED, DeploymentState.DESTROYED},  # QUEUED for redeploy
+    DeploymentState.READY: {
+        DeploymentState.QUEUED,
+        DeploymentState.DESTROYED,
+    },  # QUEUED for redeploy
     DeploymentState.FAILED: {DeploymentState.QUEUED, DeploymentState.DESTROYED},  # QUEUED to retry
     DeploymentState.DESTROYED: set(),  # Terminal state
 }
@@ -257,7 +265,13 @@ class AuthContext:
     tenant_id: str = "default"
     principal_id: str = "default"
     api_key_id: Optional[str] = None
-    scopes: Set[str] = field(default_factory=lambda: {ApiKeyScope.READ.value, ApiKeyScope.DEPLOY.value, ApiKeyScope.DELETE.value})
+    scopes: Set[str] = field(
+        default_factory=lambda: {
+            ApiKeyScope.READ.value,
+            ApiKeyScope.DEPLOY.value,
+            ApiKeyScope.DELETE.value,
+        }
+    )
 
 
 @dataclass
@@ -303,7 +317,7 @@ class MachineConfig:
         region: str = "iad",
         env: Optional[Dict[str, str]] = None,
         volumes: Optional[List[VolumeConfig]] = None,
-    ) -> "MachineConfig":
+    ) -> MachineConfig:
         """Create a MachineConfig from a tier specification.
 
         Args:
@@ -441,4 +455,3 @@ class CustomDomainInfo:
     dns_records: list[DnsRecord] = field(default_factory=list)
     error: Optional[str] = None
     check_url: Optional[str] = None  # URL to check certificate status
-

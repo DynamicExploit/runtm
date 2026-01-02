@@ -248,4 +248,3 @@ class FlySecretsProvider(SecretsProvider):
                 success=False,
                 error=f"Error deleting secrets: {str(e)}",
             )
-

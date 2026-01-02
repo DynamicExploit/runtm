@@ -7,7 +7,6 @@ from __future__ import annotations
 # - User's system environment variables
 # - User's project .env.local (via secrets commands)
 # - ~/.runtm/config.yaml for CLI config (API URL, token)
-
 from typing import Optional
 
 import typer
@@ -35,7 +34,6 @@ from runtm_cli.commands import (
     validate_command,
 )
 from runtm_cli.commands.admin import admin_app
-from runtm_cli.config import get_config, get_token, set_token, clear_token
 
 console = Console()
 
@@ -63,7 +61,9 @@ app = typer.Typer(
 
 @app.command("init")
 def init(
-    template: Optional[str] = typer.Argument(None, help="Template type: backend-service, static-site, web-app"),
+    template: Optional[str] = typer.Argument(
+        None, help="Template type: backend-service, static-site, web-app"
+    ),
     path: str = typer.Option(".", "--path", "-p"),
     name: str = typer.Option(None, "--name", "-n"),
 ) -> None:
@@ -81,19 +81,38 @@ def init(
 def deploy(
     path: str = typer.Argument(".", help="Path to project"),
     wait: bool = typer.Option(True, "--wait/--no-wait"),
-    timeout: int = typer.Option(300, "--timeout", "-t"),
-    new: bool = typer.Option(False, "--new", help="DANGEROUS: Create new Fly app instead of redeploying. Loses custom domains and secrets!"),
+    timeout: int = typer.Option(500, "--timeout", "-t"),
+    new: bool = typer.Option(
+        False,
+        "--new",
+        help="DANGEROUS: Create new Fly app instead of redeploying. Loses custom domains and secrets!",
+    ),
     tier: str = typer.Option(None, "--tier", help="Machine tier: starter, standard, performance"),
-    yes: bool = typer.Option(False, "--yes", "-y", help="Auto-fix lockfile issues without prompting"),
-    config_only: bool = typer.Option(False, "--config-only", help="Skip Docker build - reuse previous image (for env/tier changes only)"),
+    yes: bool = typer.Option(
+        False, "--yes", "-y", help="Auto-fix lockfile issues without prompting"
+    ),
+    config_only: bool = typer.Option(
+        False,
+        "--config-only",
+        help="Skip Docker build - reuse previous image (for env/tier changes only)",
+    ),
+    skip_validation: bool = typer.Option(
+        False, "--skip-validation", help="Skip Python import validation (use with caution)"
+    ),
+    force_validation: bool = typer.Option(
+        False, "--force-validation", help="Force re-validation even if cached"
+    ),
 ) -> None:
     """Deploy a project to a live URL.
-    
+
     Blocks if lockfile is missing or out of sync. Use --yes to auto-fix.
-    
+
     Use --config-only to skip the Docker build and reuse the previous image.
     This is useful for changing environment variables or machine tier without
     rebuilding. Requires unchanged source code.
+
+    Use --skip-validation to skip Python import validation (faster but riskier).
+    Use --force-validation to ignore validation cache and re-run checks.
     """
     from pathlib import Path
 
@@ -110,7 +129,9 @@ def deploy(
         console.print("Use this ONLY if you intentionally want a separate deployment.")
         console.print()
         if not typer.confirm("Are you sure you want to create a NEW deployment?", default=False):
-            console.print("[dim]Cancelled. Use 'runtm deploy' without --new to update existing.[/dim]")
+            console.print(
+                "[dim]Cancelled. Use 'runtm deploy' without --new to update existing.[/dim]"
+            )
             raise typer.Exit(0)
 
     deploy_command(
@@ -121,6 +142,8 @@ def deploy(
         tier=tier,
         yes=yes,
         config_only=config_only,
+        skip_validation=skip_validation,
+        force_validation=force_validation,
     )
 
 
@@ -137,7 +160,9 @@ def validate(
 @app.command("approve")
 def approve(
     path: str = typer.Argument(".", help="Path to project"),
-    dry_run: bool = typer.Option(False, "--dry-run", "-n", help="Show what would be applied without making changes"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", "-n", help="Show what would be applied without making changes"
+    ),
 ) -> None:
     """Apply agent-proposed changes from runtm.requests.yaml.
 
@@ -160,10 +185,10 @@ def fix(
     path: str = typer.Argument(".", help="Path to project"),
 ) -> None:
     """Fix common project issues (lockfiles, etc.).
-    
+
     Automatically repairs:
     - Missing or drifted lockfiles
-    
+
     Examples:
         runtm fix              # Fix current directory
         runtm fix ./my-project # Fix specific project
@@ -180,14 +205,14 @@ def run(
     no_autofix: bool = typer.Option(False, "--no-autofix", help="Don't auto-fix lockfile drift"),
 ) -> None:
     """Run project locally (auto-detects runtime from runtm.yaml).
-    
+
     Starts the development server with the correct port and command
     based on your template's runtime (python, node, or fullstack).
-    
+
     Uses Bun if available (3x faster), falls back to npm.
-    
+
     Automatically fixes lockfile drift unless --no-autofix is passed.
-    
+
     Examples:
         runtm run              # Run current directory
         runtm run ./my-project # Run specific project
@@ -212,7 +237,9 @@ def logs(
     deployment_id: str = typer.Argument(..., help="Deployment ID"),
     log_type: str = typer.Option(None, "--type", "-t", help="Log type: build, deploy, runtime"),
     lines: int = typer.Option(20, "--lines", "-n", help="Runtime log lines to include"),
-    search: str = typer.Option(None, "--search", "-s", help="Filter: term, term1,term2 (OR), or regex"),
+    search: str = typer.Option(
+        None, "--search", "-s", help="Filter: term, term1,term2 (OR), or regex"
+    ),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON for AI agents"),
     raw: bool = typer.Option(False, "--raw", help="Raw output for piping to grep"),
     follow: bool = typer.Option(False, "--follow", "-f", help="Follow logs (not implemented)"),
@@ -377,7 +404,9 @@ def secrets_get(
 @secrets_app.command("list")
 def secrets_list(
     path: str = typer.Option(".", "--path", "-p", help="Path to project"),
-    show_values: bool = typer.Option(False, "--values", "-v", help="Show values (non-secrets only)"),
+    show_values: bool = typer.Option(
+        False, "--values", "-v", help="Show values (non-secrets only)"
+    ),
 ) -> None:
     """List all secrets and their status.
 
@@ -407,11 +436,231 @@ def secrets_unset(
     secrets_unset_command(key=key, path=Path(path))
 
 
+# Config subcommand group
+config_app = typer.Typer(
+    name="config",
+    help="Manage CLI configuration.",
+    no_args_is_help=True,
+)
+app.add_typer(config_app, name="config")
+
+
+@config_app.command("set")
+def config_set(
+    key_value: str = typer.Argument(..., help="KEY=VALUE pair to set (e.g., api_url=https://...)"),
+) -> None:
+    """Set a configuration value.
+
+    Valid keys:
+    - api_url: API endpoint (for self-hosting)
+    - default_template: Default template for init
+    - default_runtime: Default runtime
+
+    Examples:
+        runtm config set api_url=https://self-hosted.example.com/api
+        runtm config set default_template=web-app
+    """
+    from runtm_cli.config import set_config_value
+
+    if "=" not in key_value:
+        console.print("[red]Error:[/red] Invalid format. Use KEY=VALUE")
+        console.print()
+        console.print("Example: runtm config set api_url=https://api.example.com")
+        raise typer.Exit(1)
+
+    key, value = key_value.split("=", 1)
+    key = key.strip()
+    value = value.strip()
+
+    try:
+        set_config_value(key, value)
+        console.print(f"[green]✓[/green] Set {key} = {value}")
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1)
+
+
+@config_app.command("get")
+def config_get(
+    key: str = typer.Argument(..., help="Config key to get"),
+) -> None:
+    """Get a configuration value.
+
+    Example:
+        runtm config get api_url
+    """
+    from runtm_cli.config import get_config_value
+
+    try:
+        value = get_config_value(key)
+        if value is not None:
+            console.print(value)
+        else:
+            console.print(f"[dim]Not set[/dim]")
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1)
+
+
+@config_app.command("list")
+def config_list() -> None:
+    """List all configuration values.
+
+    Example:
+        runtm config list
+    """
+    from runtm_cli.config import DEFAULT_API_URL, get_config
+
+    config = get_config()
+
+    console.print()
+    console.print("[bold]Configuration[/bold] (~/.runtm/config.yaml)")
+    console.print()
+
+    for key, value in config.items():
+        # Mark default values
+        is_default = key == "api_url" and value == DEFAULT_API_URL
+        suffix = " [dim](default)[/dim]" if is_default else ""
+        console.print(f"  {key}: {value}{suffix}")
+
+    console.print()
+
+
+@config_app.command("reset")
+def config_reset(
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
+) -> None:
+    """Reset configuration to defaults.
+
+    Example:
+        runtm config reset
+    """
+    from runtm_cli.config import reset_config
+
+    if not force:
+        if not typer.confirm("Reset all config to defaults?", default=False):
+            console.print("[dim]Cancelled.[/dim]")
+            raise typer.Exit(0)
+
+    reset_config()
+    console.print("[green]✓[/green] Configuration reset to defaults")
+
+
+@app.command("doctor")
+def doctor() -> None:
+    """Check CLI setup and diagnose issues.
+
+    Displays version, configuration, authentication status,
+    and API connectivity. Useful for troubleshooting.
+
+    Example:
+        runtm doctor
+    """
+    import time
+
+    import httpx
+
+    from runtm_cli import __version__
+    from runtm_cli.auth import (
+        check_credentials_permissions,
+        get_keyring_key,
+        get_token,
+        get_token_source,
+    )
+    from runtm_cli.config import get_api_url
+
+    console.print()
+    console.print(f"[bold]runtm[/bold] v{__version__}")
+    console.print()
+
+    # API URL
+    api_url = get_api_url()
+    console.print(f"  API URL:      {api_url}")
+
+    # Auth storage source
+    source = get_token_source()
+    if source == "env":
+        console.print("  Auth storage: env (RUNTM_API_KEY)")
+    elif source == "keychain":
+        key = get_keyring_key()
+        console.print(f"  Auth storage: keychain ({key})")
+    elif source == "file":
+        console.print("  Auth storage: file (~/.runtm/credentials)")
+    else:
+        console.print("  Auth storage: [yellow]none[/yellow]")
+
+    # Auth status - try to validate token via /v1/me if we have one
+    token = get_token()
+    if token:
+        try:
+            start = time.time()
+            response = httpx.get(
+                f"{api_url}/v1/me",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=5.0,
+            )
+            latency_ms = int((time.time() - start) * 1000)
+
+            if response.status_code == 200:
+                data = response.json()
+                email = data.get("email", "unknown")
+                console.print(f"  Auth status:  [green]✓[/green] Authenticated as {email}")
+            elif response.status_code == 401:
+                console.print("  Auth status:  [red]✗[/red] Token invalid or expired")
+            elif response.status_code == 404:
+                # /v1/me endpoint doesn't exist yet, fall back to showing token is configured
+                console.print("  Auth status:  [green]✓[/green] Token configured")
+            else:
+                console.print(f"  Auth status:  [yellow]?[/yellow] Could not verify (HTTP {response.status_code})")
+        except httpx.TimeoutException:
+            console.print("  Auth status:  [yellow]?[/yellow] Verification timed out")
+        except Exception as e:
+            console.print(f"  Auth status:  [yellow]?[/yellow] Could not verify: {e}")
+    else:
+        console.print("  Auth status:  [red]✗[/red] Not authenticated")
+
+    # Credentials file permissions (only if using file storage)
+    if source == "file":
+        perm_ok, perm_msg = check_credentials_permissions()
+        if perm_ok:
+            console.print(f"  Credentials:  [green]✓[/green] {perm_msg}")
+        else:
+            console.print(f"  Credentials:  {perm_msg}")
+
+    # Connectivity check (unauthenticated ping)
+    try:
+        start = time.time()
+        response = httpx.get(f"{api_url}/health", timeout=5.0)
+        latency_ms = int((time.time() - start) * 1000)
+
+        if response.status_code == 200:
+            console.print(f"  Connectivity: [green]✓[/green] API reachable ({latency_ms}ms)")
+        else:
+            console.print(f"  Connectivity: [yellow]?[/yellow] API returned HTTP {response.status_code}")
+    except httpx.TimeoutException:
+        console.print("  Connectivity: [red]✗[/red] API request timed out")
+    except httpx.ConnectError:
+        console.print("  Connectivity: [red]✗[/red] Could not connect to API")
+    except Exception as e:
+        console.print(f"  Connectivity: [red]✗[/red] {e}")
+
+    console.print()
+
+    # Suggested next step
+    if not token:
+        console.print("  Get started: [cyan]runtm login[/cyan]")
+    else:
+        console.print("  Ready to deploy! Run: [cyan]runtm init backend-service[/cyan]")
+
+    console.print()
+
+
 @app.command("login")
 def login(
     token: Optional[str] = typer.Option(
         None,
-        "--token", "-t",
+        "--token",
+        "-t",
         help="API token (will prompt if not provided)",
     ),
     device: bool = typer.Option(
@@ -419,33 +668,51 @@ def login(
         "--device",
         help="Use browser-based device flow (hosted Runtm only)",
     ),
+    no_verify: bool = typer.Option(
+        False,
+        "--no-verify",
+        help="Skip API validation (for self-hosted/offline setup)",
+    ),
     force: bool = typer.Option(
         False,
-        "--force", "-f",
+        "--force",
+        "-f",
         help="Replace existing token without prompting",
     ),
 ) -> None:
     """Authenticate with Runtm API.
 
     Two authentication methods:
-    - Token: Paste an API token directly (default for self-hosted)
-    - Device flow: Authenticate via browser (hosted Runtm only)
+    - Token: Paste an API token directly (default)
+    - Device flow: Authenticate via browser (hosted Runtm only, not yet implemented)
 
     Examples:
         runtm login                    # Prompt for token
         runtm login --token runtm_xxx  # Provide token directly
-        runtm login --device           # Browser-based auth (hosted only)
+        runtm login --no-verify        # Skip API validation (self-hosted)
+        runtm login --device           # Browser-based auth (not yet implemented)
     """
     import os
-    from runtm_cli.telemetry import emit_login_started, emit_login_completed
+
+    import httpx
+
+    from runtm_cli.auth import get_token, set_token
+    from runtm_cli.config import get_api_url, get_config
+    from runtm_cli.telemetry import emit_login_completed, emit_login_started
 
     # Check if already logged in
     existing_token = get_token()
     if existing_token and not force:
         # Mask the token for display
-        masked = existing_token[:16] + "..." + existing_token[-4:] if len(existing_token) > 24 else existing_token[:8] + "..."
+        masked = (
+            existing_token[:16] + "..." + existing_token[-4:]
+            if len(existing_token) > 24
+            else existing_token[:8] + "..."
+        )
         console.print()
-        console.print(f"[yellow]⚠[/yellow]  You are already logged in with token: [dim]{masked}[/dim]")
+        console.print(
+            f"[yellow]⚠[/yellow]  You are already logged in with token: [dim]{masked}[/dim]"
+        )
         console.print()
         if not typer.confirm("Replace existing token?", default=False):
             console.print("[dim]Keeping existing token.[/dim]")
@@ -458,7 +725,7 @@ def login(
         device_auth_url = os.environ.get("RUNTM_DEVICE_AUTH_URL", "")
 
         # Check if device flow is available
-        is_hosted = "api.runtm.dev" in api_url or "api.runtm.com" in api_url
+        is_hosted = "runtm.dev" in api_url or "runtm.com" in api_url
         if not is_hosted and not device_auth_url:
             console.print("[red]Error:[/red] Device flow only available for hosted Runtm")
             console.print()
@@ -479,7 +746,7 @@ def login(
         # 1. POST to device_auth_url to get device_code and user_code
         # 2. Show user_code and verification URL
         # 3. Poll for token completion
-        # 4. Save token
+        # 4. Save token via set_token()
         # emit_login_completed(auth_method="device")
     else:
         # Token-based authentication
@@ -500,35 +767,49 @@ def login(
 
         emit_login_started(auth_method="token")
 
-        # Validate the token against Cloud Backend before saving
-        console.print()
-        console.print("[dim]Validating API key...[/dim]")
-
-        from runtm_cli.api_client import verify_cloud_api_key
-        from runtm_shared.errors import InvalidTokenError, RuntmError
-
-        try:
-            result = verify_cloud_api_key(token)
-            console.print(f"[green]✓[/green] Key validated: [bold]{result.name}[/bold]")
-            if result.expires_at:
-                console.print(f"[dim]  Expires: {result.expires_at}[/dim]")
-            console.print(f"[dim]  Scopes: {', '.join(result.scopes)}[/dim]")
-        except InvalidTokenError as e:
-            console.print(f"[red]✗[/red] Invalid API key: {e}")
+        # Validate the token via /v1/me endpoint (unless --no-verify)
+        if not no_verify:
             console.print()
-            console.print("[dim]Please create a new key at https://app.runtm.com/api-keys[/dim]")
-            raise typer.Exit(1)
-        except RuntmError as e:
-            console.print(f"[red]✗[/red] {e}")
-            if e.recovery_hint:
-                console.print()
-                console.print(f"[dim]{e.recovery_hint}[/dim]")
-            raise typer.Exit(1)
+            console.print("[dim]Validating API key...[/dim]")
 
-        set_token(token)
+            api_url = get_api_url()
+            try:
+                response = httpx.get(
+                    f"{api_url}/v1/me",
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=5.0,
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    email = data.get("email", "unknown")
+                    console.print(f"[green]✓[/green] Authenticated as {email}")
+                elif response.status_code == 401:
+                    console.print("[red]✗[/red] Invalid API key")
+                    console.print()
+                    console.print("[dim]Please create a new key at https://app.runtm.com/api-keys[/dim]")
+                    raise typer.Exit(1)
+                elif response.status_code == 404:
+                    # /v1/me endpoint doesn't exist yet, continue without validation
+                    console.print("[dim]Skipping validation (endpoint not available)[/dim]")
+                else:
+                    console.print(f"[yellow]Warning:[/yellow] Could not verify token (HTTP {response.status_code})")
+                    console.print("[dim]Proceeding anyway...[/dim]")
+            except httpx.TimeoutException:
+                console.print("[yellow]Warning:[/yellow] Validation timed out")
+                console.print("[dim]Proceeding anyway...[/dim]")
+            except httpx.ConnectError:
+                console.print("[yellow]Warning:[/yellow] Could not connect to API")
+                console.print("[dim]Proceeding anyway. Use --no-verify to skip validation.[/dim]")
+            except Exception as e:
+                console.print(f"[yellow]Warning:[/yellow] Could not verify token: {e}")
+                console.print("[dim]Proceeding anyway...[/dim]")
+
+        # Store token via unified auth layer (keychain or file)
+        storage = set_token(token)
         emit_login_completed(auth_method="token")
         console.print()
-        console.print("[green]✓[/green] Token saved to ~/.runtm/config.yaml")
+        console.print(f"[green]✓[/green] Token saved to {storage}")
         console.print("[dim]You can now use runtm commands.[/dim]")
 
 
@@ -536,39 +817,56 @@ def login(
 def logout(
     force: bool = typer.Option(
         False,
-        "--force", "-f",
+        "--force",
+        "-f",
         help="Skip confirmation prompt",
     ),
 ) -> None:
     """Remove saved API credentials.
 
-    Clears the stored API token from ~/.runtm/config.yaml.
+    Clears the stored API token from keychain or credentials file.
     You will need to run 'runtm login' again to authenticate.
 
     Examples:
         runtm logout          # Prompt for confirmation
         runtm logout --force  # Skip confirmation
     """
-    existing_token = get_token()
-    
-    if not existing_token:
+    from runtm_cli.auth import clear_token, get_token, get_token_source
+
+    source = get_token_source()
+
+    if source == "none":
         console.print("[dim]No token found. Already logged out.[/dim]")
         raise typer.Exit(0)
 
-    # Mask the token for display
-    masked = existing_token[:16] + "..." + existing_token[-4:] if len(existing_token) > 24 else existing_token[:8] + "..."
-    
-    if not force:
+    if source == "env":
+        console.print("[yellow]⚠[/yellow]  Token is set via RUNTM_API_KEY environment variable.")
         console.print()
-        console.print(f"Current token: [dim]{masked}[/dim]")
-        console.print()
-        if not typer.confirm("Remove this token?", default=False):
-            console.print("[dim]Token kept.[/dim]")
-            raise typer.Exit(0)
+        console.print("To log out, unset the environment variable:")
+        console.print("  [cyan]unset RUNTM_API_KEY[/cyan]")
+        raise typer.Exit(0)
+
+    existing_token = get_token()
+    if existing_token:
+        # Mask the token for display
+        masked = (
+            existing_token[:16] + "..." + existing_token[-4:]
+            if len(existing_token) > 24
+            else existing_token[:8] + "..."
+        )
+
+        if not force:
+            console.print()
+            console.print(f"Current token: [dim]{masked}[/dim]")
+            console.print(f"Storage: {source}")
+            console.print()
+            if not typer.confirm("Remove this token?", default=False):
+                console.print("[dim]Token kept.[/dim]")
+                raise typer.Exit(0)
 
     clear_token()
     console.print()
-    console.print("[green]✓[/green] Token removed from ~/.runtm/config.yaml")
+    console.print("[green]✓[/green] Logged out")
     console.print("[dim]Run 'runtm login' to authenticate again.[/dim]")
 
 
@@ -579,7 +877,7 @@ app.add_typer(admin_app, name="admin")
 @app.command("version")
 def version() -> None:
     """Show CLI version."""
-    console.print(f"runtm-cli v{__version__}")
+    console.print(f"runtm v{__version__}")
 
 
 def main() -> None:
@@ -589,4 +887,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

@@ -7,7 +7,6 @@ from typing import Optional
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
 from rich.text import Text
 
 from runtm_cli.api_client import APIClient
@@ -84,7 +83,7 @@ def search_command(
 
     if not results.results:
         console.print()
-        console.print(f"[yellow]No apps found matching \"{query}\"[/yellow]")
+        console.print(f'[yellow]No apps found matching "{query}"[/yellow]')
         console.print()
         console.print("[dim]Tips:[/dim]")
         console.print("  • Try broader search terms")
@@ -93,7 +92,7 @@ def search_command(
         return
 
     console.print()
-    console.print(f"[bold]Found {results.total} app(s) matching \"{query}\":[/bold]")
+    console.print(f'[bold]Found {results.total} app(s) matching "{query}":[/bold]')
     console.print()
 
     for result in results.results:
@@ -158,4 +157,3 @@ def _print_search_result(result) -> None:
     )
 
     console.print(panel)
-

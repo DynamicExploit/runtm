@@ -11,7 +11,6 @@ call this as it runs in user projects and shouldn't load the monorepo's .env.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -108,4 +107,3 @@ def ensure_env_loaded() -> None:
 # NOTE: We intentionally do NOT auto-load .env on module import.
 # The CLI runs in user projects and shouldn't load the monorepo's .env.
 # API and Worker should call ensure_env_loaded() explicitly at startup.
-

@@ -336,10 +336,12 @@ class FlyProvider(DeployProvider):
                 config.region,
                 vol_config.size_gb,
             )
-            mounts.append({
-                "volume": volume_id,
-                "path": vol_config.path,
-            })
+            mounts.append(
+                {
+                    "volume": volume_id,
+                    "path": vol_config.path,
+                }
+            )
 
         machine_config: Dict[str, Any] = {
             "image": config.image,
@@ -471,10 +473,12 @@ class FlyProvider(DeployProvider):
                 config.region,
                 vol_config.size_gb,
             )
-            mounts.append({
-                "volume": volume_id,
-                "path": vol_config.path,
-            })
+            mounts.append(
+                {
+                    "volume": volume_id,
+                    "path": vol_config.path,
+                }
+            )
 
         machine_config: Dict[str, Any] = {
             "image": config.image,
@@ -725,10 +729,7 @@ class FlyProvider(DeployProvider):
 
             # Check health from machine checks
             checks = machine.get("checks", [])
-            healthy = any(
-                check.get("status") == "passing"
-                for check in checks
-            )
+            healthy = any(check.get("status") == "passing" for check in checks)
 
             return ProviderStatus(
                 state=state,
@@ -802,8 +803,8 @@ class FlyProvider(DeployProvider):
         Returns:
             Log content as string
         """
-        import subprocess
         import re
+        import subprocess
 
         try:
             # Use flyctl to fetch logs (handles NATS/auth internally)
@@ -828,8 +829,8 @@ class FlyProvider(DeployProvider):
                 return "No runtime logs available yet."
 
             # Strip ANSI color codes for clean output
-            ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-            log_output = ansi_escape.sub('', log_output)
+            ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+            log_output = ansi_escape.sub("", log_output)
 
             # Limit to last N lines if specified
             log_lines = log_output.split("\n")
@@ -918,15 +919,17 @@ class FlyProvider(DeployProvider):
             data = self._graphql_request(query, {"appName": app_name})
             app_data = data.get("app", {})
             nodes = app_data.get("ipAddresses", {}).get("nodes", [])
-            
+
             # Shared IPv4 is returned separately, not in ipAddresses.nodes
             shared_ipv4 = app_data.get("sharedIpAddress")
             if shared_ipv4:
-                nodes.append({
-                    "address": shared_ipv4,
-                    "type": "shared_v4",
-                })
-            
+                nodes.append(
+                    {
+                        "address": shared_ipv4,
+                        "type": "shared_v4",
+                    }
+                )
+
             return nodes
         except FlyError:
             return []
@@ -954,10 +957,7 @@ class FlyProvider(DeployProvider):
         ips = self._get_app_ips(app_name)
 
         # Check if we have IPv4 - if not, try to allocate it
-        has_ipv4 = any(
-            ip.get("type", "").lower() in ("v4", "shared_v4")
-            for ip in ips
-        )
+        has_ipv4 = any(ip.get("type", "").lower() in ("v4", "shared_v4") for ip in ips)
 
         if not has_ipv4:
             # Try to allocate shared IPv4 (FREE) if missing (required for many DNS providers like Squarespace)
@@ -974,20 +974,24 @@ class FlyProvider(DeployProvider):
                     }
                 }
                 """
-                result = self._graphql_request(ipv4_mutation, {
-                    "input": {
-                        "appId": app_name,
-                        "type": "shared_v4",  # FREE shared IPv4, not dedicated ($2/mo)
-                    }
-                })
+                result = self._graphql_request(
+                    ipv4_mutation,
+                    {
+                        "input": {
+                            "appId": app_name,
+                            "type": "shared_v4",  # FREE shared IPv4, not dedicated ($2/mo)
+                        }
+                    },
+                )
                 # Check if allocation succeeded
                 ip_data = result.get("allocateIpAddress", {}).get("ipAddress")
                 if ip_data:
                     # Brief wait for IP to propagate, then refresh
                     import time
+
                     time.sleep(1)
                     ips = self._get_app_ips(app_name)
-            except FlyError as e:
+            except FlyError:
                 # If allocation fails, continue with what we have
                 # User will see a warning about IPv6-only with manual allocation instructions
                 pass
@@ -1004,17 +1008,21 @@ class FlyProvider(DeployProvider):
             ip_type = ip.get("type", "").lower()
             address = ip.get("address", "")
             if ip_type == "v4" or ip_type == "shared_v4":
-                dns_records.append(DnsRecord(
-                    record_type="A",
-                    name=record_name,
-                    value=address,
-                ))
+                dns_records.append(
+                    DnsRecord(
+                        record_type="A",
+                        name=record_name,
+                        value=address,
+                    )
+                )
             elif ip_type == "v6":
-                dns_records.append(DnsRecord(
-                    record_type="AAAA",
-                    name=record_name,
-                    value=address,
-                ))
+                dns_records.append(
+                    DnsRecord(
+                        record_type="AAAA",
+                        name=record_name,
+                        value=address,
+                    )
+                )
 
         # Check if certificate already exists (idempotency)
         check_query = """
@@ -1040,10 +1048,13 @@ class FlyProvider(DeployProvider):
 
         cert = None
         try:
-            check_data = self._graphql_request(check_query, {
-                "appName": app_name,
-                "hostname": hostname,
-            })
+            check_data = self._graphql_request(
+                check_query,
+                {
+                    "appName": app_name,
+                    "hostname": hostname,
+                },
+            )
             cert = check_data.get("app", {}).get("certificate")
         except FlyError:
             # Certificate doesn't exist yet, continue to create it
@@ -1065,11 +1076,13 @@ class FlyProvider(DeployProvider):
             dns_validation_hostname = cert.get("dnsValidationHostname")
             dns_validation_target = cert.get("dnsValidationTarget")
             if dns_validation_hostname and dns_validation_target and not configured:
-                dns_records.append(DnsRecord(
-                    record_type="CNAME",
-                    name=dns_validation_hostname,
-                    value=dns_validation_target,
-                ))
+                dns_records.append(
+                    DnsRecord(
+                        record_type="CNAME",
+                        name=dns_validation_hostname,
+                        value=dns_validation_target,
+                    )
+                )
 
             return CustomDomainInfo(
                 hostname=hostname,
@@ -1102,10 +1115,13 @@ class FlyProvider(DeployProvider):
         """
 
         try:
-            data = self._graphql_request(mutation, {
-                "appId": app_name,
-                "hostname": hostname,
-            })
+            data = self._graphql_request(
+                mutation,
+                {
+                    "appId": app_name,
+                    "hostname": hostname,
+                },
+            )
 
             cert = data.get("addCertificate", {}).get("certificate", {})
             configured = cert.get("configured", False)
@@ -1124,11 +1140,13 @@ class FlyProvider(DeployProvider):
             dns_validation_hostname = cert.get("dnsValidationHostname")
             dns_validation_target = cert.get("dnsValidationTarget")
             if dns_validation_hostname and dns_validation_target:
-                dns_records.append(DnsRecord(
-                    record_type="CNAME",
-                    name=dns_validation_hostname,
-                    value=dns_validation_target,
-                ))
+                dns_records.append(
+                    DnsRecord(
+                        record_type="CNAME",
+                        name=dns_validation_hostname,
+                        value=dns_validation_target,
+                    )
+                )
 
             return CustomDomainInfo(
                 hostname=hostname,
@@ -1143,10 +1161,13 @@ class FlyProvider(DeployProvider):
             if "already exists" in e.message.lower() or "duplicate" in e.message.lower():
                 # Fetch existing certificate status
                 try:
-                    check_data = self._graphql_request(check_query, {
-                        "appName": app_name,
-                        "hostname": hostname,
-                    })
+                    check_data = self._graphql_request(
+                        check_query,
+                        {
+                            "appName": app_name,
+                            "hostname": hostname,
+                        },
+                    )
                     cert = check_data.get("app", {}).get("certificate")
                     if cert:
                         configured = cert.get("configured", False)
@@ -1162,11 +1183,13 @@ class FlyProvider(DeployProvider):
                         dns_validation_hostname = cert.get("dnsValidationHostname")
                         dns_validation_target = cert.get("dnsValidationTarget")
                         if dns_validation_hostname and dns_validation_target and not configured:
-                            dns_records.append(DnsRecord(
-                                record_type="CNAME",
-                                name=dns_validation_hostname,
-                                value=dns_validation_target,
-                            ))
+                            dns_records.append(
+                                DnsRecord(
+                                    record_type="CNAME",
+                                    name=dns_validation_hostname,
+                                    value=dns_validation_target,
+                                )
+                            )
 
                         return CustomDomainInfo(
                             hostname=hostname,
@@ -1224,22 +1247,22 @@ class FlyProvider(DeployProvider):
         """
 
         try:
-            data = self._graphql_request(query, {
-                "appName": app_name,
-                "hostname": hostname,
-            })
+            data = self._graphql_request(
+                query,
+                {
+                    "appName": app_name,
+                    "hostname": hostname,
+                },
+            )
 
             app_data = data.get("app", {})
             cert = app_data.get("certificate")
-            
+
             # Use _get_app_ips to get complete IP list (including shared IPv4)
             ips = self._get_app_ips(app_name)
 
             # Check if we have IPv4 - if not, try to allocate it
-            has_ipv4 = any(
-                ip.get("type", "").lower() in ("v4", "shared_v4")
-                for ip in ips
-            )
+            has_ipv4 = any(ip.get("type", "").lower() in ("v4", "shared_v4") for ip in ips)
 
             if not has_ipv4:
                 # Try to allocate shared IPv4 (FREE) if missing (required for many DNS providers)
@@ -1256,17 +1279,21 @@ class FlyProvider(DeployProvider):
                         }
                     }
                     """
-                    result = self._graphql_request(ipv4_mutation, {
-                        "input": {
-                            "appId": app_name,
-                            "type": "shared_v4",  # FREE shared IPv4, not dedicated ($2/mo)
-                        }
-                    })
+                    result = self._graphql_request(
+                        ipv4_mutation,
+                        {
+                            "input": {
+                                "appId": app_name,
+                                "type": "shared_v4",  # FREE shared IPv4, not dedicated ($2/mo)
+                            }
+                        },
+                    )
                     # Check if allocation succeeded
                     ip_data = result.get("allocateIpAddress", {}).get("ipAddress")
                     if ip_data:
                         # Brief wait for IP to propagate, then refresh
                         import time
+
                         time.sleep(1)
                         ips = self._get_app_ips(app_name)
                 except FlyError:
@@ -1288,24 +1315,28 @@ class FlyProvider(DeployProvider):
                 elif ip_type == "v6":
                     return 1  # IPv6 second
                 return 2  # Unknown types last
-            
+
             sorted_ips = sorted(ips, key=ip_sort_key)
-            
+
             for ip in sorted_ips:
                 ip_type = ip.get("type", "").lower()
                 address = ip.get("address", "")
                 if ip_type == "v4" or ip_type == "shared_v4":
-                    dns_records.append(DnsRecord(
-                        record_type="A",
-                        name=record_name,
-                        value=address,
-                    ))
+                    dns_records.append(
+                        DnsRecord(
+                            record_type="A",
+                            name=record_name,
+                            value=address,
+                        )
+                    )
                 elif ip_type == "v6":
-                    dns_records.append(DnsRecord(
-                        record_type="AAAA",
-                        name=record_name,
-                        value=address,
-                    ))
+                    dns_records.append(
+                        DnsRecord(
+                            record_type="AAAA",
+                            name=record_name,
+                            value=address,
+                        )
+                    )
 
             if not cert:
                 return CustomDomainInfo(
@@ -1330,11 +1361,13 @@ class FlyProvider(DeployProvider):
             dns_validation_hostname = cert.get("dnsValidationHostname")
             dns_validation_target = cert.get("dnsValidationTarget")
             if dns_validation_hostname and dns_validation_target and not configured:
-                dns_records.append(DnsRecord(
-                    record_type="CNAME",
-                    name=dns_validation_hostname,
-                    value=dns_validation_target,
-                ))
+                dns_records.append(
+                    DnsRecord(
+                        record_type="CNAME",
+                        name=dns_validation_hostname,
+                        value=dns_validation_target,
+                    )
+                )
 
             return CustomDomainInfo(
                 hostname=hostname,
@@ -1377,11 +1410,13 @@ class FlyProvider(DeployProvider):
         """
 
         try:
-            self._graphql_request(mutation, {
-                "appId": resource.app_name,
-                "hostname": hostname,
-            })
+            self._graphql_request(
+                mutation,
+                {
+                    "appId": resource.app_name,
+                    "hostname": hostname,
+                },
+            )
             return True
         except FlyError:
             return False
-

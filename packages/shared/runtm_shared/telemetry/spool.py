@@ -8,11 +8,11 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Optional
 
 from .base import TelemetryBatch
 
@@ -123,11 +123,11 @@ class DiskSpool:
         # Clean up old files first
         self._cleanup_old_files()
 
-        for file_path in sorted(self._spool_path.glob(
-            f"{self._config.file_prefix}*{self._config.file_suffix}"
-        )):
+        for file_path in sorted(
+            self._spool_path.glob(f"{self._config.file_prefix}*{self._config.file_suffix}")
+        ):
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
                         if not line:
@@ -210,9 +210,9 @@ class DiskSpool:
         if not self._spool_path.exists():
             return 0
 
-        return len(list(self._spool_path.glob(
-            f"{self._config.file_prefix}*{self._config.file_suffix}"
-        )))
+        return len(
+            list(self._spool_path.glob(f"{self._config.file_prefix}*{self._config.file_suffix}"))
+        )
 
     def _get_current_file(self) -> Path:
         """Get the current spool file, creating if needed.
@@ -242,9 +242,7 @@ class DiskSpool:
 
         # Need to delete oldest files
         files = sorted(
-            self._spool_path.glob(
-                f"{self._config.file_prefix}*{self._config.file_suffix}"
-            ),
+            self._spool_path.glob(f"{self._config.file_prefix}*{self._config.file_suffix}"),
             key=lambda p: p.stat().st_mtime if p.exists() else 0,
         )
 
@@ -271,9 +269,7 @@ class DiskSpool:
     def _enforce_file_limit(self) -> None:
         """Delete oldest files if count exceeds limit."""
         files = sorted(
-            self._spool_path.glob(
-                f"{self._config.file_prefix}*{self._config.file_suffix}"
-            ),
+            self._spool_path.glob(f"{self._config.file_prefix}*{self._config.file_suffix}"),
             key=lambda p: p.stat().st_mtime if p.exists() else 0,
         )
 
@@ -299,4 +295,3 @@ class DiskSpool:
                     file_path.unlink()
             except OSError:
                 pass
-

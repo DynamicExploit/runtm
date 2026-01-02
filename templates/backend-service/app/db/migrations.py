@@ -29,9 +29,9 @@ def get_alembic_config() -> Config:
     # Create alembic.ini path (or use programmatic config)
     alembic_cfg = Config()
     alembic_cfg.set_main_option("script_location", str(alembic_dir))
-    alembic_cfg.set_main_option("sqlalchemy.url", os.environ.get(
-        "DATABASE_URL", "sqlite:////data/app.db"
-    ))
+    alembic_cfg.set_main_option(
+        "sqlalchemy.url", os.environ.get("DATABASE_URL", "sqlite:////data/app.db")
+    )
 
     return alembic_cfg
 
@@ -72,17 +72,18 @@ def run_migrations() -> None:
         # Check if alembic directory exists with migrations
         alembic_dir = Path(alembic_cfg.get_main_option("script_location"))
         versions_dir = alembic_dir / "versions"
-        has_migrations = versions_dir.exists() and any(
-            f.suffix == ".py" and f.name != "__init__.py"
-            for f in versions_dir.iterdir()
-        ) if versions_dir.exists() else False
+        has_migrations = (
+            versions_dir.exists()
+            and any(f.suffix == ".py" and f.name != "__init__.py" for f in versions_dir.iterdir())
+            if versions_dir.exists()
+            else False
+        )
 
         if not alembic_dir.exists() or not has_migrations:
-            logger.info(
-                "No Alembic migrations found. Using create_all() for initial schema."
-            )
+            logger.info("No Alembic migrations found. Using create_all() for initial schema.")
             # Fallback: create tables directly from models
             from app.db.base import Base
+
             Base.metadata.create_all(bind=engine)
             logger.info("Database tables created via create_all()")
             return
@@ -102,10 +103,10 @@ def run_migrations() -> None:
             except ImportError:
                 pass
             from app.db.base import Base
+
             engine = get_engine()
             Base.metadata.create_all(bind=engine)
             logger.info("Database tables created via create_all() fallback")
         except Exception as fallback_error:
             logger.error(f"Fallback schema creation also failed: {fallback_error}")
             raise
-

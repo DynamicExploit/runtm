@@ -13,8 +13,6 @@ Security notes:
 
 from __future__ import annotations
 
-import os
-import sys
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import uuid4
@@ -23,7 +21,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from runtm_shared.types import ApiKeyScope, validate_scopes
+from runtm_shared.types import validate_scopes
 
 admin_app = typer.Typer(
     name="admin",
@@ -59,8 +57,8 @@ def _get_db_session(db_url: str):
 def _import_api_models():
     """Import API models (requires runtm_api package)."""
     try:
-        from runtm_api.db.models import ApiKey
         from runtm_api.auth.keys import generate_api_key, hash_key
+        from runtm_api.db.models import ApiKey
 
         return ApiKey, generate_api_key, hash_key
     except ImportError:
@@ -72,9 +70,7 @@ def _import_api_models():
 @admin_app.command("create-token")
 def create_token(
     tenant_id: str = typer.Option(..., "--tenant", "-t", help="Tenant/org ID"),
-    principal_id: str = typer.Option(
-        ..., "--principal", "-p", help="User/service account ID"
-    ),
+    principal_id: str = typer.Option(..., "--principal", "-p", help="User/service account ID"),
     name: Optional[str] = typer.Option(None, "--name", "-n", help="Token name"),
     scopes: str = typer.Option(
         "read,deploy,delete", "--scopes", "-s", help="Comma-separated scopes"
@@ -82,9 +78,7 @@ def create_token(
     expires_days: Optional[int] = typer.Option(
         None, "--expires", "-e", help="Days until expiration (default: never)"
     ),
-    db_url: str = typer.Option(
-        ..., "--db-url", envvar="DATABASE_URL", help="Database URL"
-    ),
+    db_url: str = typer.Option(..., "--db-url", envvar="DATABASE_URL", help="Database URL"),
     pepper: str = typer.Option(
         ..., "--pepper", envvar="TOKEN_PEPPER_V1", help="Token hashing pepper"
     ),
@@ -166,9 +160,7 @@ def create_token(
         table.add_row("Principal", principal_id)
         table.add_row("Name", name or "(none)")
         table.add_row("Scopes", ", ".join(validated_scopes))
-        table.add_row(
-            "Expires", expires_at.isoformat() if expires_at else "(never)"
-        )
+        table.add_row("Expires", expires_at.isoformat() if expires_at else "(never)")
         table.add_row("Created by", created_by)
         console.print(table)
 
@@ -183,9 +175,7 @@ def create_token(
 @admin_app.command("revoke-token")
 def revoke_token(
     key_id: str = typer.Argument(..., help="API key UUID to revoke"),
-    db_url: str = typer.Option(
-        ..., "--db-url", envvar="DATABASE_URL", help="Database URL"
-    ),
+    db_url: str = typer.Option(..., "--db-url", envvar="DATABASE_URL", help="Database URL"),
     revoked_by: str = typer.Option(
         "admin-cli", "--revoked-by", help="Revoker identifier for audit"
     ),
@@ -230,18 +220,12 @@ def revoke_token(
 
 @admin_app.command("list-tokens")
 def list_tokens(
-    tenant_id: Optional[str] = typer.Option(
-        None, "--tenant", "-t", help="Filter by tenant ID"
-    ),
+    tenant_id: Optional[str] = typer.Option(None, "--tenant", "-t", help="Filter by tenant ID"),
     principal_id: Optional[str] = typer.Option(
         None, "--principal", "-p", help="Filter by principal ID"
     ),
-    include_revoked: bool = typer.Option(
-        False, "--include-revoked", help="Include revoked tokens"
-    ),
-    db_url: str = typer.Option(
-        ..., "--db-url", envvar="DATABASE_URL", help="Database URL"
-    ),
+    include_revoked: bool = typer.Option(False, "--include-revoked", help="Include revoked tokens"),
+    db_url: str = typer.Option(..., "--db-url", envvar="DATABASE_URL", help="Database URL"),
 ):
     """List API tokens (metadata only, no values).
 
@@ -294,11 +278,7 @@ def list_tokens(
                 status = "[green]active[/green]"
 
             # Format dates
-            last_used = (
-                token.last_used_at.strftime("%Y-%m-%d")
-                if token.last_used_at
-                else "never"
-            )
+            last_used = token.last_used_at.strftime("%Y-%m-%d") if token.last_used_at else "never"
             created = token.created_at.strftime("%Y-%m-%d")
 
             table.add_row(
@@ -327,9 +307,7 @@ def rotate_pepper(
     new_pepper: str = typer.Option(
         ..., "--new-pepper", envvar="TOKEN_PEPPER_V2", help="New pepper"
     ),
-    db_url: str = typer.Option(
-        ..., "--db-url", envvar="DATABASE_URL", help="Database URL"
-    ),
+    db_url: str = typer.Option(..., "--db-url", envvar="DATABASE_URL", help="Database URL"),
     dry_run: bool = typer.Option(
         True, "--dry-run/--execute", help="Show what would change without executing"
     ),
@@ -367,9 +345,7 @@ def rotate_pepper(
         )
 
         if not old_tokens:
-            console.print(
-                "[green]✓ No tokens on old pepper version - rotation complete![/green]"
-            )
+            console.print("[green]✓ No tokens on old pepper version - rotation complete![/green]")
             console.print("\nNext steps:")
             console.print("1. Remove TOKEN_PEPPER_V1 from environment")
             console.print("2. Remove PEPPER_MIGRATION_VERSIONS")
@@ -378,9 +354,7 @@ def rotate_pepper(
 
         console.print(f"Found {len(old_tokens)} tokens on pepper v1:")
         for token in old_tokens[:10]:
-            console.print(
-                f"  - {token.id} ({token.tenant_id}/{token.principal_id})"
-            )
+            console.print(f"  - {token.id} ({token.tenant_id}/{token.principal_id})")
         if len(old_tokens) > 10:
             console.print(f"  ... and {len(old_tokens) - 10} more")
 
@@ -388,12 +362,8 @@ def rotate_pepper(
             console.print("\n[yellow]Dry run - no changes made[/yellow]")
             console.print("Run with --execute to update tokens to new pepper")
         else:
-            console.print(
-                "\n[red]WARNING:[/red] This will require re-issuing tokens!"
-            )
-            console.print(
-                "Users with these tokens will need new tokens after rotation."
-            )
+            console.print("\n[red]WARNING:[/red] This will require re-issuing tokens!")
+            console.print("Users with these tokens will need new tokens after rotation.")
             if not typer.confirm("Continue?"):
                 raise typer.Abort()
 
@@ -411,4 +381,3 @@ def rotate_pepper(
 
     finally:
         db.close()
-

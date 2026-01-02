@@ -1,8 +1,6 @@
 """Tests for VolumeConfig in types."""
 
-import pytest
-
-from runtm_shared.types import MachineTier, MachineConfig, VolumeConfig
+from runtm_shared.types import MachineConfig, MachineTier, VolumeConfig
 
 
 class TestVolumeConfig:
@@ -59,4 +57,3 @@ class TestMachineConfigWithVolumes:
             image="test:latest",
         )
         assert config.volumes == []
-

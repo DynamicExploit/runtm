@@ -91,9 +91,7 @@ class ConsoleExporter(BaseExporter):
         # Metrics
         for metric in batch.metrics:
             labels = ", ".join(f"{k}={v}" for k, v in metric.labels.items())
-            output_lines.append(
-                f"  [metric] {metric.name}{{{labels}}} = {metric.value}"
-            )
+            output_lines.append(f"  [metric] {metric.name}{{{labels}}} = {metric.value}")
 
         output = "\n".join(output_lines)
         print(output, file=sys.stderr)
@@ -131,9 +129,9 @@ class OTLPExporter(BaseExporter):
         self._endpoint = endpoint or self.DEFAULT_ENDPOINT
         self._timeout = timeout
         self._headers = headers or {}
-        self._client: Optional["httpx.Client"] = None
+        self._client: Optional[httpx.Client] = None
 
-    def _get_client(self) -> "httpx.Client":
+    def _get_client(self) -> httpx.Client:
         """Get or create HTTP client.
 
         Returns:
@@ -141,6 +139,7 @@ class OTLPExporter(BaseExporter):
         """
         if self._client is None:
             import httpx
+
             self._client = httpx.Client(
                 timeout=self._timeout,
                 headers={
@@ -261,9 +260,9 @@ class ControlPlaneExporter(BaseExporter):
         self._token = token
         self._timeout = timeout
         self._service_name = service_name
-        self._client: Optional["httpx.Client"] = None
+        self._client: Optional[httpx.Client] = None
 
-    def _get_client(self) -> "httpx.Client":
+    def _get_client(self) -> httpx.Client:
         """Get or create HTTP client.
 
         Returns:
@@ -384,4 +383,3 @@ def create_controlplane_exporter(
         service_name=service_name,
         timeout=timeout,
     )
-

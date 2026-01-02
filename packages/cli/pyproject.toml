@@ -1,10 +1,31 @@
 [project]
-name = "runtm-cli"
-version = "0.1.0"
-description = "CLI for Runtm: deploy AI-generated code to live URLs"
+name = "runtm"
+version = "0.2.0"
+description = "The runtime + control plane for agent-built software: create, run, deploy, observe, reuse and destroy apps"
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 requires-python = ">=3.9"
+authors = [
+    { name = "Gustavo Trigos", email = "gus@runtm.com" },
+]
+maintainers = [
+    { name = "Gustavo Trigos", email = "gus@runtm.com" },
+]
+keywords = ["cli", "deployment", "ai", "devops", "serverless", "fly.io"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: System :: Software Distribution",
+]
 dependencies = [
     "runtm-shared>=0.1.0",
     "typer>=0.9.0,<1.0",
@@ -14,6 +35,7 @@ dependencies = [
     "pathspec>=0.11,<1.0",
     "questionary>=2.0,<3.0",
     "python-dotenv>=1.0.0,<2.0",
+    "keyring>=24.0,<26.0",
 ]
 
 [project.scripts]
@@ -26,6 +48,12 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.0,<2.0",
 ]
+
+[project.urls]
+Homepage = "https://runtm.com"
+Documentation = "https://docs.runtm.com"
+Repository = "https://github.com/runtm-ai/runtm"
+Issues = "https://github.com/runtm-ai/runtm/issues"
 
 [build-system]
 requires = ["hatchling"]

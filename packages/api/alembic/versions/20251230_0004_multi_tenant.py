@@ -13,11 +13,13 @@ Adds:
 
 from __future__ import annotations
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "0004"
@@ -44,9 +46,7 @@ def upgrade() -> None:
 
     # Create indexes for tenant isolation
     op.create_index("ix_deployments_tenant_id", "deployments", ["tenant_id"])
-    op.create_index(
-        "ix_deployments_tenant_created", "deployments", ["tenant_id", "created_at"]
-    )
+    op.create_index("ix_deployments_tenant_created", "deployments", ["tenant_id", "created_at"])
 
     # CRITICAL: Unique constraint scoped to tenant
     # Prevents cross-tenant deployment_id collisions
@@ -80,9 +80,7 @@ def upgrade() -> None:
         sa.Column("key_hash", sa.String(64), nullable=False),
         sa.Column("pepper_version", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("name", sa.String(128), nullable=True),
-        sa.Column(
-            "scopes", postgresql.JSONB, nullable=False, server_default=sa.text("'[]'")
-        ),
+        sa.Column("scopes", postgresql.JSONB, nullable=False, server_default=sa.text("'[]'")),
         sa.Column("is_revoked", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("last_used_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
@@ -103,9 +101,7 @@ def upgrade() -> None:
         ["key_prefix"],
         postgresql_where=sa.text("is_revoked = false"),
     )
-    op.create_index(
-        "ix_api_keys_tenant_principal", "api_keys", ["tenant_id", "principal_id"]
-    )
+    op.create_index("ix_api_keys_tenant_principal", "api_keys", ["tenant_id", "principal_id"])
 
     # =========================================================================
     # Create usage_events table (append-only audit trail)
@@ -132,9 +128,7 @@ def upgrade() -> None:
 
     # Indexes for usage_events
     op.create_index("ix_usage_events_tenant_id", "usage_events", ["tenant_id"])
-    op.create_index(
-        "ix_usage_events_tenant_created", "usage_events", ["tenant_id", "created_at"]
-    )
+    op.create_index("ix_usage_events_tenant_created", "usage_events", ["tenant_id", "created_at"])
     op.create_index("ix_usage_events_event_type", "usage_events", ["event_type"])
     op.create_index("ix_usage_events_deployment_id", "usage_events", ["deployment_id"])
     op.create_index("ix_usage_events_created_at", "usage_events", ["created_at"])
@@ -184,4 +178,3 @@ def downgrade() -> None:
     op.drop_index("ix_deployments_tenant_created", table_name="deployments")
     op.drop_index("ix_deployments_tenant_id", table_name="deployments")
     op.drop_column("deployments", "tenant_id")
-

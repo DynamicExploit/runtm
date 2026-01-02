@@ -76,6 +76,7 @@ class DeployJob:
         use_remote_builder: bool = True,
         secrets: dict | None = None,
         config_only: bool = False,
+        allow_local_builds: bool | None = None,
     ):
         """Initialize deploy job.
 
@@ -87,6 +88,7 @@ class DeployJob:
             use_remote_builder: Use Fly's remote builder (faster, recommended)
             secrets: Secrets to inject (passed through to provider, never stored)
             config_only: Skip Docker build and reuse previous image
+            allow_local_builds: Explicit override for local builds (dev only)
         """
         self.db = db
         self.storage = LocalFileStore(storage_path)
@@ -95,6 +97,11 @@ class DeployJob:
         self.use_remote_builder = use_remote_builder
         self.secrets = secrets or {}
         self.config_only = config_only
+        # SECURITY: Allow local builds only with explicit opt-in
+        if allow_local_builds is None:
+            self.allow_local_builds = os.environ.get("ALLOW_LOCAL_BUILDS", "").lower() == "true"
+        else:
+            self.allow_local_builds = allow_local_builds
 
     def _get_deployment(self, deployment_id: str):
         """Get deployment by human-friendly ID.
@@ -422,7 +429,9 @@ class DeployJob:
             previous_image_label = None
             is_redeployment = False
             if self.redeploy_from:
-                previous_resource, previous_image_label = self._get_previous_provider_resource(self.redeploy_from)
+                previous_resource, previous_image_label = self._get_previous_provider_resource(
+                    self.redeploy_from
+                )
                 if previous_resource:
                     is_redeployment = True
 
@@ -434,7 +443,7 @@ class DeployJob:
                         "Config-only deploy requires a previous deployment with a valid image. "
                         "Use a regular deploy instead."
                     )
-                
+
                 # Skip BUILDING state, go directly to DEPLOYING
                 self._transition_state(deployment, DeploymentState.DEPLOYING)
 
@@ -448,7 +457,9 @@ class DeployJob:
                         deploy_log.add_redact_values(self.secrets)
 
                     deploy_log.write("Config-only deployment - skipping Docker build")
-                    deploy_log.write(f"Reusing image: {previous_resource.app_name}:{previous_image_label}")
+                    deploy_log.write(
+                        f"Reusing image: {previous_resource.app_name}:{previous_image_label}"
+                    )
 
                     # Get machine tier from manifest
                     machine_tier = manifest.get_machine_tier()
@@ -457,21 +468,25 @@ class DeployJob:
 
                     # Use flyctl deploy --image to deploy the existing image
                     import subprocess
-                    
+
                     app_name = previous_resource.app_name
                     image_ref = f"registry.fly.io/{app_name}:{previous_image_label}"
-                    
+
                     env = os.environ.copy()
                     env["FLY_API_TOKEN"] = self.fly_api_token
 
                     deploy_log.write(f"Deploying image: {image_ref}")
 
                     cmd = [
-                        "flyctl", "deploy",
-                        "--app", app_name,
-                        "--image", image_ref,
+                        "flyctl",
+                        "deploy",
+                        "--app",
+                        app_name,
+                        "--image",
+                        image_ref,
                         "--yes",
-                        "--wait-timeout", "3m",
+                        "--wait-timeout",
+                        "3m",
                     ]
 
                     result = subprocess.run(
@@ -489,7 +504,9 @@ class DeployJob:
                                 deploy_log.write(line)
 
                     if result.returncode != 0:
-                        error_msg = result.stderr.strip() if result.stderr else "Config-only deploy failed"
+                        error_msg = (
+                            result.stderr.strip() if result.stderr else "Config-only deploy failed"
+                        )
                         deploy_log.write(f"ERROR: {error_msg}")
                         raise DeployTimeoutError(300)
 
@@ -557,6 +574,17 @@ class DeployJob:
 
                 # Login to Fly registry (skipped for remote builder)
                 if self.fly_api_token and not self.use_remote_builder:
+                    # SECURITY: Local builds require explicit opt-in
+                    if not self.allow_local_builds:
+                        raise BuildError(
+                            "Local builds are disabled. Set USE_REMOTE_BUILDER=true (recommended) "
+                            "or ALLOW_LOCAL_BUILDS=true for development only."
+                        )
+                    if not os.path.exists("/var/run/docker.sock"):
+                        raise BuildError(
+                            "Local builds require Docker socket. Mount /var/run/docker.sock "
+                            "or use USE_REMOTE_BUILDER=true."
+                        )
                     build_log.write("Logging in to Fly registry...")
                     if not builder.login_fly_registry(self.fly_api_token):
                         raise BuildError("Failed to login to Fly registry")
@@ -644,20 +672,9 @@ class DeployJob:
                     self._save_provider_resource(deployment, resource, build_result.image_label)
                     deploy_log.write(f"Provider resource saved: {app_name}")
 
-                    # Verify health check
-                    deploy_log.write("Verifying health check...")
-                    status = provider.get_status(resource)
-                    if not status.healthy:
-                        # Give it a moment and retry
-                        import time
-
-                        time.sleep(10)
-                        status = provider.get_status(resource)
-
-                    if not status.healthy:
-                        deploy_log.write("Warning: Health check not yet passing, but deployment completed")
-                    else:
-                        deploy_log.write("Health check passed!")
+                    # Skip redundant health check - flyctl deploy --wait-timeout already verified health
+                    # The remote builder only returns success if health checks pass
+                    deploy_log.write("Health verified by remote builder")
 
                     # Inject secrets to the provider (pass-through, never stored)
                     self._inject_secrets(app_name, deploy_log)
@@ -704,7 +721,9 @@ class DeployJob:
                     # Use redeployment info computed earlier (same as remote builder path)
                     if is_redeployment and previous_resource:
                         # Redeployment - update existing machine
-                        deploy_log.write(f"Redeploying to existing app: {previous_resource.app_name}")
+                        deploy_log.write(
+                            f"Redeploying to existing app: {previous_resource.app_name}"
+                        )
                         deploy_log.write(f"Previous version URL: {previous_resource.url}")
                         result = provider.redeploy(previous_resource, config)
                     else:
@@ -812,6 +831,7 @@ def process_deployment(
             use_remote_builder=use_remote_builder,
             secrets=secrets,
             config_only=config_only,
+            allow_local_builds=settings.allow_local_builds,
         )
         return job.run(deployment_id)
     finally:

@@ -134,4 +134,3 @@ class DnsProvider(ABC):
 
         # Create new record
         return self.create_cname(subdomain, domain, target, proxied)
-

@@ -3,8 +3,27 @@ name = "runtm-shared"
 version = "0.1.0"
 description = "Canonical contracts for Runtm: manifest schema, types, errors"
 readme = "README.md"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 requires-python = ">=3.9"
+authors = [
+    { name = "Gustavo Trigos", email = "gus@runtm.com" },
+]
+maintainers = [
+    { name = "Gustavo Trigos", email = "gus@runtm.com" },
+]
+keywords = ["runtm", "schemas", "types", "contracts"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "pydantic>=2.0,<3.0",
     "pyyaml>=6.0,<7.0",
@@ -22,6 +41,12 @@ dev = [
     "mypy>=1.0,<2.0",
     "httpx>=0.24,<1.0",
 ]
+
+[project.urls]
+Homepage = "https://runtm.com"
+Documentation = "https://docs.runtm.com"
+Repository = "https://github.com/runtm-ai/runtm"
+Issues = "https://github.com/runtm-ai/runtm/issues"
 
 [build-system]
 requires = ["hatchling"]

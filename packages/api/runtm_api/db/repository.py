@@ -175,11 +175,7 @@ class DeploymentRepository(TenantRepository[Deployment]):
         Returns:
             Deployment or None if not found within tenant
         """
-        return (
-            self._scoped_query()
-            .filter(Deployment.deployment_id == deployment_id)
-            .first()
-        )
+        return self._scoped_query().filter(Deployment.deployment_id == deployment_id).first()
 
     def get_latest_by_name(self, name: str) -> Optional[Deployment]:
         """Get latest active deployment by name.
@@ -283,4 +279,3 @@ class ApiKeyRepository(TenantRepository[ApiKey]):
         key.is_revoked = True
         self.db.flush()
         return key
-

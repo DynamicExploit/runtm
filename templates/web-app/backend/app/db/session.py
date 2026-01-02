@@ -115,4 +115,3 @@ def warn_if_sqlite_multi_machine() -> None:
             "Ensure only ONE machine is running to avoid database corruption. "
             "For multiple machines, switch to PostgreSQL via DATABASE_URL."
         )
-

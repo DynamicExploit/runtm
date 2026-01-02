@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import atexit
 import os
-import sys
-import time
 from typing import Optional
 
 # Ensure .env is loaded from project root before reading environment
@@ -70,7 +68,7 @@ def run_worker() -> None:
     # Initialize telemetry
     # Worker runs inside Docker, so API is accessible at http://api:8000
     api_url = os.environ.get("RUNTM_API_URL", "http://api:8000")
-    api_token = os.environ.get("RUNTM_API_TOKEN", "dev-token")
+    api_token = os.environ.get("RUNTM_API_SECRET", "dev-token")
     init_telemetry(api_url=api_url, api_token=api_token)
     atexit.register(shutdown_telemetry)
     print(f"Telemetry initialized (sending to {api_url})")
@@ -91,4 +89,3 @@ def run_worker() -> None:
 
 if __name__ == "__main__":
     run_worker()
-

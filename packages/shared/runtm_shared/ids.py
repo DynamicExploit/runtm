@@ -7,7 +7,6 @@ import secrets
 import time
 from typing import Optional
 
-
 # Prefix for deployment IDs
 DEPLOYMENT_ID_PREFIX = "dep_"
 
@@ -122,4 +121,3 @@ def generate_build_context_key(deployment_id: str) -> str:
         Storage key for the build context directory
     """
     return f"build/{deployment_id}"
-

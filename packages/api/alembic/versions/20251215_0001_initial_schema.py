@@ -10,13 +10,16 @@ Full database schema for Runtm including:
 - idempotency_keys: Safe retry support
 - build_logs: Build and deploy log storage
 """
+
 from __future__ import annotations
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "0001"
@@ -172,4 +175,3 @@ def downgrade() -> None:
     op.drop_table("idempotency_keys")
     op.drop_table("provider_resources")
     op.drop_table("deployments")
-

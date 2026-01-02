@@ -254,20 +254,12 @@ class TestRequestsFileHelpers:
 
     def test_is_empty_false_with_env_vars(self) -> None:
         """Should return False when env vars requested."""
-        requests = RequestsFile(
-            requested=RequestedChanges(
-                env_vars=[RequestedEnvVar(name="VAR")]
-            )
-        )
+        requests = RequestsFile(requested=RequestedChanges(env_vars=[RequestedEnvVar(name="VAR")]))
         assert not requests.is_empty()
 
     def test_is_empty_false_with_egress(self) -> None:
         """Should return False when egress requested."""
-        requests = RequestsFile(
-            requested=RequestedChanges(
-                egress_allowlist=["example.com"]
-            )
-        )
+        requests = RequestsFile(requested=RequestedChanges(egress_allowlist=["example.com"]))
         assert not requests.is_empty()
 
     def test_is_empty_false_with_connections(self) -> None:
@@ -323,11 +315,7 @@ class TestRequestsFileSerialization:
 
     def test_to_dict(self) -> None:
         """Should convert to dictionary."""
-        requests = RequestsFile(
-            requested=RequestedChanges(
-                env_vars=[RequestedEnvVar(name="VAR")]
-            )
-        )
+        requests = RequestsFile(requested=RequestedChanges(env_vars=[RequestedEnvVar(name="VAR")]))
         d = requests.to_dict()
         assert "requested" in d
         assert "env_vars" in d["requested"]
@@ -359,4 +347,3 @@ class TestRequestsFileSerialization:
         assert parsed.requested.env_vars[0].secret is True
         assert len(parsed.requested.egress_allowlist) == 1
         assert len(parsed.notes) == 1
-

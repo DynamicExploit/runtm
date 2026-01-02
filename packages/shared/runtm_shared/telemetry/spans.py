@@ -6,16 +6,15 @@ Wraps OpenTelemetry Tracer with a simpler interface and span context management.
 from __future__ import annotations
 
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Any, Generator, Optional
+from typing import Any, Optional
 
 from .base import SpanStatus, TelemetrySpan
 
 # Context variable for current span
-_current_span: ContextVar[Optional[TelemetrySpan]] = ContextVar(
-    "current_span", default=None
-)
+_current_span: ContextVar[Optional[TelemetrySpan]] = ContextVar("current_span", default=None)
 
 
 def generate_trace_id() -> str:
@@ -282,4 +281,3 @@ class SpanManager:
             trace_id=trace_id,
             parent_span_id=parent_span_id,
         )
-

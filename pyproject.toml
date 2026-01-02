@@ -1,10 +1,16 @@
 [project]
 name = "runtm"
 version = "0.1.0"
-description = "Runtime for deploying AI-generated tools and apps"
+description = "The runtime + control plane for agent-built software: create, run, deploy, observe, reuse and destroy apps with guardrails and speed"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.9"
+authors = [
+    { name = "Gustavo Trigos", email = "gus@runtm.com" },
+]
+maintainers = [
+    { name = "Gustavo Trigos", email = "gus@runtm.com" },
+]
 
 [tool.ruff]
 target-version = "py39"

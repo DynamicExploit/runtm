@@ -131,4 +131,3 @@ class ArtifactStore(ABC):
             Size in bytes, or None if unknown/not exists
         """
         return None
-

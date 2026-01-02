@@ -9,7 +9,6 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import pool
-from sqlalchemy.engine import Connection
 
 # Import your models' Base and all models for autogenerate
 from app.db.base import Base
@@ -78,4 +77,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-

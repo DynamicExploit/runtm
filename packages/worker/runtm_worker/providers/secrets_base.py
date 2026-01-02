@@ -145,4 +145,3 @@ class SecretsProvider(ABC):
                         )
 
         return result
-

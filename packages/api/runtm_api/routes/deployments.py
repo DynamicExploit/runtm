@@ -6,7 +6,17 @@ import logging
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from pydantic import BaseModel
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
@@ -15,7 +25,6 @@ from runtm_api.auth import get_auth_context, require_scope
 from runtm_api.core.config import Settings, get_settings
 from runtm_api.db import BuildLog, Deployment, DeploymentRepository, get_db
 from runtm_api.services.idempotency import IdempotencyService
-from runtm_shared.types import ApiKeyScope
 from runtm_shared import (
     ArtifactTooLargeError,
     DeploymentNotFoundError,
@@ -25,7 +34,7 @@ from runtm_shared import (
     generate_artifact_key,
     generate_deployment_id,
 )
-from runtm_shared.types import AuthContext, DeploymentState, LogType
+from runtm_shared.types import ApiKeyScope, AuthContext, DeploymentState, LogType
 
 router = APIRouter(prefix="/v0/deployments", tags=["deployments"])
 logger = logging.getLogger(__name__)
@@ -91,7 +100,7 @@ class DeploymentResponse(BaseModel):
         from_attributes = True
 
     @classmethod
-    def from_db(cls, deployment: Deployment) -> "DeploymentResponse":
+    def from_db(cls, deployment: Deployment) -> DeploymentResponse:
         """Create response from database model."""
         app_name = None
         if deployment.provider_resource:
@@ -126,7 +135,9 @@ class DeploymentResponse(BaseModel):
         return cls(
             deployment_id=deployment.deployment_id,
             name=deployment.name,
-            state=deployment.state.value if isinstance(deployment.state, DeploymentState) else deployment.state,
+            state=deployment.state.value
+            if isinstance(deployment.state, DeploymentState)
+            else deployment.state,
             url=deployment.url,
             error_message=deployment.error_message,
             version=deployment.version,
@@ -235,7 +246,7 @@ class DeploymentSearchResult(BaseModel):
         from_attributes = True
 
     @classmethod
-    def from_db(cls, deployment: Deployment, match_score: float = 0.0) -> "DeploymentSearchResult":
+    def from_db(cls, deployment: Deployment, match_score: float = 0.0) -> DeploymentSearchResult:
         """Create search result from database model."""
         # Extract template and runtime from manifest_json
         template = None
@@ -266,7 +277,9 @@ class DeploymentSearchResult(BaseModel):
         return cls(
             deployment_id=deployment.deployment_id,
             name=deployment.name,
-            state=deployment.state.value if isinstance(deployment.state, DeploymentState) else deployment.state,
+            state=deployment.state.value
+            if isinstance(deployment.state, DeploymentState)
+            else deployment.state,
             url=deployment.url,
             template=template,
             runtime=runtime,
@@ -292,7 +305,9 @@ class SearchResponse(BaseModel):
 # =============================================================================
 
 
-@router.get("", response_model=DeploymentsListResponse, dependencies=[require_scope(ApiKeyScope.READ)])
+@router.get(
+    "", response_model=DeploymentsListResponse, dependencies=[require_scope(ApiKeyScope.READ)]
+)
 async def list_deployments(
     state: Optional[str] = None,
     name: Optional[str] = Query(None, description="Filter by project name"),
@@ -336,7 +351,9 @@ async def list_deployments(
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"error": f"Invalid state: {state}. Must be one of: queued, building, deploying, ready, failed, destroyed"},
+                detail={
+                    "error": f"Invalid state: {state}. Must be one of: queued, building, deploying, ready, failed, destroyed"
+                },
             )
 
     # Get total count
@@ -351,7 +368,9 @@ async def list_deployments(
     )
 
 
-@router.get("/search", response_model=SearchResponse, dependencies=[require_scope(ApiKeyScope.READ)])
+@router.get(
+    "/search", response_model=SearchResponse, dependencies=[require_scope(ApiKeyScope.READ)]
+)
 async def search_deployments(
     q: str = Query(..., min_length=1, description="Search query"),
     state: Optional[str] = Query(None, description="Filter by state"),
@@ -374,7 +393,7 @@ async def search_deployments(
     Returns deployments with discovery metadata, ordered by relevance.
     Tenant isolation is enforced via tenant_id from auth context.
     """
-    from sqlalchemy import cast, func, or_, String
+    from sqlalchemy import String, cast, func, or_
 
     # Use repository for tenant scoping
     repo = DeploymentRepository(db, auth.tenant_id)
@@ -395,9 +414,7 @@ async def search_deployments(
 
     # Filter by template if provided
     if template:
-        query = query.filter(
-            Deployment.manifest_json["template"].astext == template
-        )
+        query = query.filter(Deployment.manifest_json["template"].astext == template)
 
     # Only show latest versions by default
     query = query.filter(Deployment.is_latest == True)
@@ -480,15 +497,26 @@ async def search_deployments(
     )
 
 
-@router.post("", response_model=DeploymentResponse, status_code=status.HTTP_201_CREATED, dependencies=[require_scope(ApiKeyScope.DEPLOY)])
+@router.post(
+    "",
+    response_model=DeploymentResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[require_scope(ApiKeyScope.DEPLOY)],
+)
 async def create_deployment(
     request: Request,
     manifest: UploadFile = File(..., description="runtm.yaml manifest file"),
     artifact: UploadFile = File(..., description="artifact.zip containing project files"),
     idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
-    force_new: bool = Query(False, alias="new", description="Force new deployment instead of redeploying"),
-    tier: Optional[str] = Query(None, description="Machine tier override: starter, standard, or performance"),
-    config_only: bool = Query(False, description="Skip Docker build - reuse previous image (for env/tier changes only)"),
+    force_new: bool = Query(
+        False, alias="new", description="Force new deployment instead of redeploying"
+    ),
+    tier: Optional[str] = Query(
+        None, description="Machine tier override: starter, standard, or performance"
+    ),
+    config_only: bool = Query(
+        False, description="Skip Docker build - reuse previous image (for env/tier changes only)"
+    ),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context),
     settings: Settings = Depends(get_settings),
@@ -525,7 +553,7 @@ async def create_deployment(
     secrets_to_inject: Optional[dict] = None
     src_hash: Optional[str] = None
     form = await request.form()
-    
+
     secrets_json = form.get("secrets")
     if secrets_json:
         try:
@@ -570,6 +598,7 @@ async def create_deployment(
     # Apply tier override if provided via query param
     if tier is not None:
         from runtm_shared.types import MachineTier
+
         try:
             # Validate the tier
             MachineTier(tier)
@@ -622,12 +651,7 @@ async def create_deployment(
     # Atomically mark ALL matching deployments as not latest
     # This ensures the unique constraint is satisfied before we insert the new one
     # Use SELECT FOR UPDATE to lock rows and prevent race conditions
-    existing_latest = (
-        db.query(Deployment)
-        .filter(update_filter)
-        .with_for_update()
-        .first()
-    )
+    existing_latest = db.query(Deployment).filter(update_filter).with_for_update().first()
 
     # If no is_latest deployment found, check for any READY deployment with the same name
     # This handles the edge case where the latest was destroyed but there's still
@@ -729,6 +753,7 @@ async def create_deployment(
     # Pass redeploy info if this is an update
     # Secrets are passed through to worker (never stored in DB)
     from runtm_api.services.queue import enqueue_deployment
+
     redeploy_from = previous_deployment.deployment_id if is_redeploy else None
     enqueue_deployment(
         deployment_id,
@@ -746,7 +771,11 @@ async def create_deployment(
 # =============================================================================
 
 
-@router.post("/{deployment_id}/domains", response_model=CustomDomainResponse, dependencies=[require_scope(ApiKeyScope.DEPLOY)])
+@router.post(
+    "/{deployment_id}/domains",
+    response_model=CustomDomainResponse,
+    dependencies=[require_scope(ApiKeyScope.DEPLOY)],
+)
 async def add_custom_domain(
     deployment_id: str,
     request: CustomDomainRequest,
@@ -762,7 +791,7 @@ async def add_custom_domain(
     Returns DNS records that need to be configured at your domain registrar.
     """
     logger.info("Adding custom domain %s to deployment %s", request.hostname, deployment_id)
-    
+
     # Use repository for tenant-scoped lookup
     repo = DeploymentRepository(db, auth.tenant_id)
     deployment = repo.get_by_deployment_id(deployment_id)
@@ -798,9 +827,9 @@ async def add_custom_domain(
 
     # Add custom domain via provider
     try:
-        from runtm_worker.providers.fly import FlyProvider
         from runtm_shared.errors import ProviderNotConfiguredError
         from runtm_shared.types import ProviderResource as ProviderResourceType
+        from runtm_worker.providers.fly import FlyProvider
 
         try:
             provider = FlyProvider()
@@ -853,7 +882,11 @@ async def add_custom_domain(
         ) from e
 
 
-@router.get("/{deployment_id}/domains/{hostname}", response_model=CustomDomainResponse, dependencies=[require_scope(ApiKeyScope.READ)])
+@router.get(
+    "/{deployment_id}/domains/{hostname}",
+    response_model=CustomDomainResponse,
+    dependencies=[require_scope(ApiKeyScope.READ)],
+)
 async def get_custom_domain_status(
     deployment_id: str,
     hostname: str,
@@ -886,9 +919,9 @@ async def get_custom_domain_status(
 
     # Get domain status from provider
     try:
-        from runtm_worker.providers.fly import FlyProvider
         from runtm_shared.errors import ProviderNotConfiguredError
         from runtm_shared.types import ProviderResource as ProviderResourceType
+        from runtm_worker.providers.fly import FlyProvider
 
         try:
             provider = FlyProvider()
@@ -939,7 +972,11 @@ async def get_custom_domain_status(
         ) from e
 
 
-@router.delete("/{deployment_id}/domains/{hostname}", response_model=RemoveDomainResponse, dependencies=[require_scope(ApiKeyScope.DELETE)])
+@router.delete(
+    "/{deployment_id}/domains/{hostname}",
+    response_model=RemoveDomainResponse,
+    dependencies=[require_scope(ApiKeyScope.DELETE)],
+)
 async def remove_custom_domain(
     deployment_id: str,
     hostname: str,
@@ -973,9 +1010,9 @@ async def remove_custom_domain(
 
     # Remove domain from provider
     try:
-        from runtm_worker.providers.fly import FlyProvider
         from runtm_shared.errors import ProviderNotConfiguredError
         from runtm_shared.types import ProviderResource as ProviderResourceType
+        from runtm_worker.providers.fly import FlyProvider
 
         try:
             provider = FlyProvider()
@@ -1021,7 +1058,11 @@ async def remove_custom_domain(
         ) from e
 
 
-@router.get("/{deployment_id}", response_model=DeploymentResponse, dependencies=[require_scope(ApiKeyScope.READ)])
+@router.get(
+    "/{deployment_id}",
+    response_model=DeploymentResponse,
+    dependencies=[require_scope(ApiKeyScope.READ)],
+)
 async def get_deployment(
     deployment_id: str,
     db: Session = Depends(get_db),
@@ -1045,7 +1086,11 @@ async def get_deployment(
     return DeploymentResponse.from_db(deployment)
 
 
-@router.get("/{deployment_id}/logs", response_model=LogsResponse, dependencies=[require_scope(ApiKeyScope.READ)])
+@router.get(
+    "/{deployment_id}/logs",
+    response_model=LogsResponse,
+    dependencies=[require_scope(ApiKeyScope.READ)],
+)
 async def get_deployment_logs(
     deployment_id: str,
     log_type: Optional[str] = Query(None, alias="type"),
@@ -1088,8 +1133,8 @@ async def get_deployment_logs(
         # Get provider resource and fetch logs from Fly.io
         if deployment.provider_resource:
             try:
-                from runtm_worker.providers.fly import FlyProvider
                 from runtm_shared.types import ProviderResource as ProviderResourceType
+                from runtm_worker.providers.fly import FlyProvider
 
                 provider = FlyProvider()
                 provider_resource = ProviderResourceType(
@@ -1104,7 +1149,9 @@ async def get_deployment_logs(
 
                 # Check if we got actual logs (not error messages)
                 error_prefixes = ("Failed to fetch", "Error fetching", "Timeout fetching", "App ")
-                is_error = not runtime_logs or any(runtime_logs.startswith(p) for p in error_prefixes)
+                is_error = not runtime_logs or any(
+                    runtime_logs.startswith(p) for p in error_prefixes
+                )
 
                 if not is_error:
                     return LogsResponse(
@@ -1154,7 +1201,9 @@ async def get_deployment_logs(
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"error": f"Invalid log type: {log_type}. Must be 'build', 'deploy', or 'runtime'"},
+                detail={
+                    "error": f"Invalid log type: {log_type}. Must be 'build', 'deploy', or 'runtime'"
+                },
             )
 
     db_logs = query.order_by(BuildLog.created_at).all()
@@ -1170,10 +1219,14 @@ async def get_deployment_logs(
     ]
 
     # If no specific type requested and deployment is ready, also fetch runtime logs
-    if log_type is None and deployment.state == DeploymentState.READY and deployment.provider_resource:
+    if (
+        log_type is None
+        and deployment.state == DeploymentState.READY
+        and deployment.provider_resource
+    ):
         try:
-            from runtm_worker.providers.fly import FlyProvider
             from runtm_shared.types import ProviderResource as ProviderResourceType
+            from runtm_worker.providers.fly import FlyProvider
 
             provider = FlyProvider()
             provider_resource = ProviderResourceType(
@@ -1187,7 +1240,12 @@ async def get_deployment_logs(
             runtime_logs = provider.get_logs(provider_resource, lines=lines)
 
             # Check if we got actual logs (not error messages)
-            error_prefixes = ("Failed to fetch", "Error fetching", "Timeout fetching", "flyctl not installed")
+            error_prefixes = (
+                "Failed to fetch",
+                "Error fetching",
+                "Timeout fetching",
+                "flyctl not installed",
+            )
             is_error = not runtime_logs or any(runtime_logs.startswith(p) for p in error_prefixes)
 
             if not is_error:
@@ -1210,29 +1268,22 @@ async def get_deployment_logs(
         import re
 
         # Check if it looks like a regex (contains regex metacharacters)
-        regex_chars = set(r'.*+?^${}[]|()\\')
+        regex_chars = set(r".*+?^${}[]|()\\")
         is_regex = any(c in search for c in regex_chars)
 
         if is_regex:
             try:
                 pattern = re.compile(search, re.IGNORECASE)
-                log_entries = [
-                    log for log in log_entries
-                    if pattern.search(log.content)
-                ]
+                log_entries = [log for log in log_entries if pattern.search(log.content)]
             except re.error:
                 # Invalid regex, fall back to literal search
                 search_lower = search.lower()
-                log_entries = [
-                    log for log in log_entries
-                    if search_lower in log.content.lower()
-                ]
+                log_entries = [log for log in log_entries if search_lower in log.content.lower()]
         else:
             # Multiple terms separated by comma = OR logic
             terms = [t.strip().lower() for t in search.split(",")]
             log_entries = [
-                log for log in log_entries
-                if any(term in log.content.lower() for term in terms)
+                log for log in log_entries if any(term in log.content.lower() for term in terms)
             ]
 
     return LogsResponse(
@@ -1250,7 +1301,11 @@ class DestroyResponse(BaseModel):
     message: str
 
 
-@router.delete("/{deployment_id}", response_model=DestroyResponse, dependencies=[require_scope(ApiKeyScope.DELETE)])
+@router.delete(
+    "/{deployment_id}",
+    response_model=DestroyResponse,
+    dependencies=[require_scope(ApiKeyScope.DELETE)],
+)
 async def destroy_deployment(
     deployment_id: str,
     db: Session = Depends(get_db),
@@ -1330,7 +1385,9 @@ async def destroy_deployment(
                                 domain=base_domain,
                             )
                             if dns_cleaned:
-                                logger.info("DNS record deleted for %s.%s", resource.app_name, base_domain)
+                                logger.info(
+                                    "DNS record deleted for %s.%s", resource.app_name, base_domain
+                                )
             except Exception as dns_error:
                 logger.warning("Failed to delete DNS record for %s: %s", deployment_id, dns_error)
 
@@ -1371,6 +1428,7 @@ async def destroy_deployment(
     return DestroyResponse(
         deployment_id=deployment_id,
         status="destroyed",
-        message="Deployment destroyed successfully" if provider_destroyed else "Deployment marked as destroyed",
+        message="Deployment destroyed successfully"
+        if provider_destroyed
+        else "Deployment marked as destroyed",
     )
-

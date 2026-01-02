@@ -36,16 +36,18 @@ TEMPLATES_LIST = [
 TEMPLATES = {t["name"]: t for t in TEMPLATES_LIST}
 
 # Custom style for questionary prompts - using emerald green (like "Live" status in dashboard)
-PROMPT_STYLE = Style([
-    ("qmark", "fg:#10b981 bold"),           # emerald-500
-    ("question", "bold"),
-    ("answer", "fg:#10b981 bold"),          # emerald-500
-    ("pointer", "fg:#10b981 bold"),         # emerald-500
-    ("highlighted", "fg:#10b981 bold"),     # emerald-500
-    ("selected", "fg:#10b981"),             # emerald-500
-    ("separator", "fg:#71717a"),            # zinc-500
-    ("instruction", "fg:#71717a"),          # zinc-500
-])
+PROMPT_STYLE = Style(
+    [
+        ("qmark", "fg:#10b981 bold"),  # emerald-500
+        ("question", "bold"),
+        ("answer", "fg:#10b981 bold"),  # emerald-500
+        ("pointer", "fg:#10b981 bold"),  # emerald-500
+        ("highlighted", "fg:#10b981 bold"),  # emerald-500
+        ("selected", "fg:#10b981"),  # emerald-500
+        ("separator", "fg:#71717a"),  # zinc-500
+        ("instruction", "fg:#71717a"),  # zinc-500
+    ]
+)
 
 
 def _find_project_root() -> Optional[Path]:
@@ -74,7 +76,7 @@ def prompt_template_selection() -> str:
     # Build choices with numbered shortcuts for LLM-friendliness
     choices = [
         questionary.Choice(
-            title=f"[{i+1}] {t['title']} - {t['description']}",
+            title=f"[{i + 1}] {t['title']} - {t['description']}",
             value=t["name"],
             shortcut_key=str(i + 1),  # Allow pressing 1, 2, 3 to select
         )
@@ -84,7 +86,7 @@ def prompt_template_selection() -> str:
     console.print()
     console.print("[dim]Select a template (arrow keys + Enter, or press 1/2/3):[/dim]")
     console.print()
-    
+
     result = questionary.select(
         "What type of project do you want to create?",
         choices=choices,
@@ -146,6 +148,7 @@ def _get_old_template(dest_path: Path) -> Optional[str]:
 
     try:
         import yaml
+
         with runtm_yaml.open() as f:
             data = yaml.safe_load(f)
             return data.get("template") if isinstance(data, dict) else None
@@ -264,12 +267,14 @@ def init_command(
     ),
     path: Path = typer.Option(
         Path("."),
-        "--path", "-p",
+        "--path",
+        "-p",
         help="Destination directory",
     ),
     name: Optional[str] = typer.Option(
         None,
-        "--name", "-n",
+        "--name",
+        "-n",
         help="Project name (defaults to directory name)",
     ),
 ) -> None:
@@ -291,7 +296,11 @@ def init_command(
 
     # If no template provided, show interactive selection
     # Handle None, empty string, or the string "None" (Typer edge case)
-    if template is None or template == "" or (isinstance(template, str) and template.lower() == "none"):
+    if (
+        template is None
+        or template == ""
+        or (isinstance(template, str) and template.lower() == "none")
+    ):
         template_name = prompt_template_selection()
     else:
         template_name = template
@@ -306,10 +315,12 @@ def init_command(
             console.print()
             console.print("Available templates:")
             for i, t in enumerate(TEMPLATES_LIST):
-                console.print(f"  [{i+1}] [bold]{t['name']}[/bold] - {t['description']}")
+                console.print(f"  [{i + 1}] [bold]{t['name']}[/bold] - {t['description']}")
             console.print()
             console.print("[dim]Tip: Run [bold]runtm init[/bold] for interactive selection[/dim]")
-            console.print("[dim]  or [bold]runtm init backend-service[/bold] to specify directly[/dim]")
+            console.print(
+                "[dim]  or [bold]runtm init backend-service[/bold] to specify directly[/dim]"
+            )
             raise typer.Exit(1)
 
         # Resolve destination
@@ -323,13 +334,19 @@ def init_command(
             if (dest_path / "runtm.yaml").exists():
                 old_template = _get_old_template(dest_path)
                 if old_template and old_template != template_name:
-                    console.print(f"[yellow]⚠[/yellow] Project already initialized with template: {old_template}")
+                    console.print(
+                        f"[yellow]⚠[/yellow] Project already initialized with template: {old_template}"
+                    )
                     console.print(f"Switching to template: {template_name}")
-                    if not typer.confirm("Overwrite existing files? (old template files will be removed)"):
+                    if not typer.confirm(
+                        "Overwrite existing files? (old template files will be removed)"
+                    ):
                         raise typer.Exit(0)
                     should_cleanup = True
                 else:
-                    console.print("[yellow]⚠[/yellow] Project already initialized (runtm.yaml exists)")
+                    console.print(
+                        "[yellow]⚠[/yellow] Project already initialized (runtm.yaml exists)"
+                    )
                     if not typer.confirm("Overwrite existing files?"):
                         raise typer.Exit(0)
 
@@ -367,4 +384,3 @@ def init_command(
             console.print(f"  cd {dest_path.name}")
         console.print("  runtm validate")
         console.print("  runtm deploy")
-

@@ -79,7 +79,7 @@ class AppDiscovery(BaseModel):
     generated: Optional[GeneratedInfo] = None
 
     @classmethod
-    def from_yaml(cls, yaml_content: str) -> "AppDiscovery":
+    def from_yaml(cls, yaml_content: str) -> AppDiscovery:
         """Parse discovery metadata from YAML string.
 
         Args:
@@ -105,7 +105,7 @@ class AppDiscovery(BaseModel):
         return cls.model_validate(data)
 
     @classmethod
-    def from_file(cls, path: Path) -> "AppDiscovery":
+    def from_file(cls, path: Path) -> AppDiscovery:
         """Parse discovery metadata from file.
 
         Args:
@@ -149,4 +149,3 @@ class AppDiscovery(BaseModel):
         if self.tags and len(self.tags) > 0:
             return False
         return True
-

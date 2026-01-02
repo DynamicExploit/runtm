@@ -3,7 +3,7 @@
 This module provides rate limiting using Redis with:
 - Atomic operations via Lua script (no race conditions)
 - Token bucket algorithm (vs ZSET sliding window)
-- Per-tier limits (DEPLOY, WRITE, READ)
+- Per-tier limits (AUTH, DEPLOY, WRITE, READ)
 - Standard rate limit headers (X-RateLimit-*, Retry-After)
 
 Why Lua script instead of ZSET pipeline:
@@ -12,9 +12,10 @@ Why Lua script instead of ZSET pipeline:
 - Lua script is atomic and handles edge cases correctly
 
 Tier Design:
-- DEPLOY: Strict limits (resource-intensive operations)
-- WRITE: Moderate limits (state-changing operations)
-- READ: Relaxed limits (read-only operations)
+- AUTH: Authentication attempts (strictest, fail-closed in production)
+- DEPLOY: Creating/deploying resources (expensive)
+- WRITE: Modifying state (moderate)
+- READ: Reading data (cheap)
 """
 
 from __future__ import annotations
@@ -37,11 +38,13 @@ class RateLimitTier(str, Enum):
     """Rate limiting tiers with different limits.
 
     Choose tier based on resource cost of the operation:
+    - AUTH: Authentication attempts (strictest)
     - DEPLOY: Creating/deploying resources (expensive)
     - WRITE: Modifying state (moderate)
     - READ: Reading data (cheap)
     """
 
+    AUTH = "auth"
     DEPLOY = "deploy"
     WRITE = "write"
     READ = "read"
@@ -50,6 +53,7 @@ class RateLimitTier(str, Enum):
 # Tier limits: (max_requests, window_seconds)
 # These are starting values - adjust based on actual usage patterns
 TIER_LIMITS: dict[RateLimitTier, tuple[int, int]] = {
+    RateLimitTier.AUTH: (5, 60),  # 5 per minute per identifier (strictest)
     RateLimitTier.DEPLOY: (10, 3600),  # 10 per hour
     RateLimitTier.WRITE: (60, 3600),  # 60 per hour
     RateLimitTier.READ: (300, 3600),  # 300 per hour
@@ -105,7 +109,7 @@ class RateLimiter:
             raise HTTPException(429, headers={"Retry-After": str(reset_at - now)})
     """
 
-    def __init__(self, redis: "Redis"):
+    def __init__(self, redis: Redis):
         """Initialize rate limiter.
 
         Args:
@@ -190,6 +194,65 @@ class RateLimiter:
             "reset": window_start + window,
         }
 
+    def _check_bucket(self, key: str, limit: int, window: int) -> tuple[bool, int, int]:
+        """Low-level bucket check using Lua script.
+
+        Args:
+            key: Redis key for the bucket
+            limit: Maximum requests allowed
+            window: Time window in seconds
+
+        Returns:
+            Tuple of (allowed, remaining, reset_timestamp)
+        """
+        now = int(time.time())
+        result = self._script(keys=[key], args=[limit, window, now])
+        allowed, remaining, reset_at = result
+        return bool(allowed), int(remaining), int(reset_at)
+
+    def check_auth_rate_limit(
+        self,
+        ip: str,
+        identifier: str = "",
+    ) -> tuple[bool, int, int]:
+        """Rate limit authentication attempts by IP + identifier.
+
+        Uses a dual-bucket approach:
+        - IP-only bucket: Prevents spray attacks across many tokens
+        - IP+identifier bucket: Prevents targeted brute force on one token
+
+        Keying on both prevents:
+        - Single IP locking out NAT'd office (identifier spreads load)
+        - Credential stuffing across many accounts from one IP
+
+        Args:
+            ip: Client IP address
+            identifier: Token prefix or username (first 16 chars)
+
+        Returns:
+            Tuple of (allowed, remaining, reset_timestamp)
+        """
+        limit, window = TIER_LIMITS[RateLimitTier.AUTH]
+
+        # Check IP-only bucket (prevents spray attacks)
+        # Allow 3x the per-identifier limit for the IP as a whole
+        ip_key = f"auth:ip:{ip}"
+        ip_allowed, ip_remaining, ip_reset = self._check_bucket(ip_key, limit * 3, window)
+
+        # Check IP+identifier bucket (prevents targeted brute force)
+        if identifier:
+            combo_key = f"auth:combo:{ip}:{identifier}"
+            combo_allowed, combo_remaining, combo_reset = self._check_bucket(
+                combo_key, limit, window
+            )
+
+            # Both must pass
+            if not ip_allowed or not combo_allowed:
+                return False, min(ip_remaining, combo_remaining), max(ip_reset, combo_reset)
+            return True, min(ip_remaining, combo_remaining), max(ip_reset, combo_reset)
+
+        return ip_allowed, ip_remaining, ip_reset
+
 
 # Global rate limiter instance (set during app startup)
 _rate_limiter: Optional[RateLimiter] = None
@@ -230,8 +293,8 @@ def rate_limit(tier: RateLimitTier, resource: Optional[str] = None):
     """
 
     async def checker(
-        auth: "AuthContext" = Depends(get_auth_context),
-    ) -> "AuthContext":
+        auth: AuthContext = Depends(get_auth_context),
+    ) -> AuthContext:
         limiter = get_rate_limiter()
         if limiter is None:
             # Rate limiting not configured - allow request
@@ -260,4 +323,3 @@ def rate_limit(tier: RateLimitTier, resource: Optional[str] = None):
         return auth
 
     return Depends(checker)
-

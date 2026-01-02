@@ -55,9 +55,7 @@ def enqueue_deployment(
         )
 
         if config_only:
-            logger.info(
-                f"Enqueued config-only deployment {deployment_id} as job {job.id}"
-            )
+            logger.info(f"Enqueued config-only deployment {deployment_id} as job {job.id}")
         elif redeploy_from:
             logger.info(
                 f"Enqueued redeployment {deployment_id} (from {redeploy_from}) as job {job.id}"
@@ -74,4 +72,3 @@ def enqueue_deployment(
     except Exception as e:
         logger.error(f"Failed to enqueue deployment {deployment_id}: {e}")
         return None
-

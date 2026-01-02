@@ -1,18 +1,49 @@
-# runtm-cli
+# runtm
 
-CLI for Runtm: deploy AI-generated code to live URLs.
+> **runtm is the runtime + control plane for agent-built software: create, run, deploy, observe, reuse and destroy apps with guardrails and speed.**
+
+Deploy AI-generated code to live URLs in minutes.
+
+🌐 **Website:** [runtm.com](https://runtm.com) · **Try it free:** [app.runtm.com](https://app.runtm.com)
 
 ## Installation
 
+**Recommended (uv):**
 ```bash
-pip install runtm-cli
+uv tool install runtm
+```
+
+**Alternative (pipx):**
+```bash
+pipx install runtm
+```
+
+**From PyPI (pip):**
+```bash
+pip install runtm
+```
+
+## Quick Start
+
+```bash
+# 1. Authenticate with Runtm
+runtm login
+
+# 2. Initialize a new project
+runtm init backend-service
+
+# 3. Deploy to a live URL
+runtm deploy
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `runtm init backend-service` | Scaffold from template |
+| `runtm login` | Authenticate with Runtm API |
+| `runtm logout` | Remove saved credentials |
+| `runtm doctor` | Check CLI setup and diagnose issues |
+| `runtm init <template>` | Scaffold from template |
 | `runtm run` | Run project locally (auto-detects runtime) |
 | `runtm validate` | Validate project before deployment |
 | `runtm deploy [path]` | Deploy project to a live URL |
@@ -20,6 +51,80 @@ pip install runtm-cli
 | `runtm logs <id>` | Show logs (build, deploy, runtime) |
 | `runtm list` | List all deployments |
 | `runtm destroy <id>` | Destroy a deployment |
+| `runtm config set/get/list` | Manage CLI configuration |
+
+### Authentication
+
+Get your free API key at **[app.runtm.com](https://app.runtm.com)** and authenticate:
+
+```bash
+# Login (prompts for API key)
+runtm login
+
+# Login with token directly
+runtm login --token runtm_sk_xxx
+
+# Login without validation (self-hosted/offline)
+runtm login --no-verify
+
+# Check auth status
+runtm doctor
+
+# Logout
+runtm logout
+```
+
+**Token storage:**
+- macOS: Keychain
+- Windows: Credential Locker
+- Linux: Secret Service (or `~/.runtm/credentials` with 0o600 permissions)
+
+**Environment variable override:**
+```bash
+export RUNTM_API_KEY=runtm_sk_xxx  # Overrides stored token
+```
+
+### Configuration
+
+Manage CLI settings with the `config` command:
+
+```bash
+# Set API URL (for self-hosting)
+runtm config set api_url=https://self-hosted.example.com/api
+
+# Get a config value
+runtm config get api_url
+
+# List all config values
+runtm config list
+
+# Reset to defaults
+runtm config reset
+```
+
+**Config file:** `~/.runtm/config.yaml`
+
+**Environment variables:**
+- `RUNTM_API_URL` - API endpoint (overrides config)
+- `RUNTM_API_KEY` - API key (overrides stored token)
+
+### Troubleshooting
+
+```bash
+# Check CLI setup and diagnose issues
+runtm doctor
+```
+
+Example output:
+```
+runtm v0.2.0
+  API URL:      https://app.runtm.com/api
+  Auth storage: keychain (api_token@app.runtm.com)
+  Auth status:  ✓ Authenticated as user@example.com
+  Connectivity: ✓ API reachable (142ms)
+  
+  Ready to deploy! Run: runtm init backend-service
+```
 
 ### Machine Tiers
 
@@ -138,19 +243,6 @@ runtm logs dep_abc123 --json
 | `--json` | | JSON output for programmatic access |
 | `--raw` | | Raw output for piping to grep/awk |
 
-## Configuration
-
-The CLI stores configuration in `~/.runtm/config.yaml`:
-
-```yaml
-api_url: https://api.runtm.dev
-token: your-api-token
-```
-
-Environment variables override config file:
-- `RUNTM_API_URL` - API endpoint
-- `RUNTM_TOKEN` - API token
-
 ## Development
 
 ```bash
@@ -159,9 +251,8 @@ pip install -e ".[dev]"
 
 # Configure CLI to use local API (add to ~/.zshrc or ~/.bashrc)
 export RUNTM_API_URL=http://localhost:8000
-export RUNTM_TOKEN=dev-token-change-in-production
+export RUNTM_API_KEY=dev-token-change-in-production
 
 # Run tests
 pytest
 ```
-

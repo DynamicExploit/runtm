@@ -150,9 +150,7 @@ class TelemetryService:
         Returns:
             Trace with spans or None if not found
         """
-        query = self._db.query(TelemetrySpan).filter(
-            TelemetrySpan.trace_id == trace_id
-        )
+        query = self._db.query(TelemetrySpan).filter(TelemetrySpan.trace_id == trace_id)
 
         if owner_id:
             query = query.filter(TelemetrySpan.owner_id == owner_id)
@@ -163,9 +161,7 @@ class TelemetryService:
             return None
 
         # Get events for this trace
-        events_query = self._db.query(TelemetryEvent).filter(
-            TelemetryEvent.trace_id == trace_id
-        )
+        events_query = self._db.query(TelemetryEvent).filter(TelemetryEvent.trace_id == trace_id)
         if owner_id:
             events_query = events_query.filter(TelemetryEvent.owner_id == owner_id)
         events = events_query.order_by(TelemetryEvent.timestamp_ns).all()
@@ -228,12 +224,16 @@ class TelemetryService:
             if trace.start_time and trace.end_time:
                 duration_ms = (trace.end_time - trace.start_time) / 1_000_000
 
-            result.append({
-                "trace_id": trace.trace_id,
-                "start_time": datetime.fromtimestamp(trace.start_time / 1e9).isoformat() if trace.start_time else None,
-                "duration_ms": duration_ms,
-                "span_count": trace.span_count,
-            })
+            result.append(
+                {
+                    "trace_id": trace.trace_id,
+                    "start_time": datetime.fromtimestamp(trace.start_time / 1e9).isoformat()
+                    if trace.start_time
+                    else None,
+                    "duration_ms": duration_ms,
+                    "span_count": trace.span_count,
+                }
+            )
 
         return result
 
@@ -281,14 +281,18 @@ class TelemetryService:
             if trace.start_time and trace.end_time:
                 duration_ms = (trace.end_time - trace.start_time) / 1_000_000
 
-            result.append({
-                "trace_id": trace.trace_id,
-                "name": trace.root_name,
-                "start_time": datetime.fromtimestamp(trace.start_time / 1e9).isoformat() if trace.start_time else None,
-                "duration_ms": duration_ms,
-                "span_count": trace.span_count,
-                "service_name": trace.service,
-            })
+            result.append(
+                {
+                    "trace_id": trace.trace_id,
+                    "name": trace.root_name,
+                    "start_time": datetime.fromtimestamp(trace.start_time / 1e9).isoformat()
+                    if trace.start_time
+                    else None,
+                    "duration_ms": duration_ms,
+                    "span_count": trace.span_count,
+                    "service_name": trace.service,
+                }
+            )
 
         return result
 
@@ -327,7 +331,9 @@ class TelemetryService:
             .filter(TelemetryMetric.name == "runtm_cli_commands_total")
             .group_by(TelemetryMetric.labels["command"].astext)
         )
-        commands_by_type = {row.command: int(row.count) for row in commands_query.all() if row.command}
+        commands_by_type = {
+            row.command: int(row.count) for row in commands_query.all() if row.command
+        }
 
         # Count errors by type
         errors_query = (
@@ -339,7 +345,9 @@ class TelemetryService:
             .filter(TelemetryMetric.name == "runtm_cli_errors_total")
             .group_by(TelemetryMetric.labels["error_type"].astext)
         )
-        errors_by_type = {row.error_type: int(row.count) for row in errors_query.all() if row.error_type}
+        errors_by_type = {
+            row.error_type: int(row.count) for row in errors_query.all() if row.error_type
+        }
 
         # Get deployment counts from events
         events_filter = TelemetryEvent.created_at >= cutoff
@@ -352,11 +360,15 @@ class TelemetryService:
                 func.count(TelemetryEvent.id).label("count"),
             )
             .filter(events_filter)
-            .filter(TelemetryEvent.name.in_([
-                "cli.deploy.completed",
-                "cli.deploy.failed",
-                "cli.deploy.started",
-            ]))
+            .filter(
+                TelemetryEvent.name.in_(
+                    [
+                        "cli.deploy.completed",
+                        "cli.deploy.failed",
+                        "cli.deploy.started",
+                    ]
+                )
+            )
             .group_by(TelemetryEvent.name)
         )
         deploy_counts = {row.name: row.count for row in deploy_events.all()}
@@ -372,9 +384,7 @@ class TelemetryService:
             .group_by(TelemetryEvent.attributes["template"].astext)
         )
         deployments_by_template = {
-            row.template: row.count
-            for row in template_query.all()
-            if row.template
+            row.template: row.count for row in template_query.all() if row.template
         }
 
         # Calculate average deploy duration
@@ -500,9 +510,7 @@ class TelemetryService:
         # Delete old spans
         spans_cutoff = now - timedelta(days=spans_days)
         spans_deleted = (
-            self._db.query(TelemetrySpan)
-            .filter(TelemetrySpan.created_at < spans_cutoff)
-            .delete()
+            self._db.query(TelemetrySpan).filter(TelemetrySpan.created_at < spans_cutoff).delete()
         )
 
         # Delete old events
@@ -608,7 +616,9 @@ class TelemetryService:
             "name": span.name,
             "status": span.status,
             "start_time": datetime.fromtimestamp(span.start_time_ns / 1e9).isoformat(),
-            "end_time": datetime.fromtimestamp(span.end_time_ns / 1e9).isoformat() if span.end_time_ns else None,
+            "end_time": datetime.fromtimestamp(span.end_time_ns / 1e9).isoformat()
+            if span.end_time_ns
+            else None,
             "duration_ms": span.duration_ms,
             "attributes": span.attributes,
             "service_name": span.service_name,
@@ -625,4 +635,3 @@ class TelemetryService:
             "deployment_id": event.deployment_id,
             "service_name": event.service_name,
         }
-

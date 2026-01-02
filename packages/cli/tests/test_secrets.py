@@ -472,4 +472,3 @@ env_schema:
             captured = capsys.readouterr()
             assert "DATABASE_URL" in captured.out
             assert "LOG_LEVEL" in captured.out
-

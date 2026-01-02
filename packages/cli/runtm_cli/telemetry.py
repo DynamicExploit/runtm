@@ -9,13 +9,14 @@ from __future__ import annotations
 import atexit
 import os
 import time
+from collections.abc import Generator
 from contextlib import contextmanager
-from functools import wraps
-from typing import Any, Callable, Generator, Optional, TypeVar
+from typing import Any, Optional
 
+from runtm_cli import __version__
+from runtm_cli.config import get_api_url, get_token
 from runtm_shared.telemetry import (
     EventType,
-    SpanStatus,
     TelemetryConfig,
     TelemetryService,
     TelemetrySpan,
@@ -23,9 +24,6 @@ from runtm_shared.telemetry import (
     create_controlplane_exporter,
     create_exporter,
 )
-
-from runtm_cli import __version__
-from runtm_cli.config import get_api_url, get_token, load_config
 
 # Global telemetry service instance
 _telemetry: Optional[TelemetryService] = None
@@ -121,10 +119,7 @@ def _is_local_api(api_url: str) -> bool:
     Returns:
         True if the URL is localhost or 127.0.0.1
     """
-    return any(
-        pattern in api_url.lower()
-        for pattern in ["localhost", "127.0.0.1", "0.0.0.0"]
-    )
+    return any(pattern in api_url.lower() for pattern in ["localhost", "127.0.0.1", "0.0.0.0"])
 
 
 def _determine_config_source() -> str:
@@ -134,10 +129,15 @@ def _determine_config_source() -> str:
         "env" if environment variables override, "file" if config file exists,
         "default" otherwise
     """
-    if os.environ.get("RUNTM_API_URL") or os.environ.get("RUNTM_TOKEN"):
+    if (
+        os.environ.get("RUNTM_API_URL")
+        or os.environ.get("RUNTM_API_KEY")
+        or os.environ.get("RUNTM_TOKEN")
+    ):
         return "env"
 
     from runtm_cli.config import get_config_file
+
     if get_config_file().exists():
         return "file"
 
@@ -153,6 +153,7 @@ def _shutdown_telemetry() -> None:
 
 
 # === Command Tracking ===
+
 
 def start_command(command_name: str) -> None:
     """Start tracking a command execution.
@@ -254,6 +255,7 @@ def command_span(
 
 # === Phase Tracking ===
 
+
 @contextmanager
 def phase_span(
     phase_name: str,
@@ -296,6 +298,7 @@ def phase_span(
 
 
 # === Event Helpers ===
+
 
 def emit_login_started(auth_method: str = "token") -> None:
     """Emit login started event.
@@ -466,6 +469,7 @@ def emit_domain_removed() -> None:
 
 # === Trace Propagation ===
 
+
 def get_traceparent() -> Optional[str]:
     """Get the current traceparent header value.
 
@@ -473,4 +477,3 @@ def get_traceparent() -> Optional[str]:
         W3C traceparent header value or None
     """
     return get_telemetry().get_traceparent()
-

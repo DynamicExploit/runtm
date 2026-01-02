@@ -1,15 +1,13 @@
 """Tests for runtm_shared.errors."""
 
-import pytest
-
 from runtm_shared.errors import (
-    RuntmError,
     ArtifactTooLargeError,
     DeploymentNotFoundError,
     InvalidTokenError,
     ManifestNotFoundError,
     ManifestValidationError,
     RateLimitError,
+    RuntmError,
 )
 
 
@@ -85,7 +83,7 @@ class TestAuthErrors:
         """InvalidTokenError should suggest fix."""
         error = InvalidTokenError()
         assert "Invalid" in str(error)
-        assert "RUNTM_API_TOKEN" in str(error)
+        assert "RUNTM_API_KEY" in str(error)
 
     def test_rate_limit_with_retry(self) -> None:
         """RateLimitError should include retry time."""
@@ -93,4 +91,3 @@ class TestAuthErrors:
         assert "Rate limit" in str(error)
         assert "60 seconds" in str(error)
         assert error.retry_after_seconds == 60
-

@@ -230,8 +230,8 @@ class InvalidTokenError(AuthError):
 
     def __init__(self):
         super().__init__(
-            message="Invalid or missing API token",
-            recovery_hint="Set RUNTM_API_TOKEN environment variable or run `runtm login`",
+            message="Invalid or missing API key",
+            recovery_hint="Set RUNTM_API_KEY environment variable or run `runtm login`",
             error_code="INVALID_TOKEN",
         )
 
@@ -317,4 +317,3 @@ class StorageReadError(StorageError):
             recovery_hint="The artifact may have been deleted. Try deploying again.",
             error_code="STORAGE_READ_ERROR",
         )
-

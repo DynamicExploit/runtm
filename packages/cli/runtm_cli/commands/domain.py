@@ -51,7 +51,9 @@ def domain_add_command(
             raise typer.Exit(1)
 
         # Add custom domain
-        console.print(f"[dim]Adding custom domain [cyan]{hostname}[/cyan] to [cyan]{deployment.name}[/cyan]...[/dim]")
+        console.print(
+            f"[dim]Adding custom domain [cyan]{hostname}[/cyan] to [cyan]{deployment.name}[/cyan]...[/dim]"
+        )
 
         try:
             domain_info = client.add_custom_domain(deployment_id, hostname)
@@ -69,20 +71,24 @@ def domain_add_command(
         www_domain_info = None
         is_root_domain = hostname.count(".") == 1  # e.g., "example.com" has 1 dot
         www_hostname = f"www.{hostname}"
-        
+
         if is_root_domain:
             console.print(f"[dim]Also adding [cyan]{www_hostname}[/cyan]...[/dim]")
             try:
                 www_domain_info = client.add_custom_domain(deployment_id, www_hostname)
             except RuntmError:
                 # Non-fatal: www is optional
-                console.print(f"[yellow]⚠[/yellow] [dim]Could not add www subdomain automatically[/dim]")
+                console.print(
+                    "[yellow]⚠[/yellow] [dim]Could not add www subdomain automatically[/dim]"
+                )
                 www_domain_info = None
 
         # Success! Show DNS configuration
         console.print()
         if is_root_domain and www_domain_info:
-            console.print(f"[green]✓[/green] Domains [cyan]{hostname}[/cyan] and [cyan]{www_hostname}[/cyan] added!")
+            console.print(
+                f"[green]✓[/green] Domains [cyan]{hostname}[/cyan] and [cyan]{www_hostname}[/cyan] added!"
+            )
         else:
             console.print(f"[green]✓[/green] Domain [cyan]{hostname}[/cyan] added!")
 
@@ -94,7 +100,7 @@ def domain_add_command(
 
         # Collect all DNS records (including www if added)
         all_records = list(domain_info.dns_records) if domain_info.dns_records else []
-        
+
         # Add www records if we have them
         if www_domain_info and www_domain_info.dns_records:
             all_records.extend(www_domain_info.dns_records)
@@ -151,6 +157,7 @@ def domain_add_command(
                     # https://runtm-abc123.runtm.com -> runtm-abc123
                     try:
                         from urllib.parse import urlparse
+
                         parsed = urlparse(deployment.url)
                         if parsed.hostname:
                             app_name = parsed.hostname.split(".")[0]
@@ -161,7 +168,9 @@ def domain_add_command(
                 else:
                     console.print("[cyan]  fly ips allocate-v4 --shared -a <app-name>[/cyan]")
                 console.print()
-                console.print("[dim]Then run [cyan]runtm domain status[/cyan] again to see the IPv4 address.[/dim]")
+                console.print(
+                    "[dim]Then run [cyan]runtm domain status[/cyan] again to see the IPv4 address.[/dim]"
+                )
                 console.print()
 
         # Show status
@@ -240,7 +249,9 @@ def domain_status_command(
             status_display = f"[red]✗ {status}[/red]"
 
         table.add_row("Certificate", status_display)
-        table.add_row("Configured", "[green]Yes[/green]" if domain_info.configured else "[yellow]No[/yellow]")
+        table.add_row(
+            "Configured", "[green]Yes[/green]" if domain_info.configured else "[yellow]No[/yellow]"
+        )
 
         if domain_info.error:
             table.add_row("Error", f"[red]{domain_info.error}[/red]")
@@ -297,6 +308,7 @@ def domain_status_command(
                         # Fallback: extract from URL
                         try:
                             from urllib.parse import urlparse
+
                             parsed = urlparse(deployment.url)
                             if parsed.hostname:
                                 app_name = parsed.hostname.split(".")[0]
@@ -309,12 +321,14 @@ def domain_status_command(
                 except Exception:
                     console.print("[cyan]  fly ips allocate-v4 --shared -a <app-name>[/cyan]")
                 console.print()
-                console.print("[dim]Then run [cyan]runtm domain status[/cyan] again to see the IPv4 address.[/dim]")
+                console.print(
+                    "[dim]Then run [cyan]runtm domain status[/cyan] again to see the IPv4 address.[/dim]"
+                )
                 console.print()
 
         # Success message if ready
         if domain_info.certificate_status == "issued":
-            console.print(f"[green]✓[/green] Your domain is ready!")
+            console.print("[green]✓[/green] Your domain is ready!")
             console.print(f"  [cyan]https://{hostname}[/cyan]")
 
 
@@ -358,5 +372,5 @@ def domain_remove_command(
             emit_domain_removed()
             console.print(f"[green]✓[/green] Domain [cyan]{hostname}[/cyan] removed.")
         else:
-            console.print(f"[red]✗[/red] Failed to remove domain.")
+            console.print("[red]✗[/red] Failed to remove domain.")
             raise typer.Exit(1)

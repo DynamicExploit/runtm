@@ -10,15 +10,11 @@ These tests verify that:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from sqlalchemy.orm import Session
 
 from runtm_api.db.repository import (
-    ApiKeyRepository,
-    DeploymentRepository,
     FORBIDDEN_FILTERS,
     TenantRepository,
 )
@@ -265,9 +261,7 @@ class TestHmacSecurity:
         result = hash_key(token, pepper)
 
         # Should match HMAC-SHA256
-        expected = hmac_module.new(
-            pepper.encode(), token.encode(), hashlib.sha256
-        ).hexdigest()
+        expected = hmac_module.new(pepper.encode(), token.encode(), hashlib.sha256).hexdigest()
         assert result == expected
 
         # Should NOT match plain SHA256
@@ -276,7 +270,7 @@ class TestHmacSecurity:
 
     def test_verify_key_constant_time(self):
         """Verify we use constant-time comparison."""
-        from runtm_api.auth.keys import verify_key, hash_key
+        from runtm_api.auth.keys import hash_key, verify_key
 
         token = "runtm_test_token_123"
         pepper = "test_pepper"
@@ -302,7 +296,7 @@ class TestHmacSecurity:
 
     def test_verify_key_pepper_versioning(self):
         """Verify pepper version lookup works correctly."""
-        from runtm_api.auth.keys import verify_key, hash_key
+        from runtm_api.auth.keys import hash_key, verify_key
 
         token = "runtm_test_token_123"
         pepper_v1 = "pepper_version_1"
@@ -312,24 +306,30 @@ class TestHmacSecurity:
         hash_v1 = hash_key(token, pepper_v1)
 
         # Should work with correct version
-        assert verify_key(
-            raw_token=token,
-            stored_hash=hash_v1,
-            stored_pepper_version=1,
-            peppers={1: pepper_v1, 2: pepper_v2},
-        ) is True
+        assert (
+            verify_key(
+                raw_token=token,
+                stored_hash=hash_v1,
+                stored_pepper_version=1,
+                peppers={1: pepper_v1, 2: pepper_v2},
+            )
+            is True
+        )
 
         # Should fail with wrong version (no migration window)
-        assert verify_key(
-            raw_token=token,
-            stored_hash=hash_v1,
-            stored_pepper_version=2,  # Wrong version
-            peppers={1: pepper_v1, 2: pepper_v2},
-        ) is False
+        assert (
+            verify_key(
+                raw_token=token,
+                stored_hash=hash_v1,
+                stored_pepper_version=2,  # Wrong version
+                peppers={1: pepper_v1, 2: pepper_v2},
+            )
+            is False
+        )
 
     def test_verify_key_migration_window(self):
         """Verify migration window allows both pepper versions."""
-        from runtm_api.auth.keys import verify_key, hash_key
+        from runtm_api.auth.keys import hash_key, verify_key
 
         token = "runtm_test_token_123"
         pepper_v1 = "pepper_version_1"
@@ -340,13 +340,16 @@ class TestHmacSecurity:
 
         # During migration, should work even with wrong stored version
         # if migration_window_versions includes the correct version
-        assert verify_key(
-            raw_token=token,
-            stored_hash=hash_v1,
-            stored_pepper_version=2,  # Wrong version in DB
-            peppers={1: pepper_v1, 2: pepper_v2},
-            migration_window_versions={1, 2},  # Try both
-        ) is True
+        assert (
+            verify_key(
+                raw_token=token,
+                stored_hash=hash_v1,
+                stored_pepper_version=2,  # Wrong version in DB
+                peppers={1: pepper_v1, 2: pepper_v2},
+                migration_window_versions={1, 2},  # Try both
+            )
+            is True
+        )
 
 
 class TestTokenGeneration:
@@ -354,7 +357,7 @@ class TestTokenGeneration:
 
     def test_generate_api_key_format(self):
         """Verify generated key has correct format."""
-        from runtm_api.auth.keys import generate_api_key, PREFIX_LENGTH
+        from runtm_api.auth.keys import PREFIX_LENGTH, generate_api_key
 
         raw_token, prefix = generate_api_key()
 
@@ -390,4 +393,3 @@ class TestTokenGeneration:
         assert validate_token_format("invalid_token") is False
         assert validate_token_format("runtm_") is False
         assert validate_token_format("runtm_short") is False
-

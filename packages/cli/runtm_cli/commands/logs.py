@@ -23,17 +23,20 @@ def logs_command(
     ),
     log_type: Optional[str] = typer.Option(
         None,
-        "--type", "-t",
+        "--type",
+        "-t",
         help="Log type filter: build, deploy, runtime",
     ),
     lines: int = typer.Option(
         20,
-        "--lines", "-n",
+        "--lines",
+        "-n",
         help="Number of runtime log lines to include (default: 20)",
     ),
     search: Optional[str] = typer.Option(
         None,
-        "--search", "-s",
+        "--search",
+        "-s",
         help="Filter logs containing this text (case-insensitive)",
     ),
     json_output: bool = typer.Option(
@@ -48,7 +51,8 @@ def logs_command(
     ),
     follow: bool = typer.Option(
         False,
-        "--follow", "-f",
+        "--follow",
+        "-f",
         help="Follow logs (not yet implemented)",
     ),
 ) -> None:
@@ -152,4 +156,3 @@ def logs_command(
         )
         console.print(panel)
         console.print()
-

@@ -8,13 +8,16 @@ Adds discovery_json JSONB column to store runtm.discovery.yaml metadata
 for search and discoverability features. Includes GIN index for fast
 full-text search on JSONB content.
 """
+
 from __future__ import annotations
 
-from typing import Sequence, Union
+from collections.abc import Sequence
+from typing import Union
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "0003"
@@ -42,4 +45,3 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("ix_deployments_discovery_gin", table_name="deployments")
     op.drop_column("deployments", "discovery_json")
-

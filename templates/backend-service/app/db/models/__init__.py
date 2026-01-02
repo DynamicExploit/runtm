@@ -22,4 +22,3 @@ Import all models here to ensure they're registered with Base.metadata.
 # from app.db.models.item import Item
 
 __all__: list[str] = []
-

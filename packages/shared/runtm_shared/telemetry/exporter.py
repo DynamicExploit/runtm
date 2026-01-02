@@ -83,9 +83,7 @@ class BatchExporter:
         self._on_flush_failure = on_flush_failure
 
         # Bounded queue
-        self._queue: queue.Queue[TelemetryItem] = queue.Queue(
-            maxsize=self._config.max_queue_size
-        )
+        self._queue: queue.Queue[TelemetryItem] = queue.Queue(maxsize=self._config.max_queue_size)
 
         # Tracking
         self._dropped_count = 0
@@ -359,4 +357,3 @@ class BatchExporter:
     def is_running(self) -> bool:
         """Check if the exporter is running."""
         return self._started and not self._shutdown_event.is_set()
-

@@ -71,62 +71,66 @@ class EventType(Enum):
 
 
 # Allowed attribute keys (for privacy enforcement)
-ALLOWED_SPAN_ATTRIBUTES = frozenset({
-    # Command attributes (low-cardinality)
-    "runtm.command.name",
-    "runtm.command.exit_code",
-    "runtm.template",
-    "runtm.tier",
-    "runtm.runtime",
-    # Identity (for correlation, not metrics)
-    "runtm.install_id",
-    "runtm.session_id",
-    # Phase
-    "runtm.phase",
-    # Error type (low-cardinality categories)
-    "runtm.error_type",
-})
+ALLOWED_SPAN_ATTRIBUTES = frozenset(
+    {
+        # Command attributes (low-cardinality)
+        "runtm.command.name",
+        "runtm.command.exit_code",
+        "runtm.template",
+        "runtm.tier",
+        "runtm.runtime",
+        # Identity (for correlation, not metrics)
+        "runtm.install_id",
+        "runtm.session_id",
+        # Phase
+        "runtm.phase",
+        # Error type (low-cardinality categories)
+        "runtm.error_type",
+    }
+)
 
-ALLOWED_EVENT_ATTRIBUTES = frozenset({
-    # Identifiers
-    "install_id",
-    "session_id",
-    "cli_version",
-    # System info
-    "os",
-    "arch",
-    "python_version",
-    # Version
-    "from_version",
-    "to_version",
-    # Config
-    "config_source",
-    # Auth
-    "auth_method",
-    "error_type",
-    # Template/deploy
-    "template",
-    "has_existing_files",
-    "is_redeploy",
-    "tier",
-    "artifact_size_mb",
-    "error_count",
-    "warning_count",
-    "duration_ms",
-    "version",
-    "state_reached",
-    # Run
-    "runtime",
-    "has_bun",
-    # Domain
-    "has_ssl",
-    # Phase
-    "phase",
-    # Outcome
-    "outcome",
-    # Deployment ID (trace field only, not for metrics)
-    "deployment_id",
-})
+ALLOWED_EVENT_ATTRIBUTES = frozenset(
+    {
+        # Identifiers
+        "install_id",
+        "session_id",
+        "cli_version",
+        # System info
+        "os",
+        "arch",
+        "python_version",
+        # Version
+        "from_version",
+        "to_version",
+        # Config
+        "config_source",
+        # Auth
+        "auth_method",
+        "error_type",
+        # Template/deploy
+        "template",
+        "has_existing_files",
+        "is_redeploy",
+        "tier",
+        "artifact_size_mb",
+        "error_count",
+        "warning_count",
+        "duration_ms",
+        "version",
+        "state_reached",
+        # Run
+        "runtime",
+        "has_bun",
+        # Domain
+        "has_ssl",
+        # Phase
+        "phase",
+        # Outcome
+        "outcome",
+        # Deployment ID (trace field only, not for metrics)
+        "deployment_id",
+    }
+)
 
 
 def _time_ns() -> int:
@@ -151,9 +155,7 @@ class TelemetryEvent:
     def __post_init__(self) -> None:
         """Validate attributes against allowlist."""
         self.attributes = {
-            k: v
-            for k, v in self.attributes.items()
-            if k in ALLOWED_EVENT_ATTRIBUTES
+            k: v for k, v in self.attributes.items() if k in ALLOWED_EVENT_ATTRIBUTES
         }
 
     def to_dict(self) -> dict[str, Any]:
@@ -197,11 +199,7 @@ class TelemetrySpan:
 
     def __post_init__(self) -> None:
         """Validate attributes against allowlist."""
-        self.attributes = {
-            k: v
-            for k, v in self.attributes.items()
-            if k in ALLOWED_SPAN_ATTRIBUTES
-        }
+        self.attributes = {k: v for k, v in self.attributes.items() if k in ALLOWED_SPAN_ATTRIBUTES}
 
     def end(self, status: SpanStatus = SpanStatus.OK) -> None:
         """End the span with a status."""
@@ -353,4 +351,3 @@ class BaseExporter(ABC):
     @abstractmethod
     def shutdown(self) -> None:
         """Shutdown the exporter."""
-

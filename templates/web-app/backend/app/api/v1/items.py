@@ -6,7 +6,7 @@ to the ItemsService - endpoints should remain thin.
 
 from fastapi import APIRouter, HTTPException
 
-from app.models import Item, ItemCreate, ItemUpdate, ItemList, SuccessResponse
+from app.models import Item, ItemCreate, ItemList, ItemUpdate, SuccessResponse
 from app.services import ItemsService
 from app.services.items import items_service
 
@@ -15,7 +15,7 @@ router = APIRouter()
 
 def get_items_service() -> ItemsService:
     """Get the items service instance.
-    
+
     This function can be replaced with proper dependency injection
     if needed (e.g., for testing or different environments).
     """

@@ -1,14 +1,18 @@
 FROM python:3.12-slim
 
+# Create non-root user early
+# SECURITY: Running as non-root prevents container escape attacks
+RUN useradd --create-home --uid 1000 --shell /bin/bash runtm
+
 WORKDIR /app
 
-# Install system dependencies (including Docker CLI for building images)
+# Install system dependencies
+# SECURITY: docker.io removed - use remote builder instead (no Docker socket needed)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    docker.io \
     && rm -rf /var/lib/apt/lists/*
 
-# Install flyctl for runtime log access
+# Install flyctl for runtime log access and remote builds
 RUN curl -L https://fly.io/install.sh | sh
 ENV FLYCTL_INSTALL="/root/.fly"
 ENV PATH="$FLYCTL_INSTALL/bin:$PATH"
@@ -26,12 +30,14 @@ COPY packages/worker/runtm_worker packages/worker/runtm_worker/
 # Install packages
 RUN pip install --no-cache-dir ./packages/shared ./packages/api ./packages/worker
 
-# Create artifacts directory
-RUN mkdir -p /artifacts
+# Create artifacts directory with correct ownership
+RUN mkdir -p /artifacts && chown -R runtm:runtm /artifacts /app
 
 # Set working directory
 WORKDIR /app/packages/worker
 
+# Switch to non-root user
+USER runtm
+
 # Run worker
 CMD ["python", "-m", "runtm_worker.main"]
-

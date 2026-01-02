@@ -12,16 +12,17 @@ from typing import Optional
 
 from .base import TelemetryMetric
 
-
 # Low-cardinality label constraints
-ALLOWED_METRIC_LABELS = frozenset({
-    "command",      # init, deploy, up, run, etc.
-    "outcome",      # success, failure, timeout
-    "error_type",   # validation, auth, network, etc.
-    "template",     # backend-service, static-site, web-app
-    "tier",         # starter, standard, performance
-    "runtime",      # python, node, fullstack
-})
+ALLOWED_METRIC_LABELS = frozenset(
+    {
+        "command",  # init, deploy, up, run, etc.
+        "outcome",  # success, failure, timeout
+        "error_type",  # validation, auth, network, etc.
+        "template",  # backend-service, static-site, web-app
+        "tier",  # starter, standard, performance
+        "runtime",  # python, node, fullstack
+    }
+)
 
 MAX_LABEL_VALUE_LENGTH = 50
 
@@ -53,7 +54,19 @@ class HistogramValue:
 
 # Default histogram buckets for duration in milliseconds
 DEFAULT_DURATION_BUCKETS = [
-    10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 30000, 60000, float("inf")
+    10,
+    25,
+    50,
+    100,
+    250,
+    500,
+    1000,
+    2500,
+    5000,
+    10000,
+    30000,
+    60000,
+    float("inf"),
 ]
 
 
@@ -114,13 +127,15 @@ class Counter:
 
         for key, value in self._values.items():
             labels = dict(key)
-            metrics.append(TelemetryMetric(
-                name=self.name,
-                value=value,
-                labels=labels,
-                timestamp_ns=timestamp,
-                metric_type="counter",
-            ))
+            metrics.append(
+                TelemetryMetric(
+                    name=self.name,
+                    value=value,
+                    labels=labels,
+                    timestamp_ns=timestamp,
+                    metric_type="counter",
+                )
+            )
 
         return metrics
 
@@ -183,31 +198,37 @@ class Histogram:
             # Bucket metrics
             for bucket in histogram.buckets:
                 bucket_labels = {**labels, "le": str(bucket.upper_bound)}
-                metrics.append(TelemetryMetric(
-                    name=f"{self.name}_bucket",
-                    value=float(bucket.count),
-                    labels=bucket_labels,
-                    timestamp_ns=timestamp,
-                    metric_type="histogram",
-                ))
+                metrics.append(
+                    TelemetryMetric(
+                        name=f"{self.name}_bucket",
+                        value=float(bucket.count),
+                        labels=bucket_labels,
+                        timestamp_ns=timestamp,
+                        metric_type="histogram",
+                    )
+                )
 
             # Sum metric
-            metrics.append(TelemetryMetric(
-                name=f"{self.name}_sum",
-                value=histogram.sum,
-                labels=labels,
-                timestamp_ns=timestamp,
-                metric_type="histogram",
-            ))
+            metrics.append(
+                TelemetryMetric(
+                    name=f"{self.name}_sum",
+                    value=histogram.sum,
+                    labels=labels,
+                    timestamp_ns=timestamp,
+                    metric_type="histogram",
+                )
+            )
 
             # Count metric
-            metrics.append(TelemetryMetric(
-                name=f"{self.name}_count",
-                value=float(histogram.count),
-                labels=labels,
-                timestamp_ns=timestamp,
-                metric_type="histogram",
-            ))
+            metrics.append(
+                TelemetryMetric(
+                    name=f"{self.name}_count",
+                    value=float(histogram.count),
+                    labels=labels,
+                    timestamp_ns=timestamp,
+                    metric_type="histogram",
+                )
+            )
 
         return metrics
 
@@ -369,4 +390,3 @@ class MetricsManager:
         metrics = self._registry.collect_all()
         self._registry.reset_all()
         return metrics
-

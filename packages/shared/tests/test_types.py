@@ -1,7 +1,5 @@
 """Tests for runtm_shared.types."""
 
-import pytest
-
 from runtm_shared.types import (
     ALLOWED_TRANSITIONS,
     DeploymentState,
@@ -94,4 +92,3 @@ class TestLimits:
     def test_rate_limit(self) -> None:
         """Rate limit should be 10 deployments per hour."""
         assert Limits.MAX_DEPLOYMENTS_PER_HOUR == 10
-

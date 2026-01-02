@@ -301,4 +301,3 @@ class CloudflareError(Exception):
         super().__init__(message)
         self.message = message
         self.errors = errors or []
-

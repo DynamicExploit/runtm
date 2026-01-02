@@ -6,7 +6,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from runtm_cli.api_client import APIClient
-from runtm_shared.errors import RuntmError, DeploymentNotFoundError
+from runtm_shared.errors import DeploymentNotFoundError, RuntmError
 
 console = Console()
 
@@ -95,4 +95,3 @@ def destroy_command(
                 border_style="green",
             )
         )
-

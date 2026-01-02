@@ -27,4 +27,3 @@ def test_deployment_with_invalid_token(client):
     # In debug mode without API_TOKEN set, any token works
     # This test documents the behavior
     assert response.status_code in (401, 404)
-

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Ensure .env is loaded from project root before reading settings
@@ -12,6 +13,18 @@ from runtm_shared.types import AuthMode
 
 # Load .env file from project root
 ensure_env_loaded()
+
+
+# Known weak/default secrets that should never be used in production
+WEAK_SECRETS = frozenset({
+    "dev-token",
+    "dev-token-change-in-production",
+    "changeme",
+    "secret",
+    "password",
+    "test",
+    "example",
+})
 
 
 class Settings(BaseSettings):
@@ -32,7 +45,7 @@ class Settings(BaseSettings):
 
     # Authentication
     auth_mode: AuthMode = AuthMode.SINGLE_TENANT
-    api_token: str = ""  # Required in production (single-tenant mode)
+    api_secret: str = ""  # Required in production (single-tenant mode), maps to RUNTM_API_SECRET
 
     # Token hashing peppers (versioned for rotation)
     # Generate with: python -c "import secrets; print(secrets.token_hex(32))"
@@ -60,7 +73,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # SECURITY: Dev-only bypass for authentication
-    # When True (AND debug=True AND api_token is empty), accepts any token.
+    # When True (AND debug=True AND api_secret is empty), accepts any token.
     # This is DANGEROUS and should NEVER be enabled in production.
     # Requires explicit opt-in to prevent accidental exposure.
     allow_insecure_dev_auth: bool = False
@@ -73,6 +86,11 @@ class Settings(BaseSettings):
     # Remote builder (default True): Builds AND deploys on Fly's infra in one step
     # Set to False to build locally with Docker, then push to Fly registry
     use_remote_builder: bool = True
+
+    # SECURITY: Explicit override for local builds (dev only)
+    # When True, allows building with local Docker socket
+    # Forbidden in production - use remote builder instead
+    allow_local_builds: bool = False
 
     # Custom domain configuration
     # When set, deployments will get URLs like <app>.runtm.com instead of <app>.fly.dev
@@ -89,6 +107,19 @@ class Settings(BaseSettings):
     # Get from Cloudflare Dashboard: domain > API section (right sidebar)
     cloudflare_api_token: str = ""  # API token with Zone.DNS edit permission
     cloudflare_zone_id: str = ""  # Zone ID for runtm.com
+
+    # Trusted proxy configuration
+    # SECURITY: Only trust X-Forwarded-* headers from these IPs
+    # Docker default gateway, localhost, common private ranges
+    trusted_proxies: str = "127.0.0.1,::1,172.16.0.0/12,10.0.0.0/8"
+
+    # TLS enforcement (production)
+    # When True, rejects HTTP requests (only trusts X-Forwarded-Proto from trusted proxies)
+    require_tls: bool = True
+
+    # CORS configuration (production only - debug uses localhost allowlist)
+    # Comma-separated origins, e.g., "https://app.runtm.com,https://dashboard.runtm.com"
+    cors_allowed_origins: str = ""
 
     @property
     def is_production(self) -> bool:
@@ -123,6 +154,62 @@ class Settings(BaseSettings):
         if not self.pepper_migration_versions:
             return set()
         return {int(v.strip()) for v in self.pepper_migration_versions.split(",") if v.strip()}
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Parse CORS origins safely.
+
+        Returns:
+            List of allowed origins, empty if not configured
+        """
+        if not self.cors_allowed_origins:
+            return []
+        return [
+            origin.strip()
+            for origin in self.cors_allowed_origins.split(",")
+            if origin.strip()  # Ignore empty entries
+        ]
+
+    @model_validator(mode="after")
+    def validate_build_config(self) -> "Settings":
+        """Prevent local builds in production.
+
+        SECURITY: Local builds require Docker socket access which is
+        a container escape vector. Only allow in debug mode.
+        """
+        if not self.debug and self.allow_local_builds:
+            raise ValueError(
+                "ALLOW_LOCAL_BUILDS=true is forbidden in production. "
+                "Use USE_REMOTE_BUILDER=true instead."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def validate_production_secrets(self) -> "Settings":
+        """Fail fast if running production with weak secrets.
+
+        SECURITY: Prevents deploying with default/weak API secrets.
+        In production (debug=False), requires:
+        - api_secret to be set
+        - api_secret to not be a known weak/default value
+        - api_secret to be at least 32 characters
+        """
+        if not self.debug:
+            if not self.api_secret:
+                raise ValueError(
+                    "RUNTM_API_SECRET is required in production. "
+                    'Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"'
+                )
+            if self.api_secret.lower() in WEAK_SECRETS:
+                raise ValueError(
+                    "RUNTM_API_SECRET cannot be a default/weak value in production. "
+                    "Generate a secure secret."
+                )
+            if len(self.api_secret) < 32:
+                raise ValueError(
+                    "RUNTM_API_SECRET must be at least 32 characters in production."
+                )
+        return self
 
 
 @lru_cache

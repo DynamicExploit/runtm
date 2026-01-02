@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 from pathlib import Path
 from typing import Optional
@@ -196,4 +195,3 @@ class LocalFileStore(ArtifactStore):
             shutil.copy2(src_path, file_path)
         except OSError as e:
             raise StorageReadError(key, str(e)) from e
-

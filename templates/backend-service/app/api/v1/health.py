@@ -16,4 +16,3 @@ async def health_check():
     DO NOT remove or modify this endpoint.
     """
     return {"status": "healthy"}
-

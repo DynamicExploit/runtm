@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from datetime import datetime, timezone
 from typing import List, Optional, Set
 
@@ -132,9 +131,9 @@ class LogCapture:
             return
 
         # Import here to avoid circular imports
-        from runtm_api.db.models import BuildLog
-
         import uuid
+
+        from runtm_api.db.models import BuildLog
 
         log_record = BuildLog(
             deployment_id=uuid.UUID(self.deployment_id),
@@ -144,7 +143,7 @@ class LogCapture:
         self.db.add(log_record)
         self.db.commit()
 
-    def __enter__(self) -> "LogCapture":
+    def __enter__(self) -> LogCapture:
         """Context manager entry."""
         self.write(f"Starting {self.log_type.value} phase")
         return self
@@ -180,4 +179,3 @@ class SimpleLogBuffer:
     def clear(self) -> None:
         """Clear the buffer."""
         self.lines = []
-

@@ -9,7 +9,6 @@ Provides endpoints for:
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
@@ -231,9 +230,7 @@ async def list_traces(
         service_name=service_name,
     )
 
-    return TracesListResponse(
-        traces=[TraceSummaryResponse(**t) for t in traces]
-    )
+    return TracesListResponse(traces=[TraceSummaryResponse(**t) for t in traces])
 
 
 @router.get("/traces/{trace_id}", response_model=TraceResponse)
@@ -294,9 +291,7 @@ async def list_metrics(
         limit=limit,
     )
 
-    return MetricsListResponse(
-        metrics=[MetricResponse(**m) for m in metrics]
-    )
+    return MetricsListResponse(metrics=[MetricResponse(**m) for m in metrics])
 
 
 @router.get("/metrics/summary", response_model=MetricsSummaryResponse)
@@ -351,9 +346,7 @@ async def list_events(
         limit=limit,
     )
 
-    return EventsListResponse(
-        events=[EventResponse(**e) for e in events]
-    )
+    return EventsListResponse(events=[EventResponse(**e) for e in events])
 
 
 # =============================================================================
@@ -383,7 +376,4 @@ async def get_deployment_traces(
         limit=limit,
     )
 
-    return TracesListResponse(
-        traces=[TraceSummaryResponse(**t) for t in traces]
-    )
-
+    return TracesListResponse(traces=[TraceSummaryResponse(**t) for t in traces])

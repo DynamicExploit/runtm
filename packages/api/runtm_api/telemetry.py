@@ -12,10 +12,9 @@ for future implementation with FastAPI middleware integration.
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Optional
 
 from runtm_shared.telemetry import (
-    BaseExporter,
     EventType,
     SpanManager,
     TelemetryConfig,
@@ -88,6 +87,7 @@ def shutdown_telemetry() -> None:
 
 # === Middleware Support ===
 
+
 def extract_trace_context(traceparent: Optional[str]) -> Optional[tuple[str, str]]:
     """Extract trace context from incoming request.
 
@@ -101,6 +101,7 @@ def extract_trace_context(traceparent: Optional[str]) -> Optional[tuple[str, str
 
 
 # === Event Helpers ===
+
 
 def emit_deployment_created(deployment_id: str) -> None:
     """Emit deployment created event.
@@ -146,4 +147,3 @@ def emit_artifact_upload(deployment_id: str, size_bytes: int, duration_ms: float
             "duration_ms": duration_ms,
         },
     )
-

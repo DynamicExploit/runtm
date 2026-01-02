@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from sqlalchemy import (
     Boolean,
-    Column,
     DateTime,
     Enum,
     ForeignKey,
@@ -85,9 +84,7 @@ class Deployment(Base):
     # Version tracking for redeployments
     version: Mapped[int] = mapped_column(nullable=False, default=1)
     is_latest: Mapped[bool] = mapped_column(nullable=False, default=True)
-    previous_deployment_id: Mapped[Optional[str]] = mapped_column(
-        String(32), nullable=True
-    )
+    previous_deployment_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
     # Discovery metadata from runtm.discovery.yaml (for search/discoverability)
     discovery_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
@@ -113,13 +110,13 @@ class Deployment(Base):
     )
 
     # Relationships
-    provider_resource: Mapped[Optional["ProviderResource"]] = relationship(
+    provider_resource: Mapped[Optional[ProviderResource]] = relationship(
         "ProviderResource",
         back_populates="deployment",
         uselist=False,
         cascade="all, delete-orphan",
     )
-    build_logs: Mapped[list["BuildLog"]] = relationship(
+    build_logs: Mapped[list[BuildLog]] = relationship(
         "BuildLog",
         back_populates="deployment",
         cascade="all, delete-orphan",
@@ -176,7 +173,7 @@ class ProviderResource(Base):
     )
 
     # Relationships
-    deployment: Mapped["Deployment"] = relationship(
+    deployment: Mapped[Deployment] = relationship(
         "Deployment",
         back_populates="provider_resource",
     )
@@ -272,7 +269,7 @@ class BuildLog(Base):
     )
 
     # Relationships
-    deployment: Mapped["Deployment"] = relationship(
+    deployment: Mapped[Deployment] = relationship(
         "Deployment",
         back_populates="build_logs",
     )
@@ -321,17 +318,13 @@ class TelemetrySpan(Base):
     attributes: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
     # Link to deployment (optional)
-    deployment_id: Mapped[Optional[str]] = mapped_column(
-        String(32), nullable=True, index=True
-    )
+    deployment_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
 
     # Source service
     service_name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     # Multi-tenant support
-    owner_id: Mapped[Optional[str]] = mapped_column(
-        String(64), nullable=True, index=True
-    )
+    owner_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -342,9 +335,7 @@ class TelemetrySpan(Base):
     )
 
     # Indexes
-    __table_args__ = (
-        Index("ix_telemetry_spans_trace_parent", "trace_id", "parent_span_id"),
-    )
+    __table_args__ = (Index("ix_telemetry_spans_trace_parent", "trace_id", "parent_span_id"),)
 
     @property
     def duration_ms(self) -> Optional[float]:
@@ -377,23 +368,17 @@ class TelemetryEvent(Base):
     attributes: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
     # Optional trace context
-    trace_id: Mapped[Optional[str]] = mapped_column(
-        String(32), nullable=True, index=True
-    )
+    trace_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
     span_id: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
 
     # Link to deployment (optional)
-    deployment_id: Mapped[Optional[str]] = mapped_column(
-        String(32), nullable=True, index=True
-    )
+    deployment_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
 
     # Source service
     service_name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     # Multi-tenant support
-    owner_id: Mapped[Optional[str]] = mapped_column(
-        String(64), nullable=True, index=True
-    )
+    owner_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -441,9 +426,7 @@ class TelemetryMetric(Base):
     service_name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     # Multi-tenant support
-    owner_id: Mapped[Optional[str]] = mapped_column(
-        String(64), nullable=True, index=True
-    )
+    owner_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -454,9 +437,7 @@ class TelemetryMetric(Base):
     )
 
     # Indexes
-    __table_args__ = (
-        Index("ix_telemetry_metrics_name_created", "name", "created_at"),
-    )
+    __table_args__ = (Index("ix_telemetry_metrics_name_created", "name", "created_at"),)
 
 
 # =============================================================================
@@ -509,12 +490,8 @@ class ApiKey(Base):
 
     # Lifecycle
     is_revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    last_used_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    expires_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Audit
     created_by: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -570,9 +547,7 @@ class UsageEvent(Base):
 
     # Correlation
     request_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    deployment_id: Mapped[Optional[str]] = mapped_column(
-        String(32), nullable=True, index=True
-    )
+    deployment_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
 
     # Event details
     event_type: Mapped[str] = mapped_column(
@@ -588,9 +563,7 @@ class UsageEvent(Base):
     )
 
     # Indexes for efficient queries
-    __table_args__ = (
-        Index("ix_usage_events_tenant_created", "tenant_id", "created_at"),
-    )
+    __table_args__ = (Index("ix_usage_events_tenant_created", "tenant_id", "created_at"),)
 
 
 class UsageCounter(Base):
@@ -623,4 +596,3 @@ class UsageCounter(Base):
             unique=True,
         ),
     )
-

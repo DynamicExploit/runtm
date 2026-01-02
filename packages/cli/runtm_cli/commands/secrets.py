@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 import typer
 from dotenv import dotenv_values, set_key
@@ -64,7 +64,7 @@ def ensure_cursorignore(path: Path) -> None:
                 f.write("\n# Secrets - never expose to AI agents\n")
                 for p in missing:
                     f.write(f"{p}\n")
-            console.print(f"[dim]Added .env patterns to .cursorignore[/dim]")
+            console.print("[dim]Added .env patterns to .cursorignore[/dim]")
     # Don't create .cursorignore if it doesn't exist - template should provide it
 
 
@@ -163,7 +163,9 @@ def secrets_set_command(
 
     # Validate key format
     if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", key):
-        console.print("[red]✗[/red] Key must be alphanumeric with underscores, starting with a letter")
+        console.print(
+            "[red]✗[/red] Key must be alphanumeric with underscores, starting with a letter"
+        )
         raise typer.Exit(1)
 
     # Ensure .env.local exists and is gitignored
@@ -283,7 +285,9 @@ def secrets_list_command(
                     # Redact secret values
                     row.append("[dim]••••••••[/dim]")
                 else:
-                    row.append(resolved[name][:50] + "..." if len(resolved[name]) > 50 else resolved[name])
+                    row.append(
+                        resolved[name][:50] + "..." if len(resolved[name]) > 50 else resolved[name]
+                    )
             else:
                 row.append("")
 
@@ -306,7 +310,7 @@ def secrets_unset_command(
     env_file = get_env_file_path(path)
 
     if not env_file.exists():
-        console.print(f"[yellow]⚠[/yellow] No .env.local file found")
+        console.print("[yellow]⚠[/yellow] No .env.local file found")
         return
 
     # Read current content
@@ -327,4 +331,3 @@ def secrets_unset_command(
         console.print(f"[green]✓[/green] Removed {key} from .env.local")
     else:
         console.print(f"[yellow]⚠[/yellow] {key} not found in .env.local")
-

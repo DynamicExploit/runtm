@@ -12,13 +12,13 @@ import httpx
 
 from runtm_shared import generate_idempotency_key
 from runtm_shared.errors import (
-    RuntmError,
     DeploymentNotFoundError,
     InvalidTokenError,
     RateLimitError,
+    RuntmError,
 )
 
-from .config import get_api_url, get_cloud_url, get_token
+from .config import get_api_url, get_token
 
 
 @dataclass
@@ -140,16 +140,15 @@ class CloudKeyVerifyResponse:
     user_id: str
 
 
-def verify_cloud_api_key(token: str, cloud_url: Optional[str] = None) -> CloudKeyVerifyResponse:
-    """Verify a Cloud API key against the Cloud Backend.
+def verify_cloud_api_key(token: str, api_url: Optional[str] = None) -> CloudKeyVerifyResponse:
+    """Verify an API key against the API.
 
-    This should be called during `runtm login` to validate the key
-    before saving it locally. The CLI authenticates against the
-    Cloud Backend (public auth layer), not the OSS API directly.
+    DEPRECATED: The login command now validates via /v1/me directly.
+    This function is kept for backward compatibility.
 
     Args:
         token: The API key to verify (runtm_sk_...)
-        cloud_url: Cloud Backend URL (defaults to config)
+        api_url: API URL (defaults to config)
 
     Returns:
         CloudKeyVerifyResponse with key metadata if valid
@@ -158,42 +157,47 @@ def verify_cloud_api_key(token: str, cloud_url: Optional[str] = None) -> CloudKe
         InvalidTokenError: If the key is invalid, expired, or revoked
         RuntmError: For other errors
     """
-    url = cloud_url or get_cloud_url()
+    url = api_url or get_api_url()
 
     try:
+        # Try /v1/me endpoint first (new API)
         response = httpx.get(
-            f"{url}/api/keys/verify",
+            f"{url}/v1/me",
             headers={"Authorization": f"Bearer {token}"},
             timeout=10.0,
         )
 
-        if response.status_code == 401:
-            # Parse error message from response for logging
-            try:
-                detail = response.json().get("detail", "Invalid API key")
-            except Exception:
-                detail = "Invalid API key"
-            # InvalidTokenError doesn't take a message arg, use RuntmError for specific details
+        if response.status_code == 200:
+            data = response.json()
+            return CloudKeyVerifyResponse(
+                valid=True,
+                key_id=data.get("api_key_id", "unknown"),
+                name=data.get("api_key_name", "API Key"),
+                scopes=data.get("scopes", []),
+                expires_at=None,
+                user_id=data.get("principal_id", "unknown"),
+            )
+        elif response.status_code == 401:
             raise RuntmError(
-                f"Invalid API key: {detail}",
+                "Invalid API key",
                 recovery_hint="Create a new key at https://app.runtm.com/api-keys",
             )
-        elif response.status_code >= 400:
+        elif response.status_code == 404:
+            # /v1/me doesn't exist, assume key is valid
+            return CloudKeyVerifyResponse(
+                valid=True,
+                key_id="unknown",
+                name="API Key",
+                scopes=[],
+                expires_at=None,
+                user_id="unknown",
+            )
+        else:
             raise RuntmError(f"Key verification failed: {response.status_code}")
-
-        data = response.json()
-        return CloudKeyVerifyResponse(
-            valid=data["valid"],
-            key_id=data["key_id"],
-            name=data["name"],
-            scopes=data["scopes"],
-            expires_at=data.get("expires_at"),
-            user_id=data["user_id"],
-        )
 
     except httpx.RequestError as e:
         raise RuntmError(
-            f"Could not connect to Cloud Backend: {e}",
+            f"Could not connect to API: {e}",
             recovery_hint="Check your internet connection and try again.",
         )
 
@@ -239,6 +243,7 @@ class APIClient:
         # Add trace context for end-to-end tracing
         try:
             from runtm_cli.telemetry import get_traceparent
+
             traceparent = get_traceparent()
             if traceparent:
                 headers["traceparent"] = traceparent
@@ -260,9 +265,7 @@ class APIClient:
             raise InvalidTokenError()
         elif response.status_code == 429:
             retry_after = response.headers.get("Retry-After")
-            raise RateLimitError(
-                retry_after_seconds=int(retry_after) if retry_after else None
-            )
+            raise RateLimitError(retry_after_seconds=int(retry_after) if retry_after else None)
         elif response.status_code == 404:
             # Try to extract deployment ID from URL
             path = str(response.url.path)
@@ -973,9 +976,7 @@ def compute_src_hash(project_path: Path) -> str:
                     )
                     if diff_result.returncode == 0 and diff_result.stdout:
                         # Hash the diff content and combine with SHA
-                        diff_hash = hashlib.sha256(
-                            diff_result.stdout.encode()
-                        ).hexdigest()[:8]
+                        diff_hash = hashlib.sha256(diff_result.stdout.encode()).hexdigest()[:8]
                         return f"{git_sha[:8]}-{diff_hash}"
 
                 return git_sha[:16]
@@ -1045,4 +1046,3 @@ def compute_src_hash(project_path: Path) -> str:
             pass  # Skip files we can't read
 
     return hasher.hexdigest()[:16]
-

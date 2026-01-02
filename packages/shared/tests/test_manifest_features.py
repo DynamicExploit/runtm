@@ -147,12 +147,14 @@ class TestManifestWithFeatures:
                 template="backend-service",  # not web-app
                 runtime="python",
                 features=Features(database=True, auth=True),
-                env_schema=[{
-                    "name": "AUTH_SECRET",
-                    "type": "string",
-                    "required": True,
-                    "secret": True,
-                }],
+                env_schema=[
+                    {
+                        "name": "AUTH_SECRET",
+                        "type": "string",
+                        "required": True,
+                        "secret": True,
+                    }
+                ],
             )
         assert "web-app" in str(exc_info.value)
 
@@ -177,12 +179,14 @@ class TestManifestWithFeatures:
             runtime="fullstack",
             tier="standard",
             features=Features(database=True, auth=True),
-            env_schema=[{
-                "name": "AUTH_SECRET",
-                "type": "string",
-                "required": True,
-                "secret": True,
-            }],
+            env_schema=[
+                {
+                    "name": "AUTH_SECRET",
+                    "type": "string",
+                    "required": True,
+                    "secret": True,
+                }
+            ],
         )
         assert manifest.features.auth is True
         assert manifest.features.database is True
@@ -288,4 +292,3 @@ env_schema:
         assert manifest.features.auth is True
         assert len(manifest.volumes) == 1
         assert len(manifest.env_schema) == 4
-

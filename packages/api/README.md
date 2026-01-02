@@ -1,6 +1,8 @@
 # runtm-api
 
-FastAPI control plane for Runtm.
+FastAPI control plane for Runtm—the runtime + control plane for agent-built software.
+
+🌐 **Hosted API:** [app.runtm.com](https://app.runtm.com)
 
 ## Endpoints
 
@@ -31,7 +33,7 @@ Creates a new deployment or redeploys an existing one (based on manifest name).
 **Example:**
 ```bash
 curl -X POST "http://localhost:8000/v0/deployments?tier=performance" \
-  -H "Authorization: Bearer $RUNTM_TOKEN" \
+  -H "Authorization: Bearer $RUNTM_API_KEY" \
   -F "manifest=@runtm.yaml" \
   -F "artifact=@artifact.zip"
 ```
@@ -70,7 +72,7 @@ pytest
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL connection string | Required |
 | `REDIS_URL` | Redis connection string | Required |
-| `RUNTM_API_TOKEN` | API authentication token | Required |
+| `RUNTM_API_SECRET` | API authentication secret (what server validates against) | Required |
 | `ARTIFACT_STORAGE_PATH` | Local artifact storage path | `/artifacts` |
 | `AUTH_MODE` | Auth mode: `single_tenant` or `multi_tenant` | `single_tenant` |
 
