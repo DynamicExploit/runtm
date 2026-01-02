@@ -325,13 +325,14 @@ kill_timeout = "30s"
                 logs=logs,
             )
         except FileNotFoundError:
-            self._log("flyctl not found, falling back to local build", logs)
-            # Fall back to local build if flyctl not available
-            return self.build(
-                context_path=context_path,
-                image_name=app_name,
-                deployment_id=deployment_id,
-                timeout_seconds=timeout_seconds,
+            # flyctl not found - this is a configuration error, not a fallback scenario
+            # Local fallback won't work because self.client isn't set when use_remote_builder=True
+            error_msg = "flyctl not found in PATH. Install flyctl for remote builder support."
+            self._log(f"ERROR: {error_msg}", logs)
+            return BuildResult(
+                success=False,
+                error=error_msg,
+                logs=logs,
             )
         except Exception as e:
             self._log(f"Remote build error: {e}", logs)
