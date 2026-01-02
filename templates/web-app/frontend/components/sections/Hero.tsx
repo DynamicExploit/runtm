@@ -80,7 +80,7 @@ export function Hero() {
                 <span className="text-[var(--success)]">✓</span> Backend deployed
               </div>
               <div className="text-[var(--muted)]">
-                <span className="text-[var(--success)]">✓</span> Live at https://my-web-app.runtm.dev
+                <span className="text-[var(--success)]">✓</span> Live at https://my-web-app.runtm.com
               </div>
             </div>
           </div>
