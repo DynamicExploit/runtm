@@ -113,7 +113,7 @@ class OTLPExporter(BaseExporter):
     Uses httpx for HTTP requests with tight timeouts.
     """
 
-    DEFAULT_ENDPOINT = "https://api.runtm.dev/v0/telemetry"
+    DEFAULT_ENDPOINT = "https://app.runtm.com/api/v0/telemetry"
     DEFAULT_TIMEOUT = 0.5  # 500ms
 
     def __init__(
