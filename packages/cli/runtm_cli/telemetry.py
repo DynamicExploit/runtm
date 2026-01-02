@@ -60,8 +60,8 @@ def _create_telemetry_service() -> TelemetryService:
     telemetry_config.service_version = __version__
 
     # Create exporter based on configuration
-    # Use ControlPlaneExporter for local development (sends to control plane API)
-    # Use OTLPExporter for production (sends to external telemetry service)
+    # Use ControlPlaneExporter when API is configured (local or production)
+    # Use OTLPExporter only when no API is configured (fallback to default endpoint)
     api_url = get_api_url()
     token = get_token()
 
@@ -77,15 +77,16 @@ def _create_telemetry_service() -> TelemetryService:
             endpoint=telemetry_config.endpoint,
             token=token,
         )
-    elif _is_local_api(api_url) and token:
-        # Local development - send telemetry to control plane API
+    elif api_url and token:
+        # Send telemetry to the configured control plane API
+        # Works for both local development and production (app.runtm.com)
         exporter = create_controlplane_exporter(
             api_url=api_url,
             token=token,
             service_name="runtm-cli",
         )
     else:
-        # Production - use default OTLP exporter
+        # No API configured - use default OTLP exporter as fallback
         exporter = create_exporter(token=token)
 
     # Create service
@@ -108,18 +109,6 @@ def _create_telemetry_service() -> TelemetryService:
     atexit.register(_shutdown_telemetry)
 
     return service
-
-
-def _is_local_api(api_url: str) -> bool:
-    """Check if the API URL is a local development URL.
-
-    Args:
-        api_url: The API URL to check
-
-    Returns:
-        True if the URL is localhost or 127.0.0.1
-    """
-    return any(pattern in api_url.lower() for pattern in ["localhost", "127.0.0.1", "0.0.0.0"])
 
 
 def _determine_config_source() -> str:
