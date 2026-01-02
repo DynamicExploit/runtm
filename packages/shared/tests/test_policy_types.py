@@ -104,4 +104,3 @@ class TestTenantLimits:
         assert limits.deploys_per_hour is None
         assert limits.deploys_per_day is None
         assert limits.allowed_tiers is None
-

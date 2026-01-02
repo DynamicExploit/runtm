@@ -6,12 +6,52 @@ Deploy AI-generated tools and apps to live URLs in minutes. One command → depl
 
 🌐 **Website:** [runtm.com](https://runtm.com) · **Try it free:** [app.runtm.com](https://app.runtm.com)
 
+## Design Principles
+
+1. **Simplify to the most basic primitives** – Remove complexity, not add it
+2. **Make it extremely easy to use** – One command should do the job
+3. **Make it versatile and scalable** – Entire ecosystems can be built on top
+4. **Optimize for tight, closed feedback loops** – Fast iteration over perfect planning
+5. **Design for agents first, then for humans** – AI should be the primary user
+6. **Agents propose, humans set guardrails** – Freedom with governance
+7. **Make behavior explicit, observable, and reproducible** – No magic
+
+## Installation
+
+**Recommended (uv):**
+```bash
+uv tool install runtm
+```
+
+**Alternative (pipx):**
+```bash
+pipx install runtm
+```
+
+**From PyPI (pip):**
+```bash
+pip install runtm
+```
+
+### Upgrading
+
+```bash
+# Upgrade to latest version (uv)
+uv tool upgrade runtm
+
+# Or force reinstall
+uv tool install runtm --force
+
+# With pipx
+pipx upgrade runtm
+
+# With pip
+pip install --upgrade runtm
+```
+
 ## Quick Start
 
 ```bash
-# Install the CLI
-pip install runtm
-
 # Get your free API key at app.runtm.com
 runtm login
 

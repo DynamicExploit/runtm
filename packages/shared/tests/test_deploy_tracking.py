@@ -1,8 +1,6 @@
 """Tests for deploy tracking (concurrent deploy reservation)."""
 
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from runtm_shared.deploy_tracking import (
     CONCURRENT_DEPLOY_TTL_SECONDS,
@@ -76,9 +74,7 @@ class TestReserveConcurrentDeploy:
         redis.pipeline.return_value = pipe
         pipe.execute.return_value = [1, True]
 
-        reserve_concurrent_deploy(
-            redis, "tenant_1", limit=3, deployment_id="dep_abc123"
-        )
+        reserve_concurrent_deploy(redis, "tenant_1", limit=3, deployment_id="dep_abc123")
 
         redis.setex.assert_called_once_with(
             "concurrent_deploy_slot:tenant_1:dep_abc123",
@@ -93,9 +89,7 @@ class TestReserveConcurrentDeploy:
         redis.pipeline.return_value = pipe
         pipe.execute.return_value = [4, True]  # over limit
 
-        reserve_concurrent_deploy(
-            redis, "tenant_1", limit=3, deployment_id="dep_abc123"
-        )
+        reserve_concurrent_deploy(redis, "tenant_1", limit=3, deployment_id="dep_abc123")
 
         # setex should not be called since we were denied
         redis.setex.assert_not_called()
@@ -131,9 +125,7 @@ class TestReleaseConcurrentDeploy:
 
         release_concurrent_deploy(redis, "tenant_1", deployment_id="dep_abc123")
 
-        redis.delete.assert_called_once_with(
-            "concurrent_deploy_slot:tenant_1:dep_abc123"
-        )
+        redis.delete.assert_called_once_with("concurrent_deploy_slot:tenant_1:dep_abc123")
 
     def test_no_slot_cleanup_without_deployment_id(self) -> None:
         """No slot cleanup when deployment_id not provided."""
@@ -175,4 +167,3 @@ class TestTTLConstant:
         """TTL should be 6 hours (21600 seconds)."""
         assert CONCURRENT_DEPLOY_TTL_SECONDS == 6 * 60 * 60
         assert CONCURRENT_DEPLOY_TTL_SECONDS == 21600
-

@@ -91,7 +91,9 @@ def deploy_command(
             client = APIClient()
             if not client.check_auth():
                 emit_auth_failed("invalid_token")
-                console.print("[red]✗[/red] Authentication failed. Your token may be invalid or expired.")
+                console.print(
+                    "[red]✗[/red] Authentication failed. Your token may be invalid or expired."
+                )
                 console.print()
                 console.print("Try: runtm login")
                 console.print("Or check your RUNTM_API_KEY environment variable.")

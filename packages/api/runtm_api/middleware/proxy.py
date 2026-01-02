@@ -11,10 +11,10 @@ This prevents:
 Usage:
     # Get client IP (only trusts headers from proxies)
     ip = get_client_ip(request, settings)
-    
+
     # Check TLS status (only trusts X-Forwarded-Proto from proxies)
     scheme = get_request_scheme(request, settings)
-    
+
     # Middleware for TLS enforcement
     app.add_middleware(TLSEnforcementMiddleware, settings=settings)
 """
@@ -205,4 +205,3 @@ class TLSEnforcementMiddleware(BaseHTTPMiddleware):
             )
 
         return await call_next(request)
-

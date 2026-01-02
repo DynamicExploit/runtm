@@ -6,9 +6,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from runtm_cli.config import (
-    CLIConfig,
     DEFAULT_API_URL,
     VALID_CONFIG_KEYS,
+    CLIConfig,
     get_config_value,
     load_config,
     reset_config,

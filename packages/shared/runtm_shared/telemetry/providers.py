@@ -9,7 +9,10 @@ import json
 import logging
 import sys
 from datetime import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    import httpx
 
 from .base import BaseExporter, TelemetryBatch
 

@@ -1,0 +1,21 @@
+# Secrets and environment files
+.env
+.env.*
+*.env
+local.env
+
+# Credentials and tokens
+**/credentials*
+**/*secret*
+**/*token*
+
+# Private keys
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Config files that might contain secrets
+**/config.local.*
+**/secrets.*
+

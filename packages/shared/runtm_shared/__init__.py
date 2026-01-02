@@ -3,6 +3,12 @@
 # Telemetry module is available as runtm_shared.telemetry
 # Import specific items with: from runtm_shared.telemetry import TelemetryService
 
+from runtm_shared.deploy_tracking import (
+    CONCURRENT_DEPLOY_TTL_SECONDS,
+    get_concurrent_deploy_count,
+    release_concurrent_deploy,
+    reserve_concurrent_deploy,
+)
 from runtm_shared.discovery import (
     ApiDiscovery,
     AppDiscovery,
@@ -60,6 +66,12 @@ from runtm_shared.manifest import (
     Policy,
     PolicyMode,
 )
+from runtm_shared.redis import (
+    get_redis_client,
+    get_redis_client_or_warn,
+    get_redis_url,
+    reset_redis_warning,
+)
 from runtm_shared.requests import (
     RequestedChanges,
     RequestedConnection,
@@ -95,18 +107,6 @@ from runtm_shared.types import (
     get_tier_spec,
     is_terminal_state,
     validate_tier_name,
-)
-from runtm_shared.redis import (
-    get_redis_client,
-    get_redis_client_or_warn,
-    get_redis_url,
-    reset_redis_warning,
-)
-from runtm_shared.deploy_tracking import (
-    CONCURRENT_DEPLOY_TTL_SECONDS,
-    get_concurrent_deploy_count,
-    release_concurrent_deploy,
-    reserve_concurrent_deploy,
 )
 from runtm_shared.urls import (
     construct_deployment_url,

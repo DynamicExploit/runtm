@@ -76,4 +76,3 @@ def downgrade() -> None:
     op.drop_index("ix_deployments_tenant_name", table_name="deployments")
     op.drop_index("ix_deployments_expires_at", table_name="deployments")
     op.drop_column("deployments", "expires_at")
-

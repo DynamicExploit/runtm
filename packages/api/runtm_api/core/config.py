@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from functools import lru_cache
-
 from typing import List, Optional
 
 from pydantic import model_validator
@@ -18,15 +17,17 @@ ensure_env_loaded()
 
 
 # Known weak/default secrets that should never be used in production
-WEAK_SECRETS = frozenset({
-    "dev-token",
-    "dev-token-change-in-production",
-    "changeme",
-    "secret",
-    "password",
-    "test",
-    "example",
-})
+WEAK_SECRETS = frozenset(
+    {
+        "dev-token",
+        "dev-token-change-in-production",
+        "changeme",
+        "secret",
+        "password",
+        "test",
+        "example",
+    }
+)
 
 
 class Settings(BaseSettings):
@@ -215,7 +216,7 @@ class Settings(BaseSettings):
         return tiers if tiers else None
 
     @model_validator(mode="after")
-    def validate_build_config(self) -> "Settings":
+    def validate_build_config(self) -> Settings:
         """Prevent local builds in production.
 
         SECURITY: Local builds require Docker socket access which is
@@ -229,7 +230,7 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
-    def validate_production_secrets(self) -> "Settings":
+    def validate_production_secrets(self) -> Settings:
         """Fail fast if running production with weak secrets.
 
         SECURITY: Prevents deploying with default/weak API secrets.
@@ -250,9 +251,7 @@ class Settings(BaseSettings):
                     "Generate a secure secret."
                 )
             if len(self.api_secret) < 32:
-                raise ValueError(
-                    "RUNTM_API_SECRET must be at least 32 characters in production."
-                )
+                raise ValueError("RUNTM_API_SECRET must be at least 32 characters in production.")
         return self
 
 

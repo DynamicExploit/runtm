@@ -61,9 +61,7 @@ class TestDefaultPolicyProvider:
     @pytest.fixture
     def provider(self, mock_settings: MagicMock) -> DefaultPolicyProvider:
         """Create provider with mocked settings."""
-        with patch(
-            "runtm_api.core.config.get_settings", return_value=mock_settings
-        ):
+        with patch("runtm_api.core.config.get_settings", return_value=mock_settings):
             return DefaultPolicyProvider()
 
     @pytest.fixture
@@ -86,13 +84,9 @@ class TestDefaultPolicyProvider:
         """Should block tiers not in allowlist."""
         mock_settings.parsed_allowed_tiers = ["starter", "standard"]
 
-        with patch(
-            "runtm_api.core.config.get_settings", return_value=mock_settings
-        ):
+        with patch("runtm_api.core.config.get_settings", return_value=mock_settings):
             provider = DefaultPolicyProvider()
-            result = provider.check_deploy(
-                "tenant_1", mock_db, requested_tier="performance"
-            )
+            result = provider.check_deploy("tenant_1", mock_db, requested_tier="performance")
 
         assert result.allowed is False
         assert "performance" in result.reason
@@ -105,13 +99,9 @@ class TestDefaultPolicyProvider:
         """Should allow tiers in allowlist."""
         mock_settings.parsed_allowed_tiers = ["starter", "standard"]
 
-        with patch(
-            "runtm_api.core.config.get_settings", return_value=mock_settings
-        ):
+        with patch("runtm_api.core.config.get_settings", return_value=mock_settings):
             provider = DefaultPolicyProvider()
-            result = provider.check_deploy(
-                "tenant_1", mock_db, requested_tier="standard"
-            )
+            result = provider.check_deploy("tenant_1", mock_db, requested_tier="standard")
 
         assert result.allowed is True
 
@@ -127,9 +117,7 @@ class TestDefaultPolicyProvider:
         mock_query.filter.return_value = mock_query
         mock_query.count.return_value = 5  # At limit
 
-        with patch(
-            "runtm_api.core.config.get_settings", return_value=mock_settings
-        ):
+        with patch("runtm_api.core.config.get_settings", return_value=mock_settings):
             provider = DefaultPolicyProvider()
             result = provider.check_deploy("tenant_1", mock_db)
 
@@ -148,17 +136,13 @@ class TestDefaultPolicyProvider:
         mock_query.filter.return_value = mock_query
         mock_query.count.return_value = 3  # Under limit
 
-        with patch(
-            "runtm_api.core.config.get_settings", return_value=mock_settings
-        ):
+        with patch("runtm_api.core.config.get_settings", return_value=mock_settings):
             provider = DefaultPolicyProvider()
             result = provider.check_deploy("tenant_1", mock_db)
 
         assert result.allowed is True
 
-    def test_hourly_rate_limit_blocks(
-        self, mock_settings: MagicMock, mock_db: MagicMock
-    ) -> None:
+    def test_hourly_rate_limit_blocks(self, mock_settings: MagicMock, mock_db: MagicMock) -> None:
         """Should block when hourly deploy rate exceeded."""
         mock_settings.default_deploys_per_hour = 10
 
@@ -167,18 +151,14 @@ class TestDefaultPolicyProvider:
         mock_query.filter.return_value = mock_query
         mock_query.count.return_value = 10  # At hourly limit
 
-        with patch(
-            "runtm_api.core.config.get_settings", return_value=mock_settings
-        ):
+        with patch("runtm_api.core.config.get_settings", return_value=mock_settings):
             provider = DefaultPolicyProvider()
             result = provider.check_deploy("tenant_1", mock_db)
 
         assert result.allowed is False
         assert "Hourly deploy limit" in result.reason
 
-    def test_daily_rate_limit_blocks(
-        self, mock_settings: MagicMock, mock_db: MagicMock
-    ) -> None:
+    def test_daily_rate_limit_blocks(self, mock_settings: MagicMock, mock_db: MagicMock) -> None:
         """Should block when daily deploy rate exceeded."""
         mock_settings.default_deploys_per_day = 50
 
@@ -188,9 +168,7 @@ class TestDefaultPolicyProvider:
         # Return 5 for hourly (under limit), 50 for daily (at limit)
         mock_query.count.side_effect = [5, 50]
 
-        with patch(
-            "runtm_api.core.config.get_settings", return_value=mock_settings
-        ):
+        with patch("runtm_api.core.config.get_settings", return_value=mock_settings):
             mock_settings.default_deploys_per_hour = 10  # Not at hourly limit
             provider = DefaultPolicyProvider()
             result = provider.check_deploy("tenant_1", mock_db)
@@ -204,9 +182,7 @@ class TestDefaultPolicyProvider:
         """Should set expires_at when lifespan configured."""
         mock_settings.default_app_lifespan_days = 7
 
-        with patch(
-            "runtm_api.core.config.get_settings", return_value=mock_settings
-        ):
+        with patch("runtm_api.core.config.get_settings", return_value=mock_settings):
             provider = DefaultPolicyProvider()
             result = provider.check_deploy("tenant_1", mock_db)
 
@@ -216,9 +192,7 @@ class TestDefaultPolicyProvider:
         expected = datetime.now(timezone.utc) + timedelta(days=7)
         assert abs((result.expires_at - expected).total_seconds()) < 5
 
-    def test_result_includes_limits(
-        self, mock_settings: MagicMock, mock_db: MagicMock
-    ) -> None:
+    def test_result_includes_limits(self, mock_settings: MagicMock, mock_db: MagicMock) -> None:
         """Result should include limits for concurrent reservation."""
         mock_settings.default_max_apps_per_tenant = 10
         mock_settings.default_concurrent_deploys = 3
@@ -229,9 +203,7 @@ class TestDefaultPolicyProvider:
         mock_query.filter.return_value = mock_query
         mock_query.count.return_value = 2  # Under limit
 
-        with patch(
-            "runtm_api.core.config.get_settings", return_value=mock_settings
-        ):
+        with patch("runtm_api.core.config.get_settings", return_value=mock_settings):
             provider = DefaultPolicyProvider()
             result = provider.check_deploy("tenant_1", mock_db)
 
@@ -250,9 +222,7 @@ class TestGetPolicyProvider:
     def test_loads_default_provider(self) -> None:
         """Should load DefaultPolicyProvider by default."""
         mock_settings = MagicMock()
-        mock_settings.policy_provider = (
-            "runtm_api.services.policy:DefaultPolicyProvider"
-        )
+        mock_settings.policy_provider = "runtm_api.services.policy:DefaultPolicyProvider"
         mock_settings.default_max_apps_per_tenant = None
         mock_settings.default_app_lifespan_days = None
         mock_settings.default_deploys_per_hour = None
@@ -260,18 +230,14 @@ class TestGetPolicyProvider:
         mock_settings.default_concurrent_deploys = None
         mock_settings.parsed_allowed_tiers = None
 
-        with patch(
-            "runtm_api.core.config.get_settings", return_value=mock_settings
-        ):
+        with patch("runtm_api.core.config.get_settings", return_value=mock_settings):
             provider = get_policy_provider()
             assert isinstance(provider, DefaultPolicyProvider)
 
     def test_caches_provider(self) -> None:
         """Provider should be cached after first load."""
         mock_settings = MagicMock()
-        mock_settings.policy_provider = (
-            "runtm_api.services.policy:DefaultPolicyProvider"
-        )
+        mock_settings.policy_provider = "runtm_api.services.policy:DefaultPolicyProvider"
         mock_settings.default_max_apps_per_tenant = None
         mock_settings.default_app_lifespan_days = None
         mock_settings.default_deploys_per_hour = None
@@ -279,9 +245,7 @@ class TestGetPolicyProvider:
         mock_settings.default_concurrent_deploys = None
         mock_settings.parsed_allowed_tiers = None
 
-        with patch(
-            "runtm_api.core.config.get_settings", return_value=mock_settings
-        ):
+        with patch("runtm_api.core.config.get_settings", return_value=mock_settings):
             provider1 = get_policy_provider()
             provider2 = get_policy_provider()
             assert provider1 is provider2
@@ -289,9 +253,7 @@ class TestGetPolicyProvider:
     def test_clear_cache(self) -> None:
         """clear_policy_provider_cache should clear the cache."""
         mock_settings = MagicMock()
-        mock_settings.policy_provider = (
-            "runtm_api.services.policy:DefaultPolicyProvider"
-        )
+        mock_settings.policy_provider = "runtm_api.services.policy:DefaultPolicyProvider"
         mock_settings.default_max_apps_per_tenant = None
         mock_settings.default_app_lifespan_days = None
         mock_settings.default_deploys_per_hour = None
@@ -299,12 +261,9 @@ class TestGetPolicyProvider:
         mock_settings.default_concurrent_deploys = None
         mock_settings.parsed_allowed_tiers = None
 
-        with patch(
-            "runtm_api.core.config.get_settings", return_value=mock_settings
-        ):
+        with patch("runtm_api.core.config.get_settings", return_value=mock_settings):
             provider1 = get_policy_provider()
             clear_policy_provider_cache()
             provider2 = get_policy_provider()
             # Should be different instances after cache clear
             assert provider1 is not provider2
-

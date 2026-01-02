@@ -782,7 +782,9 @@ async def create_deployment(
             manifest_json=parsed_manifest.to_dict(),
             version=previous_version + 1,
             is_latest=True,
-            previous_deployment_id=previous_deployment.deployment_id if previous_deployment else None,
+            previous_deployment_id=previous_deployment.deployment_id
+            if previous_deployment
+            else None,
             src_hash=src_hash,
             config_only=config_only,
             expires_at=deployment_expires_at,  # Set from policy check

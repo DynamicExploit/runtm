@@ -78,7 +78,7 @@ async def get_current_user(
     else:
         # Multi-tenant but no email - show principal_id
         email = auth.principal_id
-    
+
     org_name = auth.tenant_id if auth.tenant_id != "default" else None
 
     return MeResponse(
@@ -90,4 +90,3 @@ async def get_current_user(
         email=email,
         org_name=org_name,
     )
-

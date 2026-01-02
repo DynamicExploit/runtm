@@ -2,14 +2,14 @@
 
 Token resolution order:
 1. RUNTM_API_KEY environment variable (CI/headless)
-2. OS keychain via keyring library
-3. ~/.runtm/credentials file (0o600 permissions)
+2. ~/.runtm/credentials file (0o600 permissions) - default, no popups
+3. OS keychain via keyring library (opt-in, future --secure flag)
 
 Design notes:
 - Token is NEVER stored in config.yaml
+- File-first to avoid scary "Python wants keychain access" popups on macOS
 - Host-keyed storage (api_token@{host}) for future multi-profile support
 - File created with os.open(..., 0o600) to handle weird umasks
-- Catches broad Exception for Linux keyring backend issues
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ def _keyring_key(api_url: str) -> str:
 
 
 def get_token(api_url: Optional[str] = None) -> Optional[str]:
-    """Get token: env var -> keychain -> file.
+    """Get token: env var -> file -> keychain.
 
     Args:
         api_url: Optional API URL to get token for. Defaults to config api_url.
@@ -59,10 +59,17 @@ def get_token(api_url: Optional[str] = None) -> Optional[str]:
     if env_token := os.environ.get("RUNTM_API_KEY"):
         return env_token
 
+    # 2. Credentials file (default - no scary popups)
+    if CREDENTIALS_FILE.exists():
+        try:
+            if token := CREDENTIALS_FILE.read_text().strip():
+                return token
+        except Exception:
+            pass  # File read error
+
+    # 3. OS keychain (fallback for users who stored there previously)
     api_url = api_url or _get_api_url()
     key = _keyring_key(api_url)
-
-    # 2. OS keychain
     try:
         if token := keyring.get_password(SERVICE_NAME, key):
             return token
@@ -70,13 +77,6 @@ def get_token(api_url: Optional[str] = None) -> Optional[str]:
         pass  # Keyring unavailable
     except Exception:
         pass  # Keyring backend misconfigured (common on Linux without SecretService)
-
-    # 3. Credentials file
-    if CREDENTIALS_FILE.exists():
-        try:
-            return CREDENTIALS_FILE.read_text().strip()
-        except Exception:
-            pass  # File read error
 
     return None
 
@@ -88,26 +88,27 @@ def get_token_source(api_url: Optional[str] = None) -> str:
         api_url: Optional API URL to check. Defaults to config api_url.
 
     Returns:
-        One of: 'env' | 'keychain' | 'file' | 'none'
+        One of: 'env' | 'file' | 'keychain' | 'none'
     """
     if os.environ.get("RUNTM_API_KEY"):
         return "env"
 
-    api_url = api_url or _get_api_url()
-    key = _keyring_key(api_url)
-
-    try:
-        if keyring.get_password(SERVICE_NAME, key):
-            return "keychain"
-    except Exception:
-        pass
-
+    # Check file first (default storage)
     if CREDENTIALS_FILE.exists():
         try:
             if CREDENTIALS_FILE.read_text().strip():
                 return "file"
         except Exception:
             pass
+
+    # Then keychain (for users who stored there previously)
+    api_url = api_url or _get_api_url()
+    key = _keyring_key(api_url)
+    try:
+        if keyring.get_password(SERVICE_NAME, key):
+            return "keychain"
+    except Exception:
+        pass
 
     return "none"
 
@@ -126,27 +127,17 @@ def get_keyring_key(api_url: Optional[str] = None) -> str:
 
 
 def set_token(token: str, api_url: Optional[str] = None) -> str:
-    """Store token: try keychain, fallback to file with 0o600.
+    """Store token in file with 0o600 permissions (default, no popups).
 
     Args:
         token: The token to store
-        api_url: Optional API URL to store token for. Defaults to config api_url.
+        api_url: Optional API URL (unused for now, reserved for future multi-profile)
 
     Returns:
-        Storage method used: 'keychain' or 'file'
+        Storage method used: 'file'
     """
-    api_url = api_url or _get_api_url()
-    key = _keyring_key(api_url)
-
-    try:
-        keyring.set_password(SERVICE_NAME, key, token)
-        return "keychain"
-    except keyring.errors.KeyringError:
-        pass  # Keyring unavailable
-    except Exception:
-        pass  # Keyring backend misconfigured
-
-    # Fallback: file with secure permissions
+    # Always use file - no scary keychain popups
+    # Keychain storage can be added later as opt-in --secure flag
     CREDENTIALS_FILE.parent.mkdir(parents=True, exist_ok=True)
     # Create file with 0o600 from the start (not chmod after)
     # This handles weird umasks correctly
@@ -211,4 +202,3 @@ def check_credentials_permissions() -> tuple[bool, str]:
             )
     except Exception as e:
         return False, f"⚠️  Could not check credentials file: {e}"
-

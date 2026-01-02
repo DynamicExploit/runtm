@@ -5,7 +5,7 @@ Both API and worker should use this to ensure consistent connection config
 
 Usage:
     from runtm_shared.redis import get_redis_client
-    
+
     redis = get_redis_client()
     if redis:
         redis.set("key", "value")
@@ -31,7 +31,7 @@ def get_redis_url() -> Optional[str]:
     return os.environ.get("REDIS_URL")
 
 
-def get_redis_client() -> Optional["Redis"]:
+def get_redis_client() -> Optional[Redis]:
     """Get a Redis client with consistent configuration.
 
     Returns None if REDIS_URL is not configured.
@@ -54,7 +54,7 @@ def get_redis_client() -> Optional["Redis"]:
 _logged_no_redis = False
 
 
-def get_redis_client_or_warn() -> Optional["Redis"]:
+def get_redis_client_or_warn() -> Optional[Redis]:
     """Get Redis client, logging once if not configured.
 
     Use this in code paths where Redis is optional but its absence
@@ -80,4 +80,3 @@ def reset_redis_warning() -> None:
     """Reset the "no Redis" warning flag. Call in tests."""
     global _logged_no_redis
     _logged_no_redis = False
-

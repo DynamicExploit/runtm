@@ -496,7 +496,7 @@ def config_get(
         if value is not None:
             console.print(value)
         else:
-            console.print(f"[dim]Not set[/dim]")
+            console.print("[dim]Not set[/dim]")
     except ValueError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
@@ -611,7 +611,9 @@ def doctor() -> None:
                 # /v1/me endpoint doesn't exist yet, fall back to showing token is configured
                 console.print("  Auth status:  [green]✓[/green] Token configured")
             else:
-                console.print(f"  Auth status:  [yellow]?[/yellow] Could not verify (HTTP {response.status_code})")
+                console.print(
+                    f"  Auth status:  [yellow]?[/yellow] Could not verify (HTTP {response.status_code})"
+                )
         except httpx.TimeoutException:
             console.print("  Auth status:  [yellow]?[/yellow] Verification timed out")
         except Exception as e:
@@ -636,7 +638,9 @@ def doctor() -> None:
         if response.status_code == 200:
             console.print(f"  Connectivity: [green]✓[/green] API reachable ({latency_ms}ms)")
         else:
-            console.print(f"  Connectivity: [yellow]?[/yellow] API returned HTTP {response.status_code}")
+            console.print(
+                f"  Connectivity: [yellow]?[/yellow] API returned HTTP {response.status_code}"
+            )
     except httpx.TimeoutException:
         console.print("  Connectivity: [red]✗[/red] API request timed out")
     except httpx.ConnectError:
@@ -787,13 +791,17 @@ def login(
                 elif response.status_code == 401:
                     console.print("[red]✗[/red] Invalid API key")
                     console.print()
-                    console.print("[dim]Please create a new key at https://app.runtm.com/api-keys[/dim]")
+                    console.print(
+                        "[dim]Please create a new key at https://app.runtm.com/api-keys[/dim]"
+                    )
                     raise typer.Exit(1)
                 elif response.status_code == 404:
                     # /v1/me endpoint doesn't exist yet, continue without validation
                     console.print("[dim]Skipping validation (endpoint not available)[/dim]")
                 else:
-                    console.print(f"[yellow]Warning:[/yellow] Could not verify token (HTTP {response.status_code})")
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Could not verify token (HTTP {response.status_code})"
+                    )
                     console.print("[dim]Proceeding anyway...[/dim]")
             except httpx.TimeoutException:
                 console.print("[yellow]Warning:[/yellow] Validation timed out")

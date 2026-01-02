@@ -4,7 +4,34 @@ Thank you for your interest in contributing to Runtm—the runtime + control pla
 
 🌐 **Website:** [runtm.com](https://runtm.com) · **Try it free:** [app.runtm.com](https://app.runtm.com)
 
-This document provides guidelines and instructions for contributing.
+---
+
+## Design Principles
+
+These principles guide all decisions in Runtm. Please keep them in mind when contributing:
+
+1. **Simplify to the most basic primitives** 
+2. **Make it extremely easy to use** – One command should do the job
+3. **Make it versatile and scalable** – Entire ecosystems can be built on top
+4. **Optimize for tight, closed feedback loops** – Fast iteration over perfect planning
+5. **Design for agents first, then for humans** – AI should be the primary user
+6. **Agents propose, humans set guardrails** – Freedom with governance
+7. **Make behavior explicit, observable, and reproducible** – No magic
+
+---
+
+## For AI Assistants (Cursor, Claude Code, etc.)
+
+If you're using an AI assistant to contribute, the `.cursor/rules/` directory contains comprehensive context:
+
+| File | Purpose |
+|------|---------|
+| `.cursor/rules/system-instructions.mdc` | Architecture, types, CLI commands, API endpoints |
+| `.cursor/rules/templates.mdc` | Template creation and maintenance guidelines |
+
+These files are automatically loaded by Cursor and provide essential context for AI-assisted development. You can replicate them to fit with Claude Code: CLAUDE.md.
+
+---
 
 ## Development Setup
 
@@ -35,7 +62,15 @@ This document provides guidelines and instructions for contributing.
    ./scripts/dev.sh setup
    ```
 
-   Or manually:
+   Or manually with **uv** (recommended):
+   ```bash
+   uv pip install -e packages/shared[dev]
+   uv pip install -e packages/api[dev]
+   uv pip install -e packages/worker[dev]
+   uv pip install -e packages/cli[dev]
+   ```
+
+   Or with **pip**:
    ```bash
    pip install -e packages/shared[dev]
    pip install -e packages/api[dev]
@@ -79,6 +114,37 @@ The `./scripts/dev.sh` helper automatically loads your `.env` file:
 | `./scripts/dev.sh lint` | Run linter |
 | `./scripts/dev.sh format` | Format code |
 
+---
+
+## Project Structure
+
+```
+packages/
+  shared/     # Canonical contracts: manifest schema, types, errors
+  api/        # FastAPI control plane
+  worker/     # Build + deploy worker (Fly.io provider)
+  cli/        # Python CLI (Typer)
+
+templates/
+  backend-service/  # Python FastAPI backend (API, webhooks, agents)
+  static-site/      # Next.js static site (landing pages, docs)
+  web-app/          # Fullstack Next.js + FastAPI (dashboards, apps)
+
+infra/
+  docker-compose.yml  # Local development stack
+```
+
+### Package Responsibilities
+
+| Package | Purpose | Key Principle |
+|---------|---------|---------------|
+| `shared` | Canonical contracts only | Types/schemas/errors that other packages import |
+| `api` | HTTP layer + orchestration | No business logic in routes - use services |
+| `worker` | Build/deploy pipeline | Provider abstraction for Fly.io/Cloud Run |
+| `cli` | User interface | Wraps API client, never contains business logic |
+
+---
+
 ## Code Style
 
 We use [Ruff](https://github.com/astral-sh/ruff) for linting and formatting:
@@ -95,6 +161,16 @@ ruff check --fix .
 ./scripts/dev.sh format
 # or: ruff format .
 ```
+
+### Code Quality Standards
+
+- **Structured logging everywhere** – No print statements
+- **Clean error messages** – Explain how to recover
+- **Idempotency** – Retries create same result
+- **Type hints** – All functions typed
+- **Tests** – Real tests for critical paths
+
+---
 
 ## Testing
 
@@ -116,24 +192,53 @@ pytest packages/cli/tests
 pytest --cov=runtm_api packages/api/tests
 ```
 
-## Project Structure
+---
 
-```
-packages/
-  shared/     # Canonical contracts: manifest schema, types, errors
-  api/        # FastAPI control plane
-  worker/     # Build + deploy worker (Fly.io provider)
-  cli/        # Python CLI (Typer)
-  dashboard/  # Next.js admin dashboard
+## Architecture Guidelines
 
-templates/
-  backend-service/  # Python FastAPI backend
-  static-site/      # Next.js static site
-  web-app/          # Fullstack Next.js + FastAPI
+### Key Files
 
-infra/
-  docker-compose.yml  # Local development stack
-```
+| File | Purpose |
+|------|---------|
+| `packages/shared/runtm_shared/manifest.py` | Deployment manifest schema (Pydantic) |
+| `packages/shared/runtm_shared/types.py` | State machine, tiers, auth types |
+| `packages/shared/runtm_shared/errors.py` | Error hierarchy |
+| `packages/api/runtm_api/routes/deployments.py` | Deployment API endpoints |
+| `packages/worker/runtm_worker/jobs/deploy.py` | Build/deploy job logic |
+| `packages/worker/runtm_worker/providers/fly.py` | Fly.io provider implementation |
+| `packages/cli/runtm_cli/main.py` | CLI command definitions |
+
+### Adding a New CLI Command
+
+1. Create command function in `packages/cli/runtm_cli/commands/`
+2. Export from `packages/cli/runtm_cli/commands/__init__.py`
+3. Register in `packages/cli/runtm_cli/main.py`
+4. Add tests in `packages/cli/tests/`
+
+### Adding an API Endpoint
+
+1. Add route in `packages/api/runtm_api/routes/`
+2. Keep route handlers thin – delegate to services
+3. Use Pydantic models for request/response
+4. Add tests in `packages/api/tests/`
+
+### Adding a Provider
+
+1. Create provider in `packages/worker/runtm_worker/providers/`
+2. Implement the `DeploymentProvider` interface
+3. Register in provider factory
+
+### Modifying Shared Types
+
+1. Edit in `packages/shared/runtm_shared/`
+2. Update all consuming packages
+3. Types flow: shared → api, worker, cli
+
+### Adding/Modifying Templates
+
+See `.cursor/rules/templates.mdc` for comprehensive template guidelines.
+
+---
 
 ## Pull Request Process
 
@@ -165,42 +270,10 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 - `refactor:` Code refactoring
 - `test:` Test additions/changes
 
-## Architecture Guidelines
-
-- **Shared Package**: Canonical contracts only (types, schemas, errors)
-- **API Package**: HTTP layer, no business logic in routes
-- **Worker Package**: Build/deploy pipeline, provider abstractions
-- **CLI Package**: User interface, wraps API client
-- **Dashboard**: Admin UI (Next.js + shadcn/ui)
-
-### Key Files
-
-| File | Purpose |
-|------|---------|
-| `packages/shared/runtm_shared/manifest.py` | Deployment manifest schema (Pydantic) |
-| `packages/shared/runtm_shared/types.py` | Shared type definitions |
-| `packages/shared/runtm_shared/errors.py` | Error hierarchy |
-| `packages/api/runtm_api/routes/deployments.py` | Deployment API endpoints |
-| `packages/worker/runtm_worker/jobs/deploy.py` | Build/deploy job logic |
-| `packages/worker/runtm_worker/providers/fly.py` | Fly.io provider implementation |
-| `packages/cli/runtm_cli/main.py` | CLI command definitions |
-
-### Adding a New CLI Command
-
-1. Create command function in `packages/cli/runtm_cli/commands/`
-2. Export from `packages/cli/runtm_cli/commands/__init__.py`
-3. Register in `packages/cli/runtm_cli/main.py`
-4. Add tests in `packages/cli/tests/`
-
-### Adding a Provider
-
-1. Create provider in `packages/worker/runtm_worker/providers/`
-2. Implement the `DeploymentProvider` interface
-3. Register in provider factory
+---
 
 ## Questions?
 
 - Open a GitHub issue or discussion for any questions about contributing
 - Visit [runtm.com](https://runtm.com) to learn more about Runtm
 - Try Runtm for free at [app.runtm.com](https://app.runtm.com)
-

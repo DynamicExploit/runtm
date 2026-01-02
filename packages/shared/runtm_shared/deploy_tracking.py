@@ -19,7 +19,7 @@ Usage:
     allowed, count = reserve_concurrent_deploy(redis, tenant_id, limit, deployment_id)
     if not allowed:
         raise HTTPException(403, "Concurrent limit reached")
-    
+
     try:
         # ... create deployment, enqueue job ...
         # SUCCESS: Do NOT release - worker owns release
@@ -27,7 +27,7 @@ Usage:
         # FAILURE: Release since worker won't run
         release_concurrent_deploy(redis, tenant_id, deployment_id)
         raise
-    
+
     # In Worker (process_deployment):
     try:
         # ... build and deploy ...
@@ -49,7 +49,7 @@ CONCURRENT_DEPLOY_TTL_SECONDS = 6 * 60 * 60
 
 
 def reserve_concurrent_deploy(
-    redis: "Redis",
+    redis: Redis,
     tenant_id: str,
     limit: Optional[int],
     deployment_id: Optional[str] = None,
@@ -99,7 +99,7 @@ def reserve_concurrent_deploy(
 
 
 def release_concurrent_deploy(
-    redis: "Redis",
+    redis: Redis,
     tenant_id: str,
     deployment_id: Optional[str] = None,
 ) -> int:
@@ -135,7 +135,7 @@ def release_concurrent_deploy(
     return count
 
 
-def get_concurrent_deploy_count(redis: "Redis", tenant_id: str) -> int:
+def get_concurrent_deploy_count(redis: Redis, tenant_id: str) -> int:
     """Get current concurrent deploy count (read-only).
 
     Args:
@@ -148,4 +148,3 @@ def get_concurrent_deploy_count(redis: "Redis", tenant_id: str) -> int:
     key = f"concurrent_deploys:{tenant_id}"
     count = redis.get(key)
     return int(count) if count else 0
-

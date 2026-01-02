@@ -8,13 +8,13 @@ to avoid mismatch between get_limits() and check_deploy() calls.
 
 Usage:
     from runtm_api.services.policy import get_policy_provider
-    
+
     provider = get_policy_provider()
     result = provider.check_deploy(tenant_id, db, requested_tier="standard")
-    
+
     if not result.allowed:
         raise HTTPException(403, detail=result.reason)
-    
+
     # Use result.limits.concurrent_deploys for Redis reservation
     # Use result.expires_at when creating deployment record
 
@@ -26,7 +26,7 @@ Custom Provider Example:
             limits = get_limits_for_tier(subscription.tier)
             # ... validation logic ...
             return PolicyCheckResult(allowed=True, limits=limits)
-    
+
     # In environment:
     POLICY_PROVIDER=runtm_cloud.services.policy:SubscriptionPolicyProvider
 """
@@ -72,7 +72,7 @@ class PolicyProvider(Protocol):
     def check_deploy(
         self,
         tenant_id: str,
-        db: "Session",
+        db: Session,
         requested_tier: Optional[str] = None,
     ) -> PolicyCheckResult:
         """Check if tenant can create a deployment.
@@ -121,7 +121,7 @@ class DefaultPolicyProvider:
     def check_deploy(
         self,
         tenant_id: str,
-        db: "Session",
+        db: Session,
         requested_tier: Optional[str] = None,
     ) -> PolicyCheckResult:
         """Check limits and return result with limits attached.
@@ -196,7 +196,7 @@ class DefaultPolicyProvider:
 
         return PolicyCheckResult(allowed=True, expires_at=expires_at, limits=limits)
 
-    def _count_active_apps(self, tenant_id: str, db: "Session") -> int:
+    def _count_active_apps(self, tenant_id: str, db: Session) -> int:
         """Count active apps: is_latest=True and not DESTROYED/FAILED.
 
         FAILED deploys don't burn slots - user can retry without destroying.
@@ -222,7 +222,7 @@ class DefaultPolicyProvider:
             .count()
         )
 
-    def _count_deploys_in_window(self, tenant_id: str, db: "Session", hours: int) -> int:
+    def _count_deploys_in_window(self, tenant_id: str, db: Session, hours: int) -> int:
         """Count deployment requests in the last N hours.
 
         Counts all deployments created (queued), not just successful ones.
@@ -271,4 +271,3 @@ def get_policy_provider() -> PolicyProvider:
 def clear_policy_provider_cache() -> None:
     """Clear cached provider. Call in tests or admin reload."""
     get_policy_provider.cache_clear()
-

@@ -98,9 +98,7 @@ class Deployment(Base):
 
     # App lifespan - NULL means forever, set by policy provider
     # When set, app should be stopped/destroyed by reaper job after this time
-    expires_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

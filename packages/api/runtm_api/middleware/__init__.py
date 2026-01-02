@@ -15,4 +15,3 @@ __all__ = [
     "is_trusted_proxy",
     "parse_trusted_proxies",
 ]
-

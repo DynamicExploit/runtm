@@ -23,6 +23,22 @@ pipx install runtm
 pip install runtm
 ```
 
+### Upgrading
+
+```bash
+# Upgrade to latest version (uv)
+uv tool upgrade runtm
+
+# Or force reinstall
+uv tool install runtm --force
+
+# With pipx
+pipx upgrade runtm
+
+# With pip
+pip install --upgrade runtm
+```
+
 ## Quick Start
 
 ```bash
@@ -117,7 +133,7 @@ runtm doctor
 
 Example output:
 ```
-runtm v0.2.0
+runtm v0.1.0
   API URL:      https://app.runtm.com/api
   Auth storage: keychain (api_token@app.runtm.com)
   Auth status:  ✓ Authenticated as user@example.com
