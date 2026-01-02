@@ -1,13 +1,10 @@
-"""API telemetry integration (scaffold).
+"""API telemetry integration.
 
 Provides telemetry for the API control plane with:
 - Trace context extraction from incoming requests
 - Span creation for API operations
 - Events for deployment lifecycle
 - Metrics for API performance
-
-TODO: Full implementation pending. This scaffold provides the interface
-for future implementation with FastAPI middleware integration.
 """
 
 from __future__ import annotations

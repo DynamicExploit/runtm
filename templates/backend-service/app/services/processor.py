@@ -49,8 +49,7 @@ class ProcessorService:
         """
         options = options or {}
 
-        # TODO: Implement your processing logic here
-        # This is just an example implementation
+        # Replace this with your processing logic
         output = self._transform(input_text, options)
 
         return {
