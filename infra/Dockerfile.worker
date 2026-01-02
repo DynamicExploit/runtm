@@ -13,9 +13,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install flyctl for runtime log access and remote builds
+# IMPORTANT: Install to /usr/local so it's accessible by non-root user
+ENV FLYCTL_INSTALL="/usr/local"
 RUN curl -L https://fly.io/install.sh | sh
-ENV FLYCTL_INSTALL="/root/.fly"
-ENV PATH="$FLYCTL_INSTALL/bin:$PATH"
+ENV PATH="/usr/local/bin:$PATH"
 
 # Copy package files
 COPY packages/shared/pyproject.toml packages/shared/README.md packages/shared/

@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from typing import Optional
 
+import typer
 from rich.console import Console
 from rich.table import Table
 
 from runtm_cli.api_client import APIClient
+from runtm_cli.config import get_token
 from runtm_shared.errors import RuntmError
 
 console = Console()
@@ -23,6 +25,14 @@ def list_command(
         state: Filter by state (optional)
         limit: Maximum number of results
     """
+    # Check auth upfront (consistent with deploy command)
+    token = get_token()
+    if not token:
+        console.print("[red]✗[/red] Not authenticated. Run `runtm login` first.")
+        console.print()
+        console.print("Or set RUNTM_API_KEY environment variable.")
+        raise typer.Exit(1)
+
     client = APIClient()
 
     try:

@@ -455,3 +455,55 @@ class CustomDomainInfo:
     dns_records: list[DnsRecord] = field(default_factory=list)
     error: Optional[str] = None
     check_url: Optional[str] = None  # URL to check certificate status
+
+
+# =============================================================================
+# Policy Types
+# =============================================================================
+
+# Valid machine tier names for validation
+VALID_TIER_NAMES: frozenset[str] = frozenset(t.value for t in MachineTier)
+
+
+def validate_tier_name(tier: str) -> str:
+    """Validate and normalize a machine tier name.
+
+    Args:
+        tier: Tier name to validate (e.g., "starter", "STANDARD")
+
+    Returns:
+        Normalized lowercase tier name
+
+    Raises:
+        ValueError: If tier is not a valid machine tier
+    """
+    normalized = tier.strip().lower()
+    if normalized not in VALID_TIER_NAMES:
+        raise ValueError(
+            f"Invalid tier: {tier}. Must be one of: {', '.join(sorted(VALID_TIER_NAMES))}"
+        )
+    return normalized
+
+
+@dataclass
+class TenantLimits:
+    """Resource limits for a tenant.
+
+    Used by policy providers to define per-tenant resource constraints.
+    None values mean unlimited/no restriction.
+
+    Attributes:
+        max_apps: Maximum number of active apps (logical apps, not versions)
+        app_lifespan_days: Days until new apps expire (None = forever)
+        deploys_per_hour: Maximum deploy requests per hour
+        deploys_per_day: Maximum deploy requests per day
+        concurrent_deploys: Maximum simultaneous in-progress deploys
+        allowed_tiers: List of allowed machine tiers (None = all tiers)
+    """
+
+    max_apps: Optional[int] = None
+    app_lifespan_days: Optional[int] = None
+    deploys_per_hour: Optional[int] = None
+    deploys_per_day: Optional[int] = None
+    concurrent_deploys: Optional[int] = None
+    allowed_tiers: Optional[List[str]] = None  # None = all tiers allowed

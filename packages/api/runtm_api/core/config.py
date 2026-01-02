@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from typing import List, Optional
+
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -121,6 +123,28 @@ class Settings(BaseSettings):
     # Comma-separated origins, e.g., "https://app.runtm.com,https://dashboard.runtm.com"
     cors_allowed_origins: str = ""
 
+    # =========================================================================
+    # Policy Provider Configuration
+    # =========================================================================
+    # Dynamic import path for policy provider
+    # Format: "module.path:ClassName"
+    # Default uses built-in provider that reads from settings below
+    # Override to inject custom logic (e.g., subscription-based limits)
+    policy_provider: str = "runtm_api.services.policy:DefaultPolicyProvider"
+
+    # Default limits (used by DefaultPolicyProvider)
+    # None = unlimited (no restriction)
+    # These apply to all tenants when using DefaultPolicyProvider
+    default_max_apps_per_tenant: Optional[int] = None
+    default_app_lifespan_days: Optional[int] = None
+    default_deploys_per_hour: Optional[int] = None
+    default_deploys_per_day: Optional[int] = None
+    default_concurrent_deploys: Optional[int] = None
+
+    # Comma-separated list of allowed machine tiers (e.g., "starter,standard")
+    # None/empty = all tiers allowed
+    default_allowed_tiers: Optional[str] = None
+
     @property
     def is_production(self) -> bool:
         """Check if running in production mode."""
@@ -169,6 +193,26 @@ class Settings(BaseSettings):
             for origin in self.cors_allowed_origins.split(",")
             if origin.strip()  # Ignore empty entries
         ]
+
+    @property
+    def parsed_allowed_tiers(self) -> Optional[List[str]]:
+        """Parse and validate allowed machine tiers.
+
+        Returns:
+            List of valid tier names, or None if all tiers allowed
+        """
+        if not self.default_allowed_tiers:
+            return None
+
+        from runtm_shared.types import validate_tier_name
+
+        tiers = []
+        for t in self.default_allowed_tiers.split(","):
+            t = t.strip()
+            if t:
+                # validate_tier_name raises ValueError if invalid
+                tiers.append(validate_tier_name(t))
+        return tiers if tiers else None
 
     @model_validator(mode="after")
     def validate_build_config(self) -> "Settings":

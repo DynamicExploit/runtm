@@ -74,6 +74,7 @@ from runtm_shared.storage.base import ArtifactStore
 from runtm_shared.types import (
     ALLOWED_TRANSITIONS,
     MACHINE_TIER_SPECS,
+    VALID_TIER_NAMES,
     AuthContext,
     AuthMode,
     BuildLogEntry,
@@ -87,11 +88,25 @@ from runtm_shared.types import (
     MachineTier,
     MachineTierSpec,
     ProviderResource,
+    TenantLimits,
     ValidationResult,
     can_transition,
     create_validation_result,
     get_tier_spec,
     is_terminal_state,
+    validate_tier_name,
+)
+from runtm_shared.redis import (
+    get_redis_client,
+    get_redis_client_or_warn,
+    get_redis_url,
+    reset_redis_warning,
+)
+from runtm_shared.deploy_tracking import (
+    CONCURRENT_DEPLOY_TTL_SECONDS,
+    get_concurrent_deploy_count,
+    release_concurrent_deploy,
+    reserve_concurrent_deploy,
 )
 from runtm_shared.urls import (
     construct_deployment_url,
@@ -112,15 +127,28 @@ __all__ = [
     "MachineTier",
     "MachineTierSpec",
     "MACHINE_TIER_SPECS",
+    "VALID_TIER_NAMES",
     "get_tier_spec",
     "ProviderResource",
     "DeploymentInfo",
     "BuildLogEntry",
     "Limits",
+    "TenantLimits",
     "ValidationResult",
     "create_validation_result",
+    "validate_tier_name",
     "DnsRecord",
     "CustomDomainInfo",
+    # Redis
+    "get_redis_client",
+    "get_redis_client_or_warn",
+    "get_redis_url",
+    "reset_redis_warning",
+    # Deploy tracking
+    "CONCURRENT_DEPLOY_TTL_SECONDS",
+    "reserve_concurrent_deploy",
+    "release_concurrent_deploy",
+    "get_concurrent_deploy_count",
     # Manifest
     "Manifest",
     "EnvVar",

@@ -197,7 +197,7 @@ async def ingest_telemetry(
 
     result = service.ingest_batch(
         batch=batch_dict,
-        owner_id=auth.owner_id,
+        owner_id=auth.tenant_id,
         service_name=x_service_name,
     )
 
@@ -225,7 +225,7 @@ async def list_traces(
     service = TelemetryService(db)
 
     traces = service.get_recent_traces(
-        owner_id=auth.owner_id,
+        owner_id=auth.tenant_id,
         limit=limit,
         service_name=service_name,
     )
@@ -248,7 +248,7 @@ async def get_trace(
 
     trace = service.get_trace(
         trace_id=trace_id,
-        owner_id=auth.owner_id,
+        owner_id=auth.tenant_id,
     )
 
     if trace is None:
@@ -287,7 +287,7 @@ async def list_metrics(
     metrics = service.get_metrics(
         name=name,
         metric_type=metric_type,
-        owner_id=auth.owner_id,
+        owner_id=auth.tenant_id,
         limit=limit,
     )
 
@@ -315,7 +315,7 @@ async def get_metrics_summary(
     service = TelemetryService(db)
 
     summary = service.get_metrics_summary(
-        owner_id=auth.owner_id,
+        owner_id=auth.tenant_id,
         days=days,
     )
 
@@ -342,7 +342,7 @@ async def list_events(
     events = service.get_events(
         name=name,
         deployment_id=deployment_id,
-        owner_id=auth.owner_id,
+        owner_id=auth.tenant_id,
         limit=limit,
     )
 
@@ -372,7 +372,7 @@ async def get_deployment_traces(
 
     traces = service.get_traces_for_deployment(
         deployment_id=deployment_id,
-        owner_id=auth.owner_id,
+        owner_id=auth.tenant_id,
         limit=limit,
     )
 

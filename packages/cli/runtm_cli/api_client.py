@@ -326,19 +326,39 @@ class APIClient:
     def check_auth(self) -> bool:
         """Check if authentication is configured and valid.
 
+        Makes a lightweight API call to verify the token is valid,
+        not just that it exists. This prevents doing expensive work
+        (validation, artifact creation) only to fail on auth later.
+
         Returns:
-            True if authenticated
+            True if authenticated and token is valid
         """
         if not self.token:
             return False
 
         try:
+            # Use /v1/me which requires valid authentication
+            # Falls back to /health if /v1/me doesn't exist (older API versions)
             response = httpx.get(
-                f"{self.api_url}/health",
+                f"{self.api_url}/v1/me",
                 headers=self._headers(),
                 timeout=10.0,
             )
-            return response.status_code == 200
+            if response.status_code == 200:
+                return True
+            elif response.status_code == 401:
+                return False  # Token is invalid/expired
+            elif response.status_code == 404:
+                # /v1/me doesn't exist, fall back to checking connectivity
+                # (older API versions - assume token is valid if we can connect)
+                health_response = httpx.get(
+                    f"{self.api_url}/health",
+                    headers=self._headers(),
+                    timeout=10.0,
+                )
+                return health_response.status_code == 200
+            else:
+                return False
         except Exception:
             return False
 

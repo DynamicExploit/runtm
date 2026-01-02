@@ -618,152 +618,208 @@ async def create_deployment(
                 detail={"error": f"Invalid tier: {tier}. Must be one of: {valid_tiers}"},
             )
 
-    # Read artifact and check size
-    artifact_content = await artifact.read()
-    artifact_size = len(artifact_content)
+    # =========================================================================
+    # Policy Check (rate limits, app limits, tier allowlist)
+    # =========================================================================
+    from runtm_api.services.policy import get_policy_provider
+    from runtm_shared.deploy_tracking import release_concurrent_deploy, reserve_concurrent_deploy
+    from runtm_shared.redis import get_redis_client_or_warn
 
-    if artifact_size > Limits.MAX_ARTIFACT_SIZE_BYTES:
+    policy = get_policy_provider()
+    tier_to_check = tier or parsed_manifest.tier or "starter"
+
+    # Check policy limits (except concurrent - handled separately with atomic Redis)
+    check_result = policy.check_deploy(auth.tenant_id, db, requested_tier=tier_to_check)
+    if not check_result.allowed:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=ArtifactTooLargeError(
-                size_bytes=artifact_size,
-                max_bytes=Limits.MAX_ARTIFACT_SIZE_BYTES,
-            ).to_dict(),
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": check_result.reason, "code": "policy_denied"},
         )
 
-    # Check for existing deployment with same name (for redeployment)
-    # The unique constraint requires only one is_latest=True per (tenant_id, name) (excluding destroyed/failed)
-    # So we need to find and mark any existing is_latest deployment BEFORE creating the new one
-    previous_deployment = None
-    previous_version = 0
-    is_redeploy = False
+    deployment_expires_at = check_result.expires_at
+    limits = check_result.limits
 
-    # Always check for existing is_latest deployment to avoid constraint violations
-    # (even with force_new=True, we need to mark existing as not latest)
-    # Build the filter within tenant scope
-    update_filter = and_(
-        Deployment.tenant_id == auth.tenant_id,  # Tenant isolation
-        Deployment.name == parsed_manifest.name,
-        Deployment.is_latest == True,
-        Deployment.state.notin_([DeploymentState.DESTROYED, DeploymentState.FAILED]),
-    )
+    # Atomic concurrent deploy reservation
+    # IMPORTANT: We reserve BEFORE doing expensive operations
+    redis_client = get_redis_client_or_warn()
+    reserved_slot = False
 
-    # Atomically mark ALL matching deployments as not latest
-    # This ensures the unique constraint is satisfied before we insert the new one
-    # Use SELECT FOR UPDATE to lock rows and prevent race conditions
-    existing_latest = db.query(Deployment).filter(update_filter).with_for_update().first()
-
-    # If no is_latest deployment found, check for any READY deployment with the same name
-    # This handles the edge case where the latest was destroyed but there's still
-    # a READY deployment that should be used as the base for redeployment
-    if not existing_latest and not force_new:
-        any_ready = (
-            db.query(Deployment)
-            .filter(
-                Deployment.tenant_id == auth.tenant_id,
-                Deployment.name == parsed_manifest.name,
-                Deployment.state == DeploymentState.READY,
-            )
-            .order_by(Deployment.created_at.desc())
-            .with_for_update()
-            .first()
+    if redis_client and limits and limits.concurrent_deploys is not None:
+        # Generate deployment ID early so we can track the reservation
+        deployment_id = generate_deployment_id()
+        allowed, _count = reserve_concurrent_deploy(
+            redis_client, auth.tenant_id, limits.concurrent_deploys, deployment_id
         )
-        if any_ready:
-            existing_latest = any_ready
-            # Mark it as latest first (it will be unmarked below)
-            any_ready.is_latest = True
-            logger.info(
-                "Found READY deployment %s to redeploy (recovering from destroyed is_latest)",
-                any_ready.deployment_id,
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": f"Concurrent deploy limit ({limits.concurrent_deploys}). "
+                    "Wait for current deploy to finish.",
+                    "code": "concurrent_limit_exceeded",
+                },
+            )
+        reserved_slot = True
+    else:
+        # No concurrent limit - generate ID now
+        deployment_id = generate_deployment_id()
+
+    # From here on, we must release the slot on failure (before enqueue succeeds)
+    # After successful enqueue, worker owns the release - do NOT release here
+    try:
+        # Read artifact and check size
+        artifact_content = await artifact.read()
+        artifact_size = len(artifact_content)
+
+        if artifact_size > Limits.MAX_ARTIFACT_SIZE_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=ArtifactTooLargeError(
+                    size_bytes=artifact_size,
+                    max_bytes=Limits.MAX_ARTIFACT_SIZE_BYTES,
+                ).to_dict(),
             )
 
-    if existing_latest:
-        previous_deployment = existing_latest
-        previous_version = existing_latest.version
+        # Check for existing deployment with same name (for redeployment)
+        # The unique constraint requires only one is_latest=True per (tenant_id, name) (excluding destroyed/failed)
+        # So we need to find and mark any existing is_latest deployment BEFORE creating the new one
+        previous_deployment = None
+        previous_version = 0
+        is_redeploy = False
 
-        # Only treat as redeploy if:
-        # 1. Not forcing new deployment (force_new=False)
-        # 2. Previous deployment is in a terminal state (READY or FAILED)
-        # This determines whether we reuse infrastructure
-        if not force_new and existing_latest.state in (
-            DeploymentState.READY,
-            DeploymentState.FAILED,
-        ):
-            is_redeploy = True
-            logger.info(
-                "Redeploying %s (v%d -> v%d, previous state: %s)",
-                parsed_manifest.name,
-                previous_version,
-                previous_version + 1,
-                existing_latest.state.value,
+        # Always check for existing is_latest deployment to avoid constraint violations
+        # (even with force_new=True, we need to mark existing as not latest)
+        # Build the filter within tenant scope
+        update_filter = and_(
+            Deployment.tenant_id == auth.tenant_id,  # Tenant isolation
+            Deployment.name == parsed_manifest.name,
+            Deployment.is_latest == True,  # noqa: E712
+            Deployment.state.notin_([DeploymentState.DESTROYED, DeploymentState.FAILED]),
+        )
+
+        # Atomically mark ALL matching deployments as not latest
+        # This ensures the unique constraint is satisfied before we insert the new one
+        # Use SELECT FOR UPDATE to lock rows and prevent race conditions
+        existing_latest = db.query(Deployment).filter(update_filter).with_for_update().first()
+
+        # If no is_latest deployment found, check for any READY deployment with the same name
+        # This handles the edge case where the latest was destroyed but there's still
+        # a READY deployment that should be used as the base for redeployment
+        if not existing_latest and not force_new:
+            any_ready = (
+                db.query(Deployment)
+                .filter(
+                    Deployment.tenant_id == auth.tenant_id,
+                    Deployment.name == parsed_manifest.name,
+                    Deployment.state == DeploymentState.READY,
+                )
+                .order_by(Deployment.created_at.desc())
+                .with_for_update()
+                .first()
             )
-        else:
-            logger.info(
-                "Creating new deployment %s (v%d -> v%d, marking previous v%d as not latest)",
-                parsed_manifest.name,
-                previous_version,
-                previous_version + 1,
-                previous_version,
-            )
+            if any_ready:
+                existing_latest = any_ready
+                # Mark it as latest first (it will be unmarked below)
+                any_ready.is_latest = True
+                logger.info(
+                    "Found READY deployment %s to redeploy (recovering from destroyed is_latest)",
+                    any_ready.deployment_id,
+                )
 
-        # Mark as not latest (we already have the row locked from SELECT FOR UPDATE)
-        existing_latest.is_latest = False
-        db.flush()  # Ensure the update is persisted before creating new deployment
+        if existing_latest:
+            previous_deployment = existing_latest
+            previous_version = existing_latest.version
 
-    # Generate deployment ID and artifact key
-    deployment_id = generate_deployment_id()
-    artifact_key = generate_artifact_key(deployment_id)
+            # Only treat as redeploy if:
+            # 1. Not forcing new deployment (force_new=False)
+            # 2. Previous deployment is in a terminal state (READY or FAILED)
+            # This determines whether we reuse infrastructure
+            if not force_new and existing_latest.state in (
+                DeploymentState.READY,
+                DeploymentState.FAILED,
+            ):
+                is_redeploy = True
+                logger.info(
+                    "Redeploying %s (v%d -> v%d, previous state: %s)",
+                    parsed_manifest.name,
+                    previous_version,
+                    previous_version + 1,
+                    existing_latest.state.value,
+                )
+            else:
+                logger.info(
+                    "Creating new deployment %s (v%d -> v%d, marking previous v%d as not latest)",
+                    parsed_manifest.name,
+                    previous_version,
+                    previous_version + 1,
+                    previous_version,
+                )
 
-    # Store artifact
-    import os
+            # Mark as not latest (we already have the row locked from SELECT FOR UPDATE)
+            existing_latest.is_latest = False
+            db.flush()  # Ensure the update is persisted before creating new deployment
 
-    artifact_path = os.path.join(settings.artifact_storage_path, artifact_key)
-    os.makedirs(os.path.dirname(artifact_path), exist_ok=True)
-    with open(artifact_path, "wb") as f:
-        f.write(artifact_content)
+        # Use deployment_id generated earlier (before reservation)
+        artifact_key = generate_artifact_key(deployment_id)
 
-    # Create deployment record with tenant isolation
-    deployment = Deployment(
-        deployment_id=deployment_id,
-        tenant_id=auth.tenant_id,  # Tenant isolation
-        owner_id=auth.principal_id,  # Principal (user/service account)
-        api_key_id=auth.api_key_id,
-        name=parsed_manifest.name,
-        state=DeploymentState.QUEUED,
-        artifact_key=artifact_key,
-        manifest_json=parsed_manifest.to_dict(),
-        version=previous_version + 1,
-        is_latest=True,
-        previous_deployment_id=previous_deployment.deployment_id if previous_deployment else None,
-        src_hash=src_hash,
-        config_only=config_only,
-    )
-    db.add(deployment)
-    db.flush()  # Get the ID
+        # Store artifact
+        import os
 
-    # Store idempotency key if provided
-    if idempotency_key:
-        idempotency_service = IdempotencyService(db)
-        idempotency_service.store_key(idempotency_key, deployment.id)
+        artifact_path = os.path.join(settings.artifact_storage_path, artifact_key)
+        os.makedirs(os.path.dirname(artifact_path), exist_ok=True)
+        with open(artifact_path, "wb") as f:
+            f.write(artifact_content)
 
-    db.commit()
-    db.refresh(deployment)
+        # Create deployment record with tenant isolation
+        deployment = Deployment(
+            deployment_id=deployment_id,
+            tenant_id=auth.tenant_id,  # Tenant isolation
+            owner_id=auth.principal_id,  # Principal (user/service account)
+            api_key_id=auth.api_key_id,
+            name=parsed_manifest.name,
+            state=DeploymentState.QUEUED,
+            artifact_key=artifact_key,
+            manifest_json=parsed_manifest.to_dict(),
+            version=previous_version + 1,
+            is_latest=True,
+            previous_deployment_id=previous_deployment.deployment_id if previous_deployment else None,
+            src_hash=src_hash,
+            config_only=config_only,
+            expires_at=deployment_expires_at,  # Set from policy check
+        )
+        db.add(deployment)
+        db.flush()  # Get the ID
 
-    # Enqueue deployment job to worker
-    # Pass redeploy info if this is an update
-    # Secrets are passed through to worker (never stored in DB)
-    from runtm_api.services.queue import enqueue_deployment
+        # Store idempotency key if provided
+        if idempotency_key:
+            idempotency_service = IdempotencyService(db)
+            idempotency_service.store_key(idempotency_key, deployment.id)
 
-    redeploy_from = previous_deployment.deployment_id if is_redeploy else None
-    enqueue_deployment(
-        deployment_id,
-        settings.redis_url,
-        redeploy_from=redeploy_from,
-        secrets=secrets_to_inject,
-        config_only=config_only,
-    )
+        db.commit()
+        db.refresh(deployment)
 
-    return DeploymentResponse.from_db(deployment)
+        # Enqueue deployment job to worker
+        # Pass redeploy info if this is an update
+        # Secrets are passed through to worker (never stored in DB)
+        from runtm_api.services.queue import enqueue_deployment
+
+        redeploy_from = previous_deployment.deployment_id if is_redeploy else None
+        enqueue_deployment(
+            deployment_id,
+            settings.redis_url,
+            redeploy_from=redeploy_from,
+            secrets=secrets_to_inject,
+            config_only=config_only,
+        )
+
+        # SUCCESS: Do NOT release slot here - worker owns release after enqueue
+        return DeploymentResponse.from_db(deployment)
+
+    except Exception:
+        # FAILURE: Release slot since worker won't run
+        if reserved_slot and redis_client:
+            release_concurrent_deploy(redis_client, auth.tenant_id, deployment_id)
+        raise
 
 
 # =============================================================================

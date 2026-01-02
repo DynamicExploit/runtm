@@ -69,7 +69,16 @@ async def get_current_user(
     # Derive email/org from principal_id/tenant_id
     # In multi-tenant mode with Cloud Backend integration, these would be
     # enriched with actual user data. For now, use the IDs as placeholders.
-    email = auth.principal_id if "@" in auth.principal_id else None
+    if "@" in auth.principal_id:
+        # Looks like an email
+        email = auth.principal_id
+    elif auth.principal_id == "default" and auth.tenant_id == "default":
+        # Single-tenant mode - show friendly message
+        email = "Local Developer (single-tenant mode)"
+    else:
+        # Multi-tenant but no email - show principal_id
+        email = auth.principal_id
+    
     org_name = auth.tenant_id if auth.tenant_id != "default" else None
 
     return MeResponse(
