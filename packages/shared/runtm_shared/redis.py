@@ -15,14 +15,14 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from redis import Redis
 
 
 @lru_cache
-def get_redis_url() -> Optional[str]:
+def get_redis_url() -> str | None:
     """Get Redis URL from environment.
 
     Returns:
@@ -31,7 +31,7 @@ def get_redis_url() -> Optional[str]:
     return os.environ.get("REDIS_URL")
 
 
-def get_redis_client() -> Optional[Redis]:
+def get_redis_client() -> Redis | None:
     """Get a Redis client with consistent configuration.
 
     Returns None if REDIS_URL is not configured.
@@ -54,7 +54,7 @@ def get_redis_client() -> Optional[Redis]:
 _logged_no_redis = False
 
 
-def get_redis_client_or_warn() -> Optional[Redis]:
+def get_redis_client_or_warn() -> Redis | None:
     """Get Redis client, logging once if not configured.
 
     Use this in code paths where Redis is optional but its absence

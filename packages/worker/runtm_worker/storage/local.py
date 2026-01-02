@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Optional
 
 from runtm_shared.errors import ArtifactNotFoundError, StorageReadError, StorageWriteError
 from runtm_shared.storage.base import ArtifactStore
@@ -145,7 +144,7 @@ class LocalFileStore(ArtifactStore):
         """
         return self._resolve_path(key)
 
-    def get_size(self, key: str) -> Optional[int]:
+    def get_size(self, key: str) -> int | None:
         """Get the size of an artifact in bytes.
 
         Args:

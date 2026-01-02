@@ -9,10 +9,12 @@ import json
 import logging
 import sys
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import httpx
+
+import contextlib
 
 from .base import BaseExporter, TelemetryBatch
 
@@ -118,9 +120,9 @@ class OTLPExporter(BaseExporter):
 
     def __init__(
         self,
-        endpoint: Optional[str] = None,
+        endpoint: str | None = None,
         timeout: float = DEFAULT_TIMEOUT,
-        headers: Optional[dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         """Initialize the OTLP exporter.
 
@@ -132,7 +134,7 @@ class OTLPExporter(BaseExporter):
         self._endpoint = endpoint or self.DEFAULT_ENDPOINT
         self._timeout = timeout
         self._headers = headers or {}
-        self._client: Optional[httpx.Client] = None
+        self._client: httpx.Client | None = None
 
     def _get_client(self) -> httpx.Client:
         """Get or create HTTP client.
@@ -182,10 +184,8 @@ class OTLPExporter(BaseExporter):
     def shutdown(self) -> None:
         """Close HTTP client."""
         if self._client is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._client.close()
-            except Exception:
-                pass
             self._client = None
 
 
@@ -243,7 +243,7 @@ class ControlPlaneExporter(BaseExporter):
         api_url: str,
         token: str,
         timeout: float = DEFAULT_TIMEOUT,
-        service_name: Optional[str] = None,
+        service_name: str | None = None,
     ) -> None:
         """Initialize the control plane exporter.
 
@@ -263,7 +263,7 @@ class ControlPlaneExporter(BaseExporter):
         self._token = token
         self._timeout = timeout
         self._service_name = service_name
-        self._client: Optional[httpx.Client] = None
+        self._client: httpx.Client | None = None
 
     def _get_client(self) -> httpx.Client:
         """Get or create HTTP client.
@@ -326,18 +326,16 @@ class ControlPlaneExporter(BaseExporter):
     def shutdown(self) -> None:
         """Close HTTP client."""
         if self._client is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._client.close()
-            except Exception:
-                pass
             self._client = None
 
 
 def create_exporter(
-    endpoint: Optional[str] = None,
+    endpoint: str | None = None,
     debug: bool = False,
     disabled: bool = False,
-    token: Optional[str] = None,
+    token: str | None = None,
 ) -> BaseExporter:
     """Create the appropriate exporter based on configuration.
 
@@ -366,7 +364,7 @@ def create_exporter(
 def create_controlplane_exporter(
     api_url: str,
     token: str,
-    service_name: Optional[str] = None,
+    service_name: str | None = None,
     timeout: float = ControlPlaneExporter.DEFAULT_TIMEOUT,
 ) -> ControlPlaneExporter:
     """Create a control plane exporter for sending telemetry to Runtm API.

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import List, Optional
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -143,15 +142,15 @@ class Settings(BaseSettings):
     # Default limits (used by DefaultPolicyProvider)
     # None = unlimited (no restriction)
     # These apply to all tenants when using DefaultPolicyProvider
-    default_max_apps_per_tenant: Optional[int] = None
-    default_app_lifespan_days: Optional[int] = None
-    default_deploys_per_hour: Optional[int] = None
-    default_deploys_per_day: Optional[int] = None
-    default_concurrent_deploys: Optional[int] = None
+    default_max_apps_per_tenant: int | None = None
+    default_app_lifespan_days: int | None = None
+    default_deploys_per_hour: int | None = None
+    default_deploys_per_day: int | None = None
+    default_concurrent_deploys: int | None = None
 
     # Comma-separated list of allowed machine tiers (e.g., "starter,standard")
     # None/empty = all tiers allowed
-    default_allowed_tiers: Optional[str] = None
+    default_allowed_tiers: str | None = None
 
     @property
     def is_production(self) -> bool:
@@ -203,7 +202,7 @@ class Settings(BaseSettings):
         ]
 
     @property
-    def parsed_allowed_tiers(self) -> Optional[List[str]]:
+    def parsed_allowed_tiers(self) -> list[str] | None:
         """Parse and validate allowed machine tiers.
 
         Returns:

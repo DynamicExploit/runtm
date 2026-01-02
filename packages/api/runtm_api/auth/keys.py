@@ -19,7 +19,6 @@ from __future__ import annotations
 import hashlib
 import hmac
 import secrets
-from typing import Optional
 
 # Prefix length: 16 chars reduces collisions, makes lookup near-O(1)
 # Format: "runtm_" (6 chars) + 10 chars of token = 16 chars total
@@ -70,7 +69,7 @@ def verify_key(
     stored_hash: str,
     stored_pepper_version: int,
     peppers: dict[int, str],
-    migration_window_versions: Optional[set[int]] = None,
+    migration_window_versions: set[int] | None = None,
 ) -> bool:
     """Verify an API key with pepper versioning support.
 
@@ -124,6 +123,4 @@ def validate_token_format(token: str) -> bool:
     if not token.startswith("runtm_"):
         return False
     # Minimum length: "runtm_" (6) + some random chars
-    if len(token) < 20:
-        return False
-    return True
+    return not len(token) < 20

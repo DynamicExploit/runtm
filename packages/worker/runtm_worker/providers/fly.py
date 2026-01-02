@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import httpx
 
@@ -40,8 +40,8 @@ class FlyProvider(DeployProvider):
 
     def __init__(
         self,
-        api_token: Optional[str] = None,
-        org: Optional[str] = None,
+        api_token: str | None = None,
+        org: str | None = None,
     ):
         """Initialize Fly.io provider.
 
@@ -59,7 +59,7 @@ class FlyProvider(DeployProvider):
     def name(self) -> str:
         return "fly"
 
-    def _headers(self) -> Dict[str, str]:
+    def _headers(self) -> dict[str, str]:
         """Get API request headers."""
         return {
             "Authorization": f"Bearer {self.api_token}",
@@ -70,7 +70,7 @@ class FlyProvider(DeployProvider):
         self,
         method: str,
         path: str,
-        json: Optional[Dict[str, Any]] = None,
+        json: dict[str, Any] | None = None,
         timeout: float = 30.0,
     ) -> httpx.Response:
         """Make an API request.
@@ -111,7 +111,7 @@ class FlyProvider(DeployProvider):
         except httpx.RequestError as e:
             raise FlyError(f"Request failed: {e}") from e
 
-    def _create_app(self, app_name: str) -> Dict[str, Any]:
+    def _create_app(self, app_name: str) -> dict[str, Any]:
         """Create a Fly app.
 
         Args:
@@ -130,7 +130,7 @@ class FlyProvider(DeployProvider):
         )
         return response.json()
 
-    def _allocate_ip_addresses(self, app_name: str) -> List[str]:
+    def _allocate_ip_addresses(self, app_name: str) -> list[str]:
         """Allocate IP addresses for the app using GraphQL API.
 
         This is required for the app to be accessible on the .fly.dev domain.
@@ -218,7 +218,7 @@ class FlyProvider(DeployProvider):
 
         return allocated_ips
 
-    def _get_app(self, app_name: str) -> Optional[Dict[str, Any]]:
+    def _get_app(self, app_name: str) -> dict[str, Any] | None:
         """Get app details.
 
         Args:
@@ -235,7 +235,7 @@ class FlyProvider(DeployProvider):
                 return None
             raise
 
-    def _list_volumes(self, app_name: str) -> List[Dict[str, Any]]:
+    def _list_volumes(self, app_name: str) -> list[dict[str, Any]]:
         """List existing volumes for an app.
 
         Args:
@@ -295,7 +295,7 @@ class FlyProvider(DeployProvider):
         self,
         app_name: str,
         config: MachineConfig,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create a Fly Machine.
 
         Args:
@@ -306,7 +306,7 @@ class FlyProvider(DeployProvider):
             Machine details
         """
         # Build service config with auto-stop if enabled
-        service_config: Dict[str, Any] = {
+        service_config: dict[str, Any] = {
             "ports": [
                 {
                     "port": 443,
@@ -343,7 +343,7 @@ class FlyProvider(DeployProvider):
                 }
             )
 
-        machine_config: Dict[str, Any] = {
+        machine_config: dict[str, Any] = {
             "image": config.image,
             "env": config.env,
             "services": [service_config],
@@ -383,7 +383,7 @@ class FlyProvider(DeployProvider):
         )
         return response.json()
 
-    def _get_machine(self, app_name: str, machine_id: str) -> Dict[str, Any]:
+    def _get_machine(self, app_name: str, machine_id: str) -> dict[str, Any]:
         """Get machine details.
 
         Args:
@@ -431,7 +431,7 @@ class FlyProvider(DeployProvider):
         app_name: str,
         machine_id: str,
         config: MachineConfig,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Update a Fly Machine with a new image/config.
 
         Args:
@@ -443,7 +443,7 @@ class FlyProvider(DeployProvider):
             Updated machine details
         """
         # Build service config with auto-stop if enabled
-        service_config: Dict[str, Any] = {
+        service_config: dict[str, Any] = {
             "ports": [
                 {
                     "port": 443,
@@ -480,7 +480,7 @@ class FlyProvider(DeployProvider):
                 }
             )
 
-        machine_config: Dict[str, Any] = {
+        machine_config: dict[str, Any] = {
             "image": config.image,
             "env": config.env,
             "services": [service_config],
@@ -518,7 +518,7 @@ class FlyProvider(DeployProvider):
         )
         return response.json()
 
-    def _list_machines(self, app_name: str) -> List[Dict[str, Any]]:
+    def _list_machines(self, app_name: str) -> list[dict[str, Any]]:
         """List all machines in an app.
 
         Args:
@@ -849,8 +849,8 @@ class FlyProvider(DeployProvider):
     def _graphql_request(
         self,
         query: str,
-        variables: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        variables: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Make a GraphQL API request.
 
         Args:
@@ -892,7 +892,7 @@ class FlyProvider(DeployProvider):
         except httpx.RequestError as e:
             raise FlyError(f"GraphQL request failed: {e}") from e
 
-    def _get_app_ips(self, app_name: str) -> List[Dict[str, str]]:
+    def _get_app_ips(self, app_name: str) -> list[dict[str, str]]:
         """Get IP addresses allocated to an app.
 
         Args:
@@ -1125,7 +1125,7 @@ class FlyProvider(DeployProvider):
 
             cert = data.get("addCertificate", {}).get("certificate", {})
             configured = cert.get("configured", False)
-            client_status = cert.get("clientStatus", "Awaiting configuration")
+            cert.get("clientStatus", "Awaiting configuration")
             issued = cert.get("issued", {}).get("nodes", [])
 
             # Determine certificate status
@@ -1308,7 +1308,7 @@ class FlyProvider(DeployProvider):
             record_name = "@" if hostname.count(".") == 1 else hostname.split(".")[0]
 
             # Sort IPs: IPv4 first (v4, shared_v4), then IPv6
-            def ip_sort_key(ip: Dict[str, str]) -> int:
+            def ip_sort_key(ip: dict[str, str]) -> int:
                 ip_type = ip.get("type", "").lower()
                 if ip_type in ("v4", "shared_v4"):
                     return 0  # IPv4 first

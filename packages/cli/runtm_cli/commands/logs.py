@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import typer
 from rich.console import Console
 from rich.panel import Panel
@@ -21,7 +19,7 @@ def logs_command(
         ...,
         help="Deployment ID (e.g., dep_abc123)",
     ),
-    log_type: Optional[str] = typer.Option(
+    log_type: str | None = typer.Option(
         None,
         "--type",
         "-t",
@@ -33,7 +31,7 @@ def logs_command(
         "-n",
         help="Number of runtime log lines to include (default: 20)",
     ),
-    search: Optional[str] = typer.Option(
+    search: str | None = typer.Option(
         None,
         "--search",
         "-s",
@@ -87,7 +85,9 @@ def logs_command(
         raise typer.Exit(1)
 
     if follow and not json_output:
-        console.print("[yellow]⚠[/yellow] Real-time log following coming soon. Showing current logs.")
+        console.print(
+            "[yellow]⚠[/yellow] Real-time log following coming soon. Showing current logs."
+        )
         console.print()
 
     # Get logs

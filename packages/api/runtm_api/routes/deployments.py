@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import List, Optional
 
 from fastapi import (
     APIRouter,
@@ -49,26 +48,26 @@ class ApiDiscoveryResponse(BaseModel):
     """API-specific discovery info."""
 
     openapi_path: str = "/openapi.json"
-    endpoints: Optional[List[str]] = None
+    endpoints: list[str] | None = None
 
 
 class GeneratedInfoResponse(BaseModel):
     """Metadata about when/how the discovery file was generated."""
 
-    by: Optional[str] = None
-    at: Optional[datetime] = None
+    by: str | None = None
+    at: datetime | None = None
 
 
 class AppDiscoveryResponse(BaseModel):
     """App discovery metadata for searchability."""
 
-    description: Optional[str] = None
-    summary: Optional[str] = None
-    capabilities: Optional[List[str]] = None
-    use_cases: Optional[List[str]] = None
-    tags: Optional[List[str]] = None
-    api: Optional[ApiDiscoveryResponse] = None
-    generated: Optional[GeneratedInfoResponse] = None
+    description: str | None = None
+    summary: str | None = None
+    capabilities: list[str] | None = None
+    use_cases: list[str] | None = None
+    tags: list[str] | None = None
+    api: ApiDiscoveryResponse | None = None
+    generated: GeneratedInfoResponse | None = None
 
 
 # =============================================================================
@@ -82,20 +81,20 @@ class DeploymentResponse(BaseModel):
     deployment_id: str
     name: str
     state: str
-    url: Optional[str] = None
-    error_message: Optional[str] = None
+    url: str | None = None
+    error_message: str | None = None
     version: int = 1
     is_latest: bool = True
-    previous_deployment_id: Optional[str] = None
-    app_name: Optional[str] = None  # Fly.io app name (for domain commands)
-    template: Optional[str] = None  # Template type (backend-service, static-site, web-app)
-    runtime: Optional[str] = None  # Runtime (python, node)
-    src_hash: Optional[str] = None  # Source hash for config-only validation
+    previous_deployment_id: str | None = None
+    app_name: str | None = None  # Fly.io app name (for domain commands)
+    template: str | None = None  # Template type (backend-service, static-site, web-app)
+    runtime: str | None = None  # Runtime (python, node)
+    src_hash: str | None = None  # Source hash for config-only validation
     created_at: datetime
     updated_at: datetime
-    ready_at: Optional[datetime] = None  # When deployment became ready (for deploy time calc)
+    ready_at: datetime | None = None  # When deployment became ready (for deploy time calc)
     # Discovery metadata (if available)
-    discovery: Optional[AppDiscoveryResponse] = None
+    discovery: AppDiscoveryResponse | None = None
 
     class Config:
         from_attributes = True
@@ -167,9 +166,9 @@ class LogsResponse(BaseModel):
     """Response model for logs endpoint."""
 
     deployment_id: str
-    logs: List[LogEntry]
+    logs: list[LogEntry]
     source: str = "stored"
-    instructions: Optional[str] = None
+    instructions: str | None = None
 
 
 class CreateDeploymentResponse(BaseModel):
@@ -184,15 +183,15 @@ class RedeployInfo(BaseModel):
     """Information about a redeployment."""
 
     is_redeploy: bool = False
-    previous_deployment_id: Optional[str] = None
-    previous_version: Optional[int] = None
-    new_version: Optional[int] = None
+    previous_deployment_id: str | None = None
+    previous_version: int | None = None
+    new_version: int | None = None
 
 
 class DeploymentsListResponse(BaseModel):
     """Response model for list deployments endpoint."""
 
-    deployments: List[DeploymentResponse]
+    deployments: list[DeploymentResponse]
     total: int
 
 
@@ -216,9 +215,9 @@ class CustomDomainResponse(BaseModel):
     hostname: str
     configured: bool = False
     certificate_status: str = "pending"
-    dns_records: List[DnsRecordResponse] = []
-    error: Optional[str] = None
-    check_url: Optional[str] = None
+    dns_records: list[DnsRecordResponse] = []
+    error: str | None = None
+    check_url: str | None = None
 
 
 class RemoveDomainResponse(BaseModel):
@@ -234,14 +233,14 @@ class DeploymentSearchResult(BaseModel):
     deployment_id: str
     name: str
     state: str
-    url: Optional[str] = None
-    template: Optional[str] = None
-    runtime: Optional[str] = None
+    url: str | None = None
+    template: str | None = None
+    runtime: str | None = None
     version: int = 1
     is_latest: bool = True
     created_at: datetime
     updated_at: datetime
-    discovery: Optional[AppDiscoveryResponse] = None
+    discovery: AppDiscoveryResponse | None = None
     match_score: float = 0.0
 
     class Config:
@@ -297,7 +296,7 @@ class DeploymentSearchResult(BaseModel):
 class SearchResponse(BaseModel):
     """Response model for search endpoint."""
 
-    results: List[DeploymentSearchResult]
+    results: list[DeploymentSearchResult]
     total: int
     query: str
 
@@ -311,8 +310,8 @@ class SearchResponse(BaseModel):
     "", response_model=DeploymentsListResponse, dependencies=[require_scope(ApiKeyScope.READ)]
 )
 async def list_deployments(
-    state: Optional[str] = None,
-    name: Optional[str] = Query(None, description="Filter by project name"),
+    state: str | None = None,
+    name: str | None = Query(None, description="Filter by project name"),
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
@@ -375,8 +374,8 @@ async def list_deployments(
 )
 async def search_deployments(
     q: str = Query(..., min_length=1, description="Search query"),
-    state: Optional[str] = Query(None, description="Filter by state"),
-    template: Optional[str] = Query(None, description="Filter by template type"),
+    state: str | None = Query(None, description="Filter by state"),
+    template: str | None = Query(None, description="Filter by template type"),
     limit: int = Query(20, ge=1, le=100, description="Maximum results"),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context),
@@ -419,7 +418,7 @@ async def search_deployments(
         query = query.filter(Deployment.manifest_json["template"].astext == template)
 
     # Only show latest versions by default
-    query = query.filter(Deployment.is_latest == True)
+    query = query.filter(Deployment.is_latest)
 
     # Search query - case-insensitive text search across discovery fields
     search_term = f"%{q.lower()}%"
@@ -509,11 +508,11 @@ async def create_deployment(
     request: Request,
     manifest: UploadFile = File(..., description="runtm.yaml manifest file"),
     artifact: UploadFile = File(..., description="artifact.zip containing project files"),
-    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
     force_new: bool = Query(
         False, alias="new", description="Force new deployment instead of redeploying"
     ),
-    tier: Optional[str] = Query(
+    tier: str | None = Query(
         None, description="Machine tier override: starter, standard, or performance"
     ),
     config_only: bool = Query(
@@ -552,8 +551,8 @@ async def create_deployment(
 
     # Parse secrets and metadata from form data
     # Secrets are passed through to worker, never stored in DB
-    secrets_to_inject: Optional[dict] = None
-    src_hash: Optional[str] = None
+    secrets_to_inject: dict | None = None
+    src_hash: str | None = None
     form = await request.form()
 
     secrets_json = form.get("secrets")
@@ -1174,9 +1173,9 @@ async def get_deployment(
 )
 async def get_deployment_logs(
     deployment_id: str,
-    log_type: Optional[str] = Query(None, alias="type"),
+    log_type: str | None = Query(None, alias="type"),
     lines: int = Query(20, alias="lines", ge=1, le=500),
-    search: Optional[str] = Query(None, alias="search"),
+    search: str | None = Query(None, alias="search"),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context),
 ) -> LogsResponse:

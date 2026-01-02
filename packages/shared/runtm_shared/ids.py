@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import secrets
 import time
-from typing import Optional
 
 # Prefix for deployment IDs
 DEPLOYMENT_ID_PREFIX = "dep_"
@@ -15,7 +14,7 @@ RANDOM_SUFFIX_LENGTH = 12
 
 
 def generate_deployment_id(
-    name: Optional[str] = None,
+    name: str | None = None,
     deterministic: bool = False,
 ) -> str:
     """Generate a deployment ID.
@@ -85,7 +84,7 @@ def is_valid_deployment_id(deployment_id: str) -> bool:
         return False
 
 
-def parse_deployment_id(deployment_id: str) -> Optional[str]:
+def parse_deployment_id(deployment_id: str) -> str | None:
     """Parse and validate a deployment ID.
 
     Args:

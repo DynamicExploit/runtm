@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
 
 @dataclass
@@ -16,7 +15,7 @@ class SecretSetResult:
     """Result of setting secrets on a provider."""
 
     success: bool
-    error: Optional[str] = None
+    error: str | None = None
     secrets_set: int = 0  # Count of secrets successfully set
 
 
@@ -25,8 +24,8 @@ class SecretListResult:
     """Result of listing secret names from a provider."""
 
     success: bool
-    names: List[str] = None  # Only names, never values
-    error: Optional[str] = None
+    names: list[str] = None  # Only names, never values
+    error: str | None = None
 
     def __post_init__(self):
         if self.names is None:
@@ -58,7 +57,7 @@ class SecretsProvider(ABC):
     def set_secrets(
         self,
         app_name: str,
-        secrets: Dict[str, str],
+        secrets: dict[str, str],
         stage: bool = False,
     ) -> SecretSetResult:
         """Set secrets for an app.
@@ -95,7 +94,7 @@ class SecretsProvider(ABC):
     def delete_secrets(
         self,
         app_name: str,
-        names: List[str],
+        names: list[str],
     ) -> SecretSetResult:
         """Remove secrets from an app.
 
@@ -111,7 +110,7 @@ class SecretsProvider(ABC):
     def sync_secrets(
         self,
         app_name: str,
-        secrets: Dict[str, str],
+        secrets: dict[str, str],
         delete_missing: bool = False,
     ) -> SecretSetResult:
         """Sync secrets to match the provided set.

@@ -6,8 +6,6 @@ Used by `runtm login` to validate tokens and by `runtm doctor` to check auth sta
 
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -28,8 +26,8 @@ class MeResponse(BaseModel):
     principal_id: str
 
     # API key info (if using API key auth)
-    api_key_id: Optional[str] = None
-    api_key_name: Optional[str] = None
+    api_key_id: str | None = None
+    api_key_name: str | None = None
 
     # Permissions
     scopes: list[str]
@@ -37,8 +35,8 @@ class MeResponse(BaseModel):
     # Human-friendly display (for CLI)
     # In multi-tenant mode with Cloud Backend, these come from the Cloud Backend
     # In single-tenant mode, these are derived from tenant/principal IDs
-    email: Optional[str] = None
-    org_name: Optional[str] = None
+    email: str | None = None
+    org_name: str | None = None
 
 
 @router.get("/me", response_model=MeResponse)
@@ -55,7 +53,7 @@ async def get_current_user(
     Returns:
         MeResponse with tenant, principal, and key info
     """
-    api_key_name: Optional[str] = None
+    api_key_name: str | None = None
 
     # Try to get API key name if we have an api_key_id
     if auth.api_key_id:

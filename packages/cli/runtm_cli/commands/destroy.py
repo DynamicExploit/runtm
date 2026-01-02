@@ -25,7 +25,7 @@ def destroy_command(
     """
     from runtm_cli.telemetry import command_span, emit_destroy_completed
 
-    with command_span("destroy") as span:
+    with command_span("destroy"):
         # Check auth upfront (consistent with deploy command)
         token = get_token()
         if not token:

@@ -111,6 +111,6 @@ def test_invalid_config_key_raises():
             with patch("runtm_cli.config.CONFIG_DIR", Path(temp_dir)):
                 try:
                     set_config_value("invalid_key", "value")
-                    assert False, "Should have raised ValueError"
+                    raise AssertionError("Should have raised ValueError")
                 except ValueError as e:
                     assert "Invalid config key" in str(e)

@@ -12,7 +12,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from .base import (
     BaseExporter,
@@ -40,7 +40,7 @@ class TelemetryConfig:
     debug: bool = False
 
     # Endpoint
-    endpoint: Optional[str] = None
+    endpoint: str | None = None
 
     # Sampling
     sample_rate: float = 1.0
@@ -91,10 +91,10 @@ class TelemetryService:
 
     def __init__(
         self,
-        exporter: Optional[BaseExporter] = None,
-        config: Optional[TelemetryConfig] = None,
-        identity_path: Optional[Path] = None,
-        spool_path: Optional[Path] = None,
+        exporter: BaseExporter | None = None,
+        config: TelemetryConfig | None = None,
+        identity_path: Path | None = None,
+        spool_path: Path | None = None,
     ) -> None:
         """Initialize the telemetry service.
 
@@ -115,7 +115,7 @@ class TelemetryService:
 
         # Exporter (lazy initialization)
         self._exporter = exporter
-        self._batch_exporter: Optional[BatchExporter] = None
+        self._batch_exporter: BatchExporter | None = None
         self._started = False
 
     @property
@@ -134,16 +134,16 @@ class TelemetryService:
         return self._identity.session_id
 
     @property
-    def trace_id(self) -> Optional[str]:
+    def trace_id(self) -> str | None:
         """Get the current trace ID."""
         return self._spans.current_trace_id
 
     @property
-    def span_id(self) -> Optional[str]:
+    def span_id(self) -> str | None:
         """Get the current span ID."""
         return self._spans.current_span_id
 
-    def get_traceparent(self) -> Optional[str]:
+    def get_traceparent(self) -> str | None:
         """Get the W3C traceparent header for the current span."""
         return self._spans.get_traceparent()
 
@@ -214,7 +214,7 @@ class TelemetryService:
     def span(
         self,
         name: str,
-        attributes: Optional[dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> Generator[TelemetrySpan, None, None]:
         """Create a span context.
 
@@ -248,7 +248,7 @@ class TelemetryService:
     def start_span(
         self,
         name: str,
-        attributes: Optional[dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> TelemetrySpan:
         """Start a span manually.
 
@@ -296,7 +296,7 @@ class TelemetryService:
     def add_span_event(
         self,
         name: str,
-        attributes: Optional[dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> None:
         """Add an event to the current span.
 
@@ -324,7 +324,7 @@ class TelemetryService:
     def emit_event(
         self,
         event_type: EventType,
-        attributes: Optional[dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> None:
         """Emit a telemetry event.
 
@@ -476,10 +476,10 @@ class TelemetryService:
 
 def create_command_span_attributes(
     command: str,
-    exit_code: Optional[int] = None,
-    template: Optional[str] = None,
-    tier: Optional[str] = None,
-    runtime: Optional[str] = None,
+    exit_code: int | None = None,
+    template: str | None = None,
+    tier: str | None = None,
+    runtime: str | None = None,
 ) -> dict[str, Any]:
     """Create standard span attributes for a command.
 

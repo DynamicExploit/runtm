@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import Dict, List, Optional
 
 from .secrets_base import SecretListResult, SecretSetResult, SecretsProvider
 
@@ -25,7 +24,7 @@ class FlySecretsProvider(SecretsProvider):
         - Only secret names are returned from list operations
     """
 
-    def __init__(self, api_token: Optional[str] = None):
+    def __init__(self, api_token: str | None = None):
         """Initialize Fly secrets provider.
 
         Args:
@@ -37,7 +36,7 @@ class FlySecretsProvider(SecretsProvider):
     def name(self) -> str:
         return "fly"
 
-    def _get_env(self) -> Dict[str, str]:
+    def _get_env(self) -> dict[str, str]:
         """Get environment with FLY_API_TOKEN set."""
         env = os.environ.copy()
         if self.api_token:
@@ -47,7 +46,7 @@ class FlySecretsProvider(SecretsProvider):
     def set_secrets(
         self,
         app_name: str,
-        secrets: Dict[str, str],
+        secrets: dict[str, str],
         stage: bool = False,
     ) -> SecretSetResult:
         """Set secrets for a Fly app.
@@ -197,7 +196,7 @@ class FlySecretsProvider(SecretsProvider):
     def delete_secrets(
         self,
         app_name: str,
-        names: List[str],
+        names: list[str],
     ) -> SecretSetResult:
         """Remove secrets from a Fly app.
 

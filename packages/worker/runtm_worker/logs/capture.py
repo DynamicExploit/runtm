@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import List, Optional, Set
 
 from sqlalchemy.orm import Session
 
 from runtm_shared.types import LogType
 
 
-def redact_secrets(message: str, secrets: Set[str]) -> str:
+def redact_secrets(message: str, secrets: set[str]) -> str:
     """Redact secret values from a log message.
 
     Replaces any occurrence of secret values with [REDACTED].
@@ -56,7 +55,7 @@ class LogCapture:
         db: Session,
         deployment_id: str,
         log_type: LogType,
-        redact_values: Optional[Set[str]] = None,
+        redact_values: set[str] | None = None,
     ):
         """Initialize log capture.
 
@@ -69,9 +68,9 @@ class LogCapture:
         self.db = db
         self.deployment_id = deployment_id
         self.log_type = log_type
-        self.buffer: List[str] = []
+        self.buffer: list[str] = []
         self.start_time = datetime.now(timezone.utc)
-        self.redact_values: Set[str] = redact_values or set()
+        self.redact_values: set[str] = redact_values or set()
 
     def add_redact_value(self, value: str) -> None:
         """Add a value to be redacted from logs.
@@ -105,7 +104,7 @@ class LogCapture:
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         self.buffer.append(f"[{timestamp}] {safe_message}")
 
-    def write_lines(self, lines: List[str]) -> None:
+    def write_lines(self, lines: list[str]) -> None:
         """Write multiple log lines.
 
         Args:
@@ -165,7 +164,7 @@ class SimpleLogBuffer:
     """
 
     def __init__(self) -> None:
-        self.lines: List[str] = []
+        self.lines: list[str] = []
 
     def write(self, message: str) -> None:
         """Write a log message."""

@@ -16,7 +16,7 @@ Security Invariants:
 
 from __future__ import annotations
 
-from typing import Generic, Optional, TypeVar
+from typing import Generic, TypeVar
 
 from sqlalchemy.orm import Query, Session
 
@@ -59,7 +59,7 @@ class TenantRepository(Generic[T]):
             self.model.tenant_id == self.tenant_id  # type: ignore
         )
 
-    def get_by_id(self, id: str) -> Optional[T]:
+    def get_by_id(self, id: str) -> T | None:
         """Get by ID within tenant scope.
 
         Returns None if not found OR wrong tenant (prevents enumeration).
@@ -112,7 +112,7 @@ class TenantRepository(Generic[T]):
         self.db.flush()
         return entity
 
-    def update(self, id: str, **kwargs) -> Optional[T]:
+    def update(self, id: str, **kwargs) -> T | None:
         """Update within tenant scope.
 
         Fetches via scoped query first to ensure tenant ownership.
@@ -166,7 +166,7 @@ class DeploymentRepository(TenantRepository[Deployment]):
     def __init__(self, db: Session, tenant_id: str):
         super().__init__(db, tenant_id, Deployment)
 
-    def get_by_deployment_id(self, deployment_id: str) -> Optional[Deployment]:
+    def get_by_deployment_id(self, deployment_id: str) -> Deployment | None:
         """Get deployment by human-friendly ID.
 
         Args:
@@ -177,7 +177,7 @@ class DeploymentRepository(TenantRepository[Deployment]):
         """
         return self._scoped_query().filter(Deployment.deployment_id == deployment_id).first()
 
-    def get_latest_by_name(self, name: str) -> Optional[Deployment]:
+    def get_latest_by_name(self, name: str) -> Deployment | None:
         """Get latest active deployment by name.
 
         Args:
@@ -264,7 +264,7 @@ class ApiKeyRepository(TenantRepository[ApiKey]):
             .all()
         )
 
-    def revoke(self, key_id: str) -> Optional[ApiKey]:
+    def revoke(self, key_id: str) -> ApiKey | None:
         """Revoke an API key (soft delete).
 
         Args:

@@ -11,7 +11,7 @@ import os
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Optional
+from typing import Any
 
 from runtm_cli import __version__
 from runtm_cli.config import get_api_url, get_token
@@ -26,9 +26,9 @@ from runtm_shared.telemetry import (
 )
 
 # Global telemetry service instance
-_telemetry: Optional[TelemetryService] = None
-_command_start_time: Optional[float] = None
-_current_command: Optional[str] = None
+_telemetry: TelemetryService | None = None
+_command_start_time: float | None = None
+_current_command: str | None = None
 
 
 def get_telemetry() -> TelemetryService:
@@ -158,7 +158,7 @@ def start_command(command_name: str) -> None:
 def end_command(
     command_name: str,
     outcome: str = "success",
-    error_type: Optional[str] = None,
+    error_type: str | None = None,
 ) -> None:
     """End tracking a command execution.
 
@@ -189,7 +189,7 @@ def end_command(
 @contextmanager
 def command_span(
     command_name: str,
-    attributes: Optional[dict[str, Any]] = None,
+    attributes: dict[str, Any] | None = None,
 ) -> Generator[TelemetrySpan, None, None]:
     """Context manager for tracking a command with a span.
 
@@ -211,7 +211,7 @@ def command_span(
         span_attrs.update(attributes)
 
     outcome = "success"
-    error_type: Optional[str] = None
+    error_type: str | None = None
 
     try:
         with telemetry.span(f"cli.command.{command_name}", span_attrs) as span:
@@ -248,7 +248,7 @@ def command_span(
 @contextmanager
 def phase_span(
     phase_name: str,
-    attributes: Optional[dict[str, Any]] = None,
+    attributes: dict[str, Any] | None = None,
 ) -> Generator[TelemetrySpan, None, None]:
     """Context manager for tracking a command phase.
 
@@ -353,9 +353,9 @@ def emit_init_completed(template: str, duration_ms: float) -> None:
 
 def emit_deploy_started(
     is_redeploy: bool = False,
-    tier: Optional[str] = None,
-    artifact_size_mb: Optional[float] = None,
-    template: Optional[str] = None,
+    tier: str | None = None,
+    artifact_size_mb: float | None = None,
+    template: str | None = None,
 ) -> None:
     """Emit deploy started event.
 
@@ -392,7 +392,7 @@ def emit_deploy_validation_failed(error_count: int, warning_count: int = 0) -> N
 def emit_deploy_completed(
     duration_ms: float,
     version: int = 1,
-    template: Optional[str] = None,
+    template: str | None = None,
 ) -> None:
     """Emit deploy completed event.
 
@@ -407,7 +407,7 @@ def emit_deploy_completed(
     get_telemetry().emit_event(EventType.DEPLOY_COMPLETED, attrs)
 
 
-def emit_deploy_failed(error_type: str, state_reached: Optional[str] = None) -> None:
+def emit_deploy_failed(error_type: str, state_reached: str | None = None) -> None:
     """Emit deploy failed event.
 
     Args:
@@ -459,7 +459,7 @@ def emit_domain_removed() -> None:
 # === Trace Propagation ===
 
 
-def get_traceparent() -> Optional[str]:
+def get_traceparent() -> str | None:
     """Get the current traceparent header value.
 
     Returns:

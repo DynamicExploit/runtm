@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 from .base import TelemetryMetric
 
@@ -102,7 +101,7 @@ class Counter:
         self.description = description
         self._values: dict[tuple[tuple[str, str], ...], float] = {}
 
-    def inc(self, labels: Optional[dict[str, str]] = None, value: float = 1.0) -> None:
+    def inc(self, labels: dict[str, str] | None = None, value: float = 1.0) -> None:
         """Increment the counter.
 
         Args:
@@ -151,7 +150,7 @@ class Histogram:
         self,
         name: str,
         description: str = "",
-        buckets: Optional[list[float]] = None,
+        buckets: list[float] | None = None,
     ) -> None:
         """Initialize the histogram.
 
@@ -165,7 +164,7 @@ class Histogram:
         self._bucket_bounds = buckets or DEFAULT_DURATION_BUCKETS
         self._values: dict[tuple[tuple[str, str], ...], HistogramValue] = {}
 
-    def observe(self, value: float, labels: Optional[dict[str, str]] = None) -> None:
+    def observe(self, value: float, labels: dict[str, str] | None = None) -> None:
         """Record an observation.
 
         Args:
@@ -262,7 +261,7 @@ class MetricsRegistry:
         self,
         name: str,
         description: str = "",
-        buckets: Optional[list[float]] = None,
+        buckets: list[float] | None = None,
     ) -> Histogram:
         """Get or create a histogram.
 

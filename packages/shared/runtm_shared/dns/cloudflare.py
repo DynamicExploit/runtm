@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 import httpx
 
@@ -53,7 +53,7 @@ class CloudflareDnsProvider(DnsProvider):
     def name(self) -> str:
         return "cloudflare"
 
-    def _headers(self) -> Dict[str, str]:
+    def _headers(self) -> dict[str, str]:
         """Get API request headers."""
         return {
             "Authorization": f"Bearer {self.api_token}",
@@ -64,9 +64,9 @@ class CloudflareDnsProvider(DnsProvider):
         self,
         method: str,
         endpoint: str,
-        json: Optional[Dict[str, Any]] = None,
-        params: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
+        json: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Make an API request to Cloudflare.
 
         Args:
@@ -106,7 +106,7 @@ class CloudflareDnsProvider(DnsProvider):
         subdomain: str,
         domain: str,
         record_type: str = "CNAME",
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Find a DNS record by name.
 
         Args:
@@ -226,7 +226,7 @@ class CloudflareDnsProvider(DnsProvider):
         self,
         subdomain: str,
         domain: str,
-    ) -> Optional[DnsRecord]:
+    ) -> DnsRecord | None:
         """Get an existing DNS record.
 
         Args:
@@ -297,7 +297,7 @@ class CloudflareDnsProvider(DnsProvider):
 class CloudflareError(Exception):
     """Cloudflare API error."""
 
-    def __init__(self, message: str, errors: Optional[list] = None):
+    def __init__(self, message: str, errors: list | None = None):
         super().__init__(message)
         self.message = message
         self.errors = errors or []

@@ -37,7 +37,7 @@ import importlib
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
-from typing import TYPE_CHECKING, Optional, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from runtm_shared.types import TenantLimits, validate_tier_name
 
@@ -57,9 +57,9 @@ class PolicyCheckResult:
     """
 
     allowed: bool
-    reason: Optional[str] = None
-    expires_at: Optional[datetime] = None
-    limits: Optional[TenantLimits] = None
+    reason: str | None = None
+    expires_at: datetime | None = None
+    limits: TenantLimits | None = None
 
 
 class PolicyProvider(Protocol):
@@ -73,8 +73,8 @@ class PolicyProvider(Protocol):
         self,
         tenant_id: str,
         db: Session,
-        requested_tier: Optional[str] = None,
-        app_name: Optional[str] = None,
+        requested_tier: str | None = None,
+        app_name: str | None = None,
     ) -> PolicyCheckResult:
         """Check if tenant can create a deployment.
 
@@ -124,8 +124,8 @@ class DefaultPolicyProvider:
         self,
         tenant_id: str,
         db: Session,
-        requested_tier: Optional[str] = None,
-        app_name: Optional[str] = None,
+        requested_tier: str | None = None,
+        app_name: str | None = None,
     ) -> PolicyCheckResult:
         """Check limits and return result with limits attached.
 

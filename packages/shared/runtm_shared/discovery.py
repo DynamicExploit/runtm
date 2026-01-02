@@ -13,7 +13,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
 
 import yaml
 from pydantic import BaseModel, ConfigDict
@@ -25,7 +24,7 @@ class ApiDiscovery(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     openapi_path: str = "/openapi.json"
-    endpoints: Optional[List[str]] = None
+    endpoints: list[str] | None = None
 
 
 class GeneratedInfo(BaseModel):
@@ -33,8 +32,8 @@ class GeneratedInfo(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    by: Optional[str] = None  # cursor, claude-code, github-copilot, etc.
-    at: Optional[datetime] = None
+    by: str | None = None  # cursor, claude-code, github-copilot, etc.
+    at: datetime | None = None
 
 
 class AppDiscovery(BaseModel):
@@ -70,13 +69,13 @@ class AppDiscovery(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    description: Optional[str] = None
-    summary: Optional[str] = None
-    capabilities: Optional[List[str]] = None
-    use_cases: Optional[List[str]] = None
-    tags: Optional[List[str]] = None
-    api: Optional[ApiDiscovery] = None
-    generated: Optional[GeneratedInfo] = None
+    description: str | None = None
+    summary: str | None = None
+    capabilities: list[str] | None = None
+    use_cases: list[str] | None = None
+    tags: list[str] | None = None
+    api: ApiDiscovery | None = None
+    generated: GeneratedInfo | None = None
 
     @classmethod
     def from_yaml(cls, yaml_content: str) -> AppDiscovery:
@@ -146,6 +145,4 @@ class AppDiscovery(BaseModel):
             for cap in self.capabilities:
                 if "TODO" not in cap:
                     return False
-        if self.tags and len(self.tags) > 0:
-            return False
-        return True
+        return not (self.tags and len(self.tags) > 0)

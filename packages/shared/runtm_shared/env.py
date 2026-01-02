@@ -12,12 +12,11 @@ call this as it runs in user projects and shouldn't load the monorepo's .env.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 
 
-def find_project_root(start_path: Optional[Path] = None) -> Optional[Path]:
+def find_project_root(start_path: Path | None = None) -> Path | None:
     """Find the project root directory.
 
     Looks for marker files like pyproject.toml, README.md, or .git directory
@@ -48,7 +47,7 @@ def find_project_root(start_path: Optional[Path] = None) -> Optional[Path]:
     return None
 
 
-def load_env_file(env_file: str = ".env", project_root: Optional[Path] = None) -> bool:
+def load_env_file(env_file: str = ".env", project_root: Path | None = None) -> bool:
     """Load environment variables from .env file in project root.
 
     This function:

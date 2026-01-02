@@ -9,7 +9,7 @@ Provides endpoints for:
 from __future__ import annotations
 
 import logging
-from typing import Any, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field
@@ -34,11 +34,11 @@ class SpanData(BaseModel):
 
     trace_id: str
     span_id: str
-    parent_span_id: Optional[str] = None
+    parent_span_id: str | None = None
     name: str
     status: str = "unset"
     start_time_ns: int
-    end_time_ns: Optional[int] = None
+    end_time_ns: int | None = None
     attributes: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -48,8 +48,8 @@ class EventData(BaseModel):
     name: str
     timestamp_ns: int = 0
     attributes: dict[str, Any] = Field(default_factory=dict)
-    trace_id: Optional[str] = None
-    span_id: Optional[str] = None
+    trace_id: str | None = None
+    span_id: str | None = None
 
 
 class MetricData(BaseModel):
@@ -65,9 +65,9 @@ class MetricData(BaseModel):
 class TelemetryBatchRequest(BaseModel):
     """Request model for telemetry batch ingestion."""
 
-    spans: List[SpanData] = Field(default_factory=list)
-    events: List[EventData] = Field(default_factory=list)
-    metrics: List[MetricData] = Field(default_factory=list)
+    spans: list[SpanData] = Field(default_factory=list)
+    events: list[EventData] = Field(default_factory=list)
+    metrics: list[MetricData] = Field(default_factory=list)
 
 
 class IngestResponse(BaseModel):
@@ -83,14 +83,14 @@ class SpanResponse(BaseModel):
     """Response model for a span."""
 
     span_id: str
-    parent_span_id: Optional[str] = None
+    parent_span_id: str | None = None
     name: str
     status: str
     start_time: str
-    end_time: Optional[str] = None
-    duration_ms: Optional[float] = None
+    end_time: str | None = None
+    duration_ms: float | None = None
     attributes: dict[str, Any] = Field(default_factory=dict)
-    service_name: Optional[str] = None
+    service_name: str | None = None
 
 
 class EventResponse(BaseModel):
@@ -99,38 +99,38 @@ class EventResponse(BaseModel):
     name: str
     timestamp: str
     attributes: dict[str, Any] = Field(default_factory=dict)
-    trace_id: Optional[str] = None
-    span_id: Optional[str] = None
-    deployment_id: Optional[str] = None
-    service_name: Optional[str] = None
+    trace_id: str | None = None
+    span_id: str | None = None
+    deployment_id: str | None = None
+    service_name: str | None = None
 
 
 class TraceResponse(BaseModel):
     """Response model for a trace."""
 
     trace_id: str
-    spans: List[SpanResponse]
-    events: List[EventResponse] = Field(default_factory=list)
-    duration_ms: Optional[float] = None
+    spans: list[SpanResponse]
+    events: list[EventResponse] = Field(default_factory=list)
+    duration_ms: float | None = None
     status: str
-    service_name: Optional[str] = None
+    service_name: str | None = None
 
 
 class TraceSummaryResponse(BaseModel):
     """Response model for a trace summary."""
 
     trace_id: str
-    name: Optional[str] = None
-    start_time: Optional[str] = None
-    duration_ms: Optional[float] = None
+    name: str | None = None
+    start_time: str | None = None
+    duration_ms: float | None = None
     span_count: int = 0
-    service_name: Optional[str] = None
+    service_name: str | None = None
 
 
 class TracesListResponse(BaseModel):
     """Response model for list of traces."""
 
-    traces: List[TraceSummaryResponse]
+    traces: list[TraceSummaryResponse]
 
 
 class MetricResponse(BaseModel):
@@ -141,19 +141,19 @@ class MetricResponse(BaseModel):
     value: float
     labels: dict[str, str] = Field(default_factory=dict)
     timestamp: str
-    created_at: Optional[str] = None
+    created_at: str | None = None
 
 
 class MetricsListResponse(BaseModel):
     """Response model for list of metrics."""
 
-    metrics: List[MetricResponse]
+    metrics: list[MetricResponse]
 
 
 class EventsListResponse(BaseModel):
     """Response model for list of events."""
 
-    events: List[EventResponse]
+    events: list[EventResponse]
 
 
 class MetricsSummaryResponse(BaseModel):
@@ -178,7 +178,7 @@ class MetricsSummaryResponse(BaseModel):
 @router.post("", response_model=IngestResponse, status_code=status.HTTP_201_CREATED)
 async def ingest_telemetry(
     batch: TelemetryBatchRequest,
-    x_service_name: Optional[str] = Header(None, alias="X-Service-Name"),
+    x_service_name: str | None = Header(None, alias="X-Service-Name"),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context),
 ) -> IngestResponse:
@@ -212,7 +212,7 @@ async def ingest_telemetry(
 @router.get("/traces", response_model=TracesListResponse)
 async def list_traces(
     limit: int = Query(50, ge=1, le=100),
-    service_name: Optional[str] = Query(None, alias="service"),
+    service_name: str | None = Query(None, alias="service"),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context),
 ) -> TracesListResponse:
@@ -269,8 +269,8 @@ async def get_trace(
 
 @router.get("/metrics", response_model=MetricsListResponse)
 async def list_metrics(
-    name: Optional[str] = Query(None),
-    metric_type: Optional[str] = Query(None, alias="type"),
+    name: str | None = Query(None),
+    metric_type: str | None = Query(None, alias="type"),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context),
@@ -324,8 +324,8 @@ async def get_metrics_summary(
 
 @router.get("/events", response_model=EventsListResponse)
 async def list_events(
-    name: Optional[str] = Query(None),
-    deployment_id: Optional[str] = Query(None, alias="deployment"),
+    name: str | None = Query(None),
+    deployment_id: str | None = Query(None, alias="deployment"),
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
     auth: AuthContext = Depends(get_auth_context),

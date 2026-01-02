@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -92,7 +91,7 @@ class DnsProvider(ABC):
         self,
         subdomain: str,
         domain: str,
-    ) -> Optional[DnsRecord]:
+    ) -> DnsRecord | None:
         """Get an existing DNS record.
 
         Args:

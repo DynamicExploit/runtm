@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 
 class ArtifactStore(ABC):
@@ -118,7 +117,7 @@ class ArtifactStore(ABC):
         with open(file_path, "wb") as f:
             f.write(data)
 
-    def get_size(self, key: str) -> Optional[int]:
+    def get_size(self, key: str) -> int | None:
         """Get the size of an artifact in bytes.
 
         Default implementation returns None (unknown).

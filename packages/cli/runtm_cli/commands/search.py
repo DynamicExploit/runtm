@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import typer
 from rich.console import Console
 from rich.panel import Panel
@@ -18,8 +16,8 @@ console = Console()
 
 def search_command(
     query: str,
-    state: Optional[str] = None,
-    template: Optional[str] = None,
+    state: str | None = None,
+    template: str | None = None,
     limit: int = 20,
     json_output: bool = False,
 ) -> None:

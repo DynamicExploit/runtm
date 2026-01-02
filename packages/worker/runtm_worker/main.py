@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import atexit
 import os
-from typing import Optional
 
 # Ensure .env is loaded from project root before reading environment
 from runtm_shared.env import ensure_env_loaded  # noqa: F401
@@ -24,7 +23,7 @@ def get_redis_connection() -> Redis:
     return Redis.from_url(redis_url)
 
 
-def create_queue(redis_conn: Optional[Redis] = None) -> Queue:
+def create_queue(redis_conn: Redis | None = None) -> Queue:
     """Create the deployment queue.
 
     Args:

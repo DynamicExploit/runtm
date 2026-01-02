@@ -6,7 +6,7 @@ import zipfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import httpx
 
@@ -28,15 +28,15 @@ class DeploymentInfo:
     deployment_id: str
     name: str
     state: str
-    url: Optional[str]
-    error_message: Optional[str]
+    url: str | None
+    error_message: str | None
     created_at: datetime
     updated_at: datetime
     version: int = 1
     is_latest: bool = True
-    previous_deployment_id: Optional[str] = None
-    app_name: Optional[str] = None  # Fly.io app name (for domain commands)
-    src_hash: Optional[str] = None  # Source hash for config-only validation
+    previous_deployment_id: str | None = None
+    app_name: str | None = None  # Fly.io app name (for domain commands)
+    src_hash: str | None = None  # Source hash for config-only validation
 
 
 @dataclass
@@ -53,9 +53,9 @@ class LogsResponse:
     """Logs response from API."""
 
     deployment_id: str
-    logs: List[LogEntry]
+    logs: list[LogEntry]
     source: str
-    instructions: Optional[str] = None
+    instructions: str | None = None
 
 
 @dataclass
@@ -71,7 +71,7 @@ class DestroyResponse:
 class DeploymentsListResponse:
     """List deployments response from API."""
 
-    deployments: List[DeploymentInfo]
+    deployments: list[DeploymentInfo]
     total: int
 
 
@@ -91,9 +91,9 @@ class CustomDomainInfo:
     hostname: str
     configured: bool
     certificate_status: str
-    dns_records: List[DnsRecord]
-    error: Optional[str] = None
-    check_url: Optional[str] = None
+    dns_records: list[DnsRecord]
+    error: str | None = None
+    check_url: str | None = None
 
 
 @dataclass
@@ -103,19 +103,19 @@ class SearchResult:
     deployment_id: str
     name: str
     state: str
-    url: Optional[str]
-    template: Optional[str]
-    runtime: Optional[str]
+    url: str | None
+    template: str | None
+    runtime: str | None
     version: int
     is_latest: bool
     created_at: datetime
     updated_at: datetime
     # Discovery metadata
-    summary: Optional[str] = None
-    description: Optional[str] = None
-    tags: Optional[List[str]] = None
-    capabilities: Optional[List[str]] = None
-    use_cases: Optional[List[str]] = None
+    summary: str | None = None
+    description: str | None = None
+    tags: list[str] | None = None
+    capabilities: list[str] | None = None
+    use_cases: list[str] | None = None
     match_score: float = 0.0
 
 
@@ -123,7 +123,7 @@ class SearchResult:
 class SearchResponse:
     """Search response from API."""
 
-    results: List[SearchResult]
+    results: list[SearchResult]
     total: int
     query: str
 
@@ -135,12 +135,12 @@ class CloudKeyVerifyResponse:
     valid: bool
     key_id: str
     name: str
-    scopes: List[str]
-    expires_at: Optional[str]
+    scopes: list[str]
+    expires_at: str | None
     user_id: str
 
 
-def verify_cloud_api_key(token: str, api_url: Optional[str] = None) -> CloudKeyVerifyResponse:
+def verify_cloud_api_key(token: str, api_url: str | None = None) -> CloudKeyVerifyResponse:
     """Verify an API key against the API.
 
     DEPRECATED: The login command now validates via /v1/me directly.
@@ -210,8 +210,8 @@ class APIClient:
 
     def __init__(
         self,
-        api_url: Optional[str] = None,
-        token: Optional[str] = None,
+        api_url: str | None = None,
+        token: str | None = None,
         timeout: float = 60.0,
     ):
         """Initialize API client.
@@ -225,7 +225,7 @@ class APIClient:
         self.token = token or get_token()
         self.timeout = timeout
 
-    def _headers(self, idempotency_key: Optional[str] = None) -> Dict[str, str]:
+    def _headers(self, idempotency_key: str | None = None) -> dict[str, str]:
         """Build request headers.
 
         Args:
@@ -366,11 +366,11 @@ class APIClient:
         self,
         manifest_path: Path,
         artifact_path: Path,
-        idempotency_key: Optional[str] = None,
+        idempotency_key: str | None = None,
         force_new: bool = False,
-        tier: Optional[str] = None,
-        secrets: Optional[Dict[str, str]] = None,
-        src_hash: Optional[str] = None,
+        tier: str | None = None,
+        secrets: dict[str, str] | None = None,
+        src_hash: str | None = None,
         config_only: bool = False,
     ) -> DeploymentInfo:
         """Create a new deployment or redeploy an existing one.
@@ -465,9 +465,9 @@ class APIClient:
     def get_logs(
         self,
         deployment_id: str,
-        log_type: Optional[str] = None,
+        log_type: str | None = None,
         lines: int = 20,
-        search: Optional[str] = None,
+        search: str | None = None,
     ) -> LogsResponse:
         """Get deployment logs.
 
@@ -480,7 +480,7 @@ class APIClient:
         Returns:
             LogsResponse
         """
-        params: Dict[str, Any] = {"lines": lines}
+        params: dict[str, Any] = {"lines": lines}
         if log_type:
             params["type"] = log_type
         if search:
@@ -513,7 +513,7 @@ class APIClient:
 
     def list_deployments(
         self,
-        state: Optional[str] = None,
+        state: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> DeploymentsListResponse:
@@ -527,7 +527,7 @@ class APIClient:
         Returns:
             DeploymentsListResponse
         """
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
         if state:
             params["state"] = state
 
@@ -550,8 +550,8 @@ class APIClient:
     def search_deployments(
         self,
         query: str,
-        state: Optional[str] = None,
-        template: Optional[str] = None,
+        state: str | None = None,
+        template: str | None = None,
         limit: int = 20,
     ) -> SearchResponse:
         """Search deployments by discovery metadata.
@@ -565,7 +565,7 @@ class APIClient:
         Returns:
             SearchResponse with matching deployments
         """
-        params: Dict[str, Any] = {"q": query, "limit": limit}
+        params: dict[str, Any] = {"q": query, "limit": limit}
         if state:
             params["state"] = state
         if template:
@@ -588,7 +588,7 @@ class APIClient:
             query=data["query"],
         )
 
-    def _parse_search_result(self, data: Dict[str, Any]) -> SearchResult:
+    def _parse_search_result(self, data: dict[str, Any]) -> SearchResult:
         """Parse search result from API response.
 
         Args:
@@ -644,7 +644,7 @@ class APIClient:
             message=data["message"],
         )
 
-    def _parse_deployment(self, data: Dict[str, Any]) -> DeploymentInfo:
+    def _parse_deployment(self, data: dict[str, Any]) -> DeploymentInfo:
         """Parse deployment response.
 
         Args:
@@ -668,7 +668,7 @@ class APIClient:
             src_hash=data.get("src_hash"),
         )
 
-    def get_latest_deployment_for_name(self, name: str) -> Optional[DeploymentInfo]:
+    def get_latest_deployment_for_name(self, name: str) -> DeploymentInfo | None:
         """Get the latest deployment for a given project name.
 
         Used to validate --config-only deploys by checking previous src_hash.
@@ -774,7 +774,7 @@ class APIClient:
 
         return response.json().get("success", True)
 
-    def _parse_domain_info(self, data: Dict[str, Any]) -> CustomDomainInfo:
+    def _parse_domain_info(self, data: dict[str, Any]) -> CustomDomainInfo:
         """Parse custom domain response.
 
         Args:

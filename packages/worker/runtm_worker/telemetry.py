@@ -13,7 +13,7 @@ dashboard visualization.
 from __future__ import annotations
 
 import os
-from typing import Any, Optional
+from typing import Any
 
 from runtm_shared.telemetry import (
     EventType,
@@ -25,7 +25,7 @@ from runtm_shared.telemetry import (
 )
 
 # Global telemetry service instance
-_telemetry: Optional[TelemetryService] = None
+_telemetry: TelemetryService | None = None
 
 
 def get_telemetry() -> TelemetryService:
@@ -43,11 +43,11 @@ def get_telemetry() -> TelemetryService:
 
 
 def init_telemetry(
-    endpoint: Optional[str] = None,
+    endpoint: str | None = None,
     debug: bool = False,
     disabled: bool = False,
-    api_url: Optional[str] = None,
-    api_token: Optional[str] = None,
+    api_url: str | None = None,
+    api_token: str | None = None,
 ) -> TelemetryService:
     """Initialize the worker telemetry service.
 
@@ -113,9 +113,9 @@ def shutdown_telemetry() -> None:
 
 def start_job_span(
     job_name: str,
-    trace_id: Optional[str] = None,
-    parent_span_id: Optional[str] = None,
-    attributes: Optional[dict[str, Any]] = None,
+    trace_id: str | None = None,
+    parent_span_id: str | None = None,
+    attributes: dict[str, Any] | None = None,
 ) -> TelemetrySpan:
     """Start a span for a worker job, optionally continuing a trace.
 

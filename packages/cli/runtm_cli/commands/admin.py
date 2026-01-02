@@ -14,7 +14,6 @@ Security notes:
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 from uuid import uuid4
 
 import typer
@@ -71,11 +70,11 @@ def _import_api_models():
 def create_token(
     tenant_id: str = typer.Option(..., "--tenant", "-t", help="Tenant/org ID"),
     principal_id: str = typer.Option(..., "--principal", "-p", help="User/service account ID"),
-    name: Optional[str] = typer.Option(None, "--name", "-n", help="Token name"),
+    name: str | None = typer.Option(None, "--name", "-n", help="Token name"),
     scopes: str = typer.Option(
         "read,deploy,delete", "--scopes", "-s", help="Comma-separated scopes"
     ),
-    expires_days: Optional[int] = typer.Option(
+    expires_days: int | None = typer.Option(
         None, "--expires", "-e", help="Days until expiration (default: never)"
     ),
     db_url: str = typer.Option(..., "--db-url", envvar="DATABASE_URL", help="Database URL"),
@@ -220,8 +219,8 @@ def revoke_token(
 
 @admin_app.command("list-tokens")
 def list_tokens(
-    tenant_id: Optional[str] = typer.Option(None, "--tenant", "-t", help="Filter by tenant ID"),
-    principal_id: Optional[str] = typer.Option(
+    tenant_id: str | None = typer.Option(None, "--tenant", "-t", help="Filter by tenant ID"),
+    principal_id: str | None = typer.Option(
         None, "--principal", "-p", help="Filter by principal ID"
     ),
     include_revoked: bool = typer.Option(False, "--include-revoked", help="Include revoked tokens"),

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 from sqlalchemy import Float, and_, func
 from sqlalchemy.orm import Session
@@ -38,8 +38,8 @@ class TelemetryService:
     def ingest_batch(
         self,
         batch: dict[str, Any],
-        owner_id: Optional[str] = None,
-        service_name: Optional[str] = None,
+        owner_id: str | None = None,
+        service_name: str | None = None,
     ) -> dict[str, int]:
         """Ingest a telemetry batch.
 
@@ -120,7 +120,7 @@ class TelemetryService:
             "metrics": metrics_count,
         }
 
-    def _extract_deployment_id(self, data: dict[str, Any]) -> Optional[str]:
+    def _extract_deployment_id(self, data: dict[str, Any]) -> str | None:
         """Extract deployment_id from attributes if present.
 
         Args:
@@ -139,8 +139,8 @@ class TelemetryService:
     def get_trace(
         self,
         trace_id: str,
-        owner_id: Optional[str] = None,
-    ) -> Optional[dict[str, Any]]:
+        owner_id: str | None = None,
+    ) -> dict[str, Any] | None:
         """Get a full trace with all spans.
 
         Args:
@@ -186,7 +186,7 @@ class TelemetryService:
     def get_traces_for_deployment(
         self,
         deployment_id: str,
-        owner_id: Optional[str] = None,
+        owner_id: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         """Get traces for a specific deployment.
@@ -201,10 +201,10 @@ class TelemetryService:
         """
         # Get unique trace IDs for this deployment
         query = self._db.query(
-                TelemetrySpan.trace_id,
-                func.min(TelemetrySpan.start_time_ns).label("start_time"),
-                func.max(TelemetrySpan.end_time_ns).label("end_time"),
-                func.count(TelemetrySpan.id).label("span_count"),
+            TelemetrySpan.trace_id,
+            func.min(TelemetrySpan.start_time_ns).label("start_time"),
+            func.max(TelemetrySpan.end_time_ns).label("end_time"),
+            func.count(TelemetrySpan.id).label("span_count"),
         ).filter(TelemetrySpan.deployment_id == deployment_id)
 
         if owner_id:
@@ -240,9 +240,9 @@ class TelemetryService:
 
     def get_recent_traces(
         self,
-        owner_id: Optional[str] = None,
+        owner_id: str | None = None,
         limit: int = 50,
-        service_name: Optional[str] = None,
+        service_name: str | None = None,
     ) -> list[dict[str, Any]]:
         """Get recent traces.
 
@@ -255,12 +255,12 @@ class TelemetryService:
             List of trace summaries
         """
         query = self._db.query(
-                TelemetrySpan.trace_id,
-                func.min(TelemetrySpan.name).label("root_name"),
-                func.min(TelemetrySpan.start_time_ns).label("start_time"),
-                func.max(TelemetrySpan.end_time_ns).label("end_time"),
-                func.count(TelemetrySpan.id).label("span_count"),
-                func.min(TelemetrySpan.service_name).label("service"),
+            TelemetrySpan.trace_id,
+            func.min(TelemetrySpan.name).label("root_name"),
+            func.min(TelemetrySpan.start_time_ns).label("start_time"),
+            func.max(TelemetrySpan.end_time_ns).label("end_time"),
+            func.count(TelemetrySpan.id).label("span_count"),
+            func.min(TelemetrySpan.service_name).label("service"),
         )
 
         if owner_id:
@@ -305,7 +305,7 @@ class TelemetryService:
 
     def get_metrics_summary(
         self,
-        owner_id: Optional[str] = None,
+        owner_id: str | None = None,
         days: int = 7,
     ) -> dict[str, Any]:
         """Get aggregated metrics summary for dashboard.
@@ -418,9 +418,9 @@ class TelemetryService:
 
     def get_metrics(
         self,
-        name: Optional[str] = None,
-        metric_type: Optional[str] = None,
-        owner_id: Optional[str] = None,
+        name: str | None = None,
+        metric_type: str | None = None,
+        owner_id: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """Get raw metrics.
@@ -459,9 +459,9 @@ class TelemetryService:
 
     def get_events(
         self,
-        name: Optional[str] = None,
-        deployment_id: Optional[str] = None,
-        owner_id: Optional[str] = None,
+        name: str | None = None,
+        deployment_id: str | None = None,
+        owner_id: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """Get telemetry events.
@@ -546,7 +546,7 @@ class TelemetryService:
 
     def _calculate_avg_time_to_value(
         self,
-        owner_id: Optional[str],
+        owner_id: str | None,
         cutoff: datetime,
     ) -> float:
         """Calculate average time from init to first successful deploy.

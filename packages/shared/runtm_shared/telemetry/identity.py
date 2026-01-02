@@ -9,7 +9,6 @@ import json
 import platform
 import uuid
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -18,7 +17,7 @@ class TelemetryIdentity(BaseModel):
     """Persistent telemetry identity stored on disk."""
 
     install_id: str = Field(description="Unique ID for this installation")
-    last_version: Optional[str] = Field(default=None, description="Last CLI version seen")
+    last_version: str | None = Field(default=None, description="Last CLI version seen")
     first_run_sent: bool = Field(default=False, description="Whether first_run event was sent")
 
 
@@ -32,17 +31,17 @@ class IdentityManager:
 
     DEFAULT_PATH = Path.home() / ".runtm" / "telemetry.json"
 
-    def __init__(self, identity_path: Optional[Path] = None) -> None:
+    def __init__(self, identity_path: Path | None = None) -> None:
         """Initialize identity manager.
 
         Args:
             identity_path: Path to identity file (defaults to ~/.runtm/telemetry.json)
         """
         self._identity_path = identity_path or self.DEFAULT_PATH
-        self._identity: Optional[TelemetryIdentity] = None
+        self._identity: TelemetryIdentity | None = None
         self._session_id: str = str(uuid.uuid4())
         self._is_first_run: bool = False
-        self._previous_version: Optional[str] = None
+        self._previous_version: str | None = None
 
     @property
     def install_id(self) -> str:
@@ -65,7 +64,7 @@ class IdentityManager:
         return self._is_first_run
 
     @property
-    def previous_version(self) -> Optional[str]:
+    def previous_version(self) -> str | None:
         """Get the previous CLI version (for upgrade detection)."""
         if self._identity is None:
             self._load_or_create_identity()

@@ -7,8 +7,6 @@ from __future__ import annotations
 # - User's system environment variables
 # - User's project .env.local (via secrets commands)
 # - ~/.runtm/config.yaml for CLI config (API URL, token)
-from typing import Optional
-
 import typer
 from rich.console import Console
 
@@ -61,7 +59,7 @@ app = typer.Typer(
 
 @app.command("init")
 def init(
-    template: Optional[str] = typer.Argument(
+    template: str | None = typer.Argument(
         None, help="Template type: backend-service, static-site, web-app"
     ),
     path: str = typer.Option(".", "--path", "-p"),
@@ -242,7 +240,9 @@ def logs(
     ),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON for AI agents"),
     raw: bool = typer.Option(False, "--raw", help="Raw output for piping to grep"),
-    follow: bool = typer.Option(False, "--follow", "-f", help="Follow logs in real-time (coming soon)"),
+    follow: bool = typer.Option(
+        False, "--follow", "-f", help="Follow logs in real-time (coming soon)"
+    ),
 ) -> None:
     """View deployment logs."""
     logs_command(
@@ -537,10 +537,9 @@ def config_reset(
     """
     from runtm_cli.config import reset_config
 
-    if not force:
-        if not typer.confirm("Reset all config to defaults?", default=False):
-            console.print("[dim]Cancelled.[/dim]")
-            raise typer.Exit(0)
+    if not force and not typer.confirm("Reset all config to defaults?", default=False):
+        console.print("[dim]Cancelled.[/dim]")
+        raise typer.Exit(0)
 
     reset_config()
     console.print("[green]✓[/green] Configuration reset to defaults")
@@ -661,7 +660,7 @@ def doctor() -> None:
 
 @app.command("login")
 def login(
-    token: Optional[str] = typer.Option(
+    token: str | None = typer.Option(
         None,
         "--token",
         "-t",

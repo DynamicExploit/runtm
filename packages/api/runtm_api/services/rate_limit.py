@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import time
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from fastapi import Depends, HTTPException
 
@@ -122,7 +122,7 @@ class RateLimiter:
         self,
         tenant_id: str,
         tier: RateLimitTier,
-        resource: Optional[str] = None,
+        resource: str | None = None,
     ) -> tuple[bool, int, int]:
         """Atomic token bucket rate limit check.
 
@@ -255,7 +255,7 @@ class RateLimiter:
 
 
 # Global rate limiter instance (set during app startup)
-_rate_limiter: Optional[RateLimiter] = None
+_rate_limiter: RateLimiter | None = None
 
 
 def set_rate_limiter(limiter: RateLimiter) -> None:
@@ -267,7 +267,7 @@ def set_rate_limiter(limiter: RateLimiter) -> None:
     _rate_limiter = limiter
 
 
-def get_rate_limiter() -> Optional[RateLimiter]:
+def get_rate_limiter() -> RateLimiter | None:
     """Get the global rate limiter instance.
 
     Returns:
@@ -276,7 +276,7 @@ def get_rate_limiter() -> Optional[RateLimiter]:
     return _rate_limiter
 
 
-def rate_limit(tier: RateLimitTier, resource: Optional[str] = None):
+def rate_limit(tier: RateLimitTier, resource: str | None = None):
     """Route dependency factory for rate limiting.
 
     Usage:

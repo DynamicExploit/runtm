@@ -10,7 +10,7 @@ approval may be required.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -26,9 +26,9 @@ class RequestedFeatures(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    database: Optional[bool] = None
-    auth: Optional[bool] = None
-    reason: Optional[str] = None  # Why the agent needs these features
+    database: bool | None = None
+    auth: bool | None = None
+    reason: str | None = None  # Why the agent needs these features
 
     def has_changes(self) -> bool:
         """Check if any features are being requested."""
@@ -47,8 +47,8 @@ class RequestedEnvVar(BaseModel):
     type: EnvVarType = EnvVarType.STRING
     required: bool = False
     secret: bool = False
-    description: Optional[str] = None
-    reason: Optional[str] = None  # Why the agent needs this
+    description: str | None = None
+    reason: str | None = None  # Why the agent needs this
 
     @field_validator("name")
     @classmethod
@@ -79,8 +79,8 @@ class RequestedConnection(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    env_vars: List[str]
-    reason: Optional[str] = None
+    env_vars: list[str]
+    reason: str | None = None
 
     @field_validator("name")
     @classmethod
@@ -96,10 +96,10 @@ class RequestedChanges(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    features: Optional[RequestedFeatures] = None
-    env_vars: List[RequestedEnvVar] = []
-    egress_allowlist: List[str] = []
-    connections: List[RequestedConnection] = []
+    features: RequestedFeatures | None = None
+    env_vars: list[RequestedEnvVar] = []
+    egress_allowlist: list[str] = []
+    connections: list[RequestedConnection] = []
 
 
 class RequestsFile(BaseModel):
@@ -134,7 +134,7 @@ class RequestsFile(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     requested: RequestedChanges = RequestedChanges()
-    notes: List[str] = []
+    notes: list[str] = []
 
     @classmethod
     def from_yaml(cls, yaml_content: str) -> RequestsFile:
@@ -185,13 +185,13 @@ class RequestsFile(BaseModel):
         data = self.to_dict()
         return yaml.safe_dump(data, default_flow_style=False, sort_keys=False)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary.
 
         Returns:
             Dictionary representation
         """
-        data: Dict[str, Any] = {"requested": {}}
+        data: dict[str, Any] = {"requested": {}}
 
         if self.requested.features and self.requested.features.has_changes():
             features_dict = {}

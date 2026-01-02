@@ -15,7 +15,6 @@ Design decisions:
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Optional
 from uuid import uuid4
 
 from sqlalchemy import text
@@ -46,9 +45,9 @@ class UsageService:
         self,
         auth: AuthContext,
         event_type: str,
-        deployment_id: Optional[str] = None,
-        request_id: Optional[str] = None,
-        metadata: Optional[dict] = None,
+        deployment_id: str | None = None,
+        request_id: str | None = None,
+        metadata: dict | None = None,
     ) -> UsageEvent:
         """Record a usage event with full attribution.
 
@@ -132,7 +131,7 @@ class UsageService:
     def get_current_usage(
         self,
         tenant_id: str,
-        resource_type: Optional[str] = None,
+        resource_type: str | None = None,
     ) -> dict[str, int]:
         """Get current period usage for a tenant.
 
@@ -156,9 +155,9 @@ class UsageService:
     def get_events(
         self,
         tenant_id: str,
-        event_type: Optional[str] = None,
-        deployment_id: Optional[str] = None,
-        since: Optional[datetime] = None,
+        event_type: str | None = None,
+        deployment_id: str | None = None,
+        since: datetime | None = None,
         limit: int = 100,
     ) -> list[UsageEvent]:
         """Get usage events for audit/billing (tenant-scoped).

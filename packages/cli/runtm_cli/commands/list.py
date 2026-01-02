@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -16,7 +14,7 @@ console = Console()
 
 
 def list_command(
-    state: Optional[str] = None,
+    state: str | None = None,
     limit: int = 50,
 ) -> None:
     """List all deployments.

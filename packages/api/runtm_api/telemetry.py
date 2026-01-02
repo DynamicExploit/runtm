@@ -9,8 +9,6 @@ Provides telemetry for the API control plane with:
 
 from __future__ import annotations
 
-from typing import Optional
-
 from runtm_shared.telemetry import (
     EventType,
     SpanManager,
@@ -20,7 +18,7 @@ from runtm_shared.telemetry import (
 )
 
 # Global telemetry service instance (initialized in app startup)
-_telemetry: Optional[TelemetryService] = None
+_telemetry: TelemetryService | None = None
 
 
 def get_telemetry() -> TelemetryService:
@@ -38,7 +36,7 @@ def get_telemetry() -> TelemetryService:
 
 
 def init_telemetry(
-    endpoint: Optional[str] = None,
+    endpoint: str | None = None,
     debug: bool = False,
     disabled: bool = False,
 ) -> TelemetryService:
@@ -85,7 +83,7 @@ def shutdown_telemetry() -> None:
 # === Middleware Support ===
 
 
-def extract_trace_context(traceparent: Optional[str]) -> Optional[tuple[str, str]]:
+def extract_trace_context(traceparent: str | None) -> tuple[str, str] | None:
     """Extract trace context from incoming request.
 
     Args:

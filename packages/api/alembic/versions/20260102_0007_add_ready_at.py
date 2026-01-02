@@ -10,9 +10,9 @@ Create Date: 2026-01-02
 
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0007"
@@ -27,17 +27,17 @@ def upgrade() -> None:
         "deployments",
         sa.Column("ready_at", sa.DateTime(timezone=True), nullable=True),
     )
-    
+
     # Backfill existing ready deployments with a reasonable estimate
     # For deployments that are already ready, we estimate ready_at as created_at + some buffer
     # This isn't perfect but gives us a starting point
     # Note: We can't perfectly recover the original ready time, but we can make a reasonable estimate
     op.execute("""
-        UPDATE deployments 
-        SET ready_at = updated_at 
+        UPDATE deployments
+        SET ready_at = updated_at
         WHERE state = 'ready' AND is_latest = true
     """)
-    
+
     # For older superseded deployments, try to estimate from the next deployment's created_at
     # This is complex, so we'll leave those as NULL for now - they'll just show as "N/A" in dashboard
 
@@ -45,4 +45,3 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Remove ready_at column from deployments table."""
     op.drop_column("deployments", "ready_at")
-

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import (
     Boolean,
@@ -58,8 +57,8 @@ class Deployment(Base):
     )
 
     # Legacy owner_id (kept for backwards compatibility, may be removed)
-    owner_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    api_key_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    owner_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    api_key_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # Deployment metadata
     name: Mapped[str] = mapped_column(String(63), nullable=False)
@@ -76,34 +75,34 @@ class Deployment(Base):
     manifest_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
     # Error message (populated on failure)
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Deployment URL (populated when ready)
-    url: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    url: Mapped[str | None] = mapped_column(String(256), nullable=True)
 
     # Version tracking for redeployments
     version: Mapped[int] = mapped_column(nullable=False, default=1)
     is_latest: Mapped[bool] = mapped_column(nullable=False, default=True)
-    previous_deployment_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    previous_deployment_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     # Discovery metadata from runtm.discovery.yaml (for search/discoverability)
-    discovery_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    discovery_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # Source hash for config-only deploys (git SHA or source tree hash)
     # Used to validate --config-only deploys haven't changed source code
-    src_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    src_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # Config-only deploy flag (skip build, reuse previous image)
     config_only: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # App lifespan - NULL means forever, set by policy provider
     # When set, app should be stopped/destroyed by reaper job after this time
-    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Deployment completion timestamp (set when state transitions to 'ready')
     # Use this for calculating actual deploy time, NOT updated_at
     # updated_at changes when is_latest is set to false by newer deployments
-    ready_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    ready_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -119,7 +118,7 @@ class Deployment(Base):
     )
 
     # Relationships
-    provider_resource: Mapped[Optional[ProviderResource]] = relationship(
+    provider_resource: Mapped[ProviderResource | None] = relationship(
         "ProviderResource",
         back_populates="deployment",
         uselist=False,
@@ -172,7 +171,7 @@ class ProviderResource(Base):
 
     # Image label for rollbacks/reuse (e.g., "dep-abc123")
     # Used with `flyctl deploy --image registry.fly.io/{app}:{label}`
-    image_label: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    image_label: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -313,7 +312,7 @@ class TelemetrySpan(Base):
     # Trace context (W3C Trace Context compatible)
     trace_id: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     span_id: Mapped[str] = mapped_column(String(16), nullable=False)
-    parent_span_id: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    parent_span_id: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     # Span metadata
     name: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
@@ -321,19 +320,19 @@ class TelemetrySpan(Base):
 
     # Timing (nanoseconds for precision)
     start_time_ns: Mapped[int] = mapped_column(nullable=False)
-    end_time_ns: Mapped[Optional[int]] = mapped_column(nullable=True)
+    end_time_ns: Mapped[int | None] = mapped_column(nullable=True)
 
     # Attributes (JSONB for flexibility)
     attributes: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
     # Link to deployment (optional)
-    deployment_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
+    deployment_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
 
     # Source service
-    service_name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    service_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # Multi-tenant support
-    owner_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    owner_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -347,7 +346,7 @@ class TelemetrySpan(Base):
     __table_args__ = (Index("ix_telemetry_spans_trace_parent", "trace_id", "parent_span_id"),)
 
     @property
-    def duration_ms(self) -> Optional[float]:
+    def duration_ms(self) -> float | None:
         """Get duration in milliseconds."""
         if self.end_time_ns is None:
             return None
@@ -377,17 +376,17 @@ class TelemetryEvent(Base):
     attributes: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
     # Optional trace context
-    trace_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
-    span_id: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    trace_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
+    span_id: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     # Link to deployment (optional)
-    deployment_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
+    deployment_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
 
     # Source service
-    service_name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    service_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # Multi-tenant support
-    owner_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    owner_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -427,15 +426,13 @@ class TelemetryMetric(Base):
     timestamp_ns: Mapped[int] = mapped_column(nullable=False)
 
     # Aggregation period (for pre-aggregated metrics)
-    bucket_period: Mapped[Optional[str]] = mapped_column(
-        String(16), nullable=True
-    )  # raw, hour, day
+    bucket_period: Mapped[str | None] = mapped_column(String(16), nullable=True)  # raw, hour, day
 
     # Source service
-    service_name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    service_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     # Multi-tenant support
-    owner_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    owner_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -492,15 +489,15 @@ class ApiKey(Base):
     pepper_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     # Metadata
-    name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     scopes: Mapped[list] = mapped_column(
         JSONB, nullable=False, default=list
     )  # Validated on write to enum-only
 
     # Lifecycle
     is_revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Audit
     created_by: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -555,8 +552,8 @@ class UsageEvent(Base):
     api_key_id: Mapped[str] = mapped_column(String(64), nullable=False)
 
     # Correlation
-    request_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    deployment_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
+    request_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    deployment_id: Mapped[str | None] = mapped_column(String(32), nullable=True, index=True)
 
     # Event details
     event_type: Mapped[str] = mapped_column(

@@ -27,7 +27,7 @@ def domain_add_command(
     """
     from runtm_cli.telemetry import command_span, emit_domain_added
 
-    with command_span("domain_add") as span:
+    with command_span("domain_add"):
         # Check auth
         token = get_token()
         if not token:
@@ -215,7 +215,7 @@ def domain_status_command(
     """
     from runtm_cli.telemetry import command_span
 
-    with command_span("domain_status") as span:
+    with command_span("domain_status"):
         # Check auth
         token = get_token()
         if not token:
@@ -344,7 +344,7 @@ def domain_remove_command(
     """
     from runtm_cli.telemetry import command_span, emit_domain_removed
 
-    with command_span("domain_remove") as span:
+    with command_span("domain_remove"):
         # Check auth
         token = get_token()
         if not token:

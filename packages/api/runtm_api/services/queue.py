@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional
 
 from redis import Redis
 from rq import Queue
@@ -14,10 +13,10 @@ logger = logging.getLogger(__name__)
 def enqueue_deployment(
     deployment_id: str,
     redis_url: str,
-    redeploy_from: Optional[str] = None,
-    secrets: Optional[Dict[str, str]] = None,
+    redeploy_from: str | None = None,
+    secrets: dict[str, str] | None = None,
     config_only: bool = False,
-) -> Optional[str]:
+) -> str | None:
     """Enqueue a deployment job to the worker queue.
 
     Args:

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from sqlalchemy.orm import Session
 
@@ -22,7 +21,7 @@ class IdempotencyService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_existing_deployment(self, idempotency_key: str) -> Optional[Deployment]:
+    def get_existing_deployment(self, idempotency_key: str) -> Deployment | None:
         """Check if an idempotency key already exists and return associated deployment.
 
         Args:
@@ -80,7 +79,7 @@ class IdempotencyService:
         return result
 
 
-def get_idempotency_key(headers: dict) -> Optional[str]:
+def get_idempotency_key(headers: dict) -> str | None:
     """Extract idempotency key from request headers.
 
     Args:

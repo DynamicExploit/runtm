@@ -6,13 +6,13 @@ allowing retry on next CLI invocation.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from .base import TelemetryBatch
 
@@ -47,8 +47,8 @@ class DiskSpool:
 
     def __init__(
         self,
-        spool_path: Optional[Path] = None,
-        config: Optional[SpoolConfig] = None,
+        spool_path: Path | None = None,
+        config: SpoolConfig | None = None,
     ) -> None:
         """Initialize the disk spool.
 
@@ -58,7 +58,7 @@ class DiskSpool:
         """
         self._spool_path = spool_path or self.DEFAULT_PATH
         self._config = config or SpoolConfig()
-        self._current_file: Optional[Path] = None
+        self._current_file: Path | None = None
         self._current_size = 0
 
     def ensure_directory(self) -> bool:
@@ -195,10 +195,8 @@ class DiskSpool:
         for file_path in self._spool_path.glob(
             f"{self._config.file_prefix}*{self._config.file_suffix}"
         ):
-            try:
+            with contextlib.suppress(OSError):
                 total += file_path.stat().st_size
-            except OSError:
-                pass
         return total
 
     def get_file_count(self) -> int:

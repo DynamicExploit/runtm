@@ -26,7 +26,6 @@ import hmac
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Optional
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -155,7 +154,7 @@ def _check_auth_rate_limit(ip: str, identifier: str = "") -> bool:
     return allowed
 
 
-def extract_bearer_token(request: Request) -> Optional[str]:
+def extract_bearer_token(request: Request) -> str | None:
     """Extract Bearer token from Authorization header.
 
     Args:

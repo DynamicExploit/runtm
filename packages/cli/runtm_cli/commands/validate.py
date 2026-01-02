@@ -305,7 +305,13 @@ def _run_eslint_check(path: Path) -> tuple[list[str], list[str]]:
         eslint_env = os.environ.copy()
         has_legacy_config = any(
             (path / f).exists()
-            for f in [".eslintrc", ".eslintrc.js", ".eslintrc.json", ".eslintrc.yaml", ".eslintrc.yml"]
+            for f in [
+                ".eslintrc",
+                ".eslintrc.js",
+                ".eslintrc.json",
+                ".eslintrc.yaml",
+                ".eslintrc.yml",
+            ]
         )
         if has_legacy_config:
             # ESLint 9+ requires this flag to use legacy .eslintrc configs
@@ -346,7 +352,9 @@ def _run_eslint_check(path: Path) -> tuple[list[str], list[str]]:
                     "Fix these errors or add eslint-disable comments if intentional."
                 )
             else:
-                errors.append("ESLint failed with no output. Run 'npx eslint .' locally for details.")
+                errors.append(
+                    "ESLint failed with no output. Run 'npx eslint .' locally for details."
+                )
         else:
             console.print("  [green]✓[/green] ESLint passed")
 
@@ -1172,10 +1180,9 @@ def validate_dockerfile_cache_hygiene(dockerfile_path: Path) -> list[str]:
 
     for pattern, tool in install_patterns:
         match = re.search(pattern, content_no_comments, re.IGNORECASE)
-        if match:
-            if first_install_pos is None or match.start() < first_install_pos:
-                first_install_pos = match.start()
-                install_tool = tool
+        if match and (first_install_pos is None or match.start() < first_install_pos):
+            first_install_pos = match.start()
+            install_tool = tool
 
     if first_install_pos is None:
         # No install command found - nothing to warn about

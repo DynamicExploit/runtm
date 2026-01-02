@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -45,8 +45,8 @@ class EnvVar(BaseModel):
     type: EnvVarType = EnvVarType.STRING
     required: bool = False
     secret: bool = False  # If true: redact from logs, inject securely
-    description: Optional[str] = None
-    default: Optional[str] = None
+    description: str | None = None
+    default: str | None = None
 
     @field_validator("name")
     @classmethod
@@ -82,7 +82,7 @@ class Connection(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    env_vars: List[str]
+    env_vars: list[str]
 
     @field_validator("name")
     @classmethod
@@ -96,7 +96,7 @@ class Connection(BaseModel):
 
     @field_validator("env_vars")
     @classmethod
-    def validate_env_vars(cls, v: List[str]) -> List[str]:
+    def validate_env_vars(cls, v: list[str]) -> list[str]:
         """Validate env_vars list is not empty."""
         if not v:
             raise ValueError("connection must reference at least one env var")
@@ -119,7 +119,7 @@ class Policy(BaseModel):
 
     mode: PolicyMode = PolicyMode.SANDBOX
     egress: str = "public"  # "public" or "allowlist"
-    egress_allowlist: List[str] = []
+    egress_allowlist: list[str] = []
 
     @field_validator("egress")
     @classmethod
@@ -226,19 +226,19 @@ class Manifest(BaseModel):
     tier: str = "starter"  # Machine tier: starter, standard, performance
 
     # Environment variable schema (declares what env vars the app needs)
-    env_schema: List[EnvVar] = []
+    env_schema: list[EnvVar] = []
 
     # Named connection bundles (syntactic sugar over env vars)
-    connections: List[Connection] = []
+    connections: list[Connection] = []
 
     # Deployment policy (informational in v1, enforced in org mode)
-    policy: Optional[Policy] = None
+    policy: Policy | None = None
 
     # Optional features (database, auth)
     features: Features = Field(default_factory=Features)
 
     # Persistent volumes (auto-populated when features.database=true)
-    volumes: List[VolumeMount] = []
+    volumes: list[VolumeMount] = []
 
     @field_validator("name")
     @classmethod
@@ -304,15 +304,15 @@ class Manifest(BaseModel):
         """Get the MachineTier enum for this manifest's tier setting."""
         return MachineTier(self.tier)
 
-    def get_secret_env_vars(self) -> List[EnvVar]:
+    def get_secret_env_vars(self) -> list[EnvVar]:
         """Get all env vars marked as secrets (for log redaction)."""
         return [ev for ev in self.env_schema if ev.secret]
 
-    def get_required_env_vars(self) -> List[EnvVar]:
+    def get_required_env_vars(self) -> list[EnvVar]:
         """Get all required env vars (for deploy validation)."""
         return [ev for ev in self.env_schema if ev.required]
 
-    def get_connection_env_vars(self, connection_name: str) -> List[str]:
+    def get_connection_env_vars(self, connection_name: str) -> list[str]:
         """Get env var names for a named connection."""
         for conn in self.connections:
             if conn.name == connection_name:
@@ -442,13 +442,13 @@ class Manifest(BaseModel):
         data = self.to_dict()
         return yaml.safe_dump(data, default_flow_style=False, sort_keys=False)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert manifest to dictionary.
 
         Returns:
             Dictionary representation of the manifest
         """
-        data: Dict[str, Any] = {
+        data: dict[str, Any] = {
             "name": self.name,
             "template": self.template,
             "runtime": self.runtime,

@@ -37,7 +37,7 @@ Usage:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from redis import Redis
@@ -51,9 +51,9 @@ CONCURRENT_DEPLOY_TTL_SECONDS = 6 * 60 * 60
 def reserve_concurrent_deploy(
     redis: Redis,
     tenant_id: str,
-    limit: Optional[int],
-    deployment_id: Optional[str] = None,
-) -> Tuple[bool, int]:
+    limit: int | None,
+    deployment_id: str | None = None,
+) -> tuple[bool, int]:
     """Atomically reserve a concurrent deploy slot.
 
     Uses INCR-then-check pattern for race-safe admission control.
@@ -101,7 +101,7 @@ def reserve_concurrent_deploy(
 def release_concurrent_deploy(
     redis: Redis,
     tenant_id: str,
-    deployment_id: Optional[str] = None,
+    deployment_id: str | None = None,
 ) -> int:
     """Release a concurrent deploy slot.
 

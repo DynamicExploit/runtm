@@ -7,7 +7,6 @@ In org mode (future), approval may be required before deploy.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Tuple
 
 import typer
 from rich.console import Console
@@ -40,9 +39,9 @@ def load_requests(path: Path) -> RequestsFile | None:
 
 
 def merge_env_vars(
-    existing: List[EnvVar],
-    requested: List[EnvVar],
-) -> Tuple[List[EnvVar], List[str]]:
+    existing: list[EnvVar],
+    requested: list[EnvVar],
+) -> tuple[list[EnvVar], list[str]]:
     """Merge requested env vars into existing list.
 
     Args:
@@ -65,9 +64,9 @@ def merge_env_vars(
 
 
 def merge_connections(
-    existing: List[Connection],
-    requested: List[Connection],
-) -> Tuple[List[Connection], List[str]]:
+    existing: list[Connection],
+    requested: list[Connection],
+) -> tuple[list[Connection], list[str]]:
     """Merge requested connections into existing list.
 
     Args:
@@ -92,7 +91,7 @@ def merge_connections(
 def merge_features(
     existing: Features,
     requested: RequestedFeatures,
-) -> Tuple[Features, List[str]]:
+) -> tuple[Features, list[str]]:
     """Merge requested features into existing features.
 
     Args:
@@ -220,14 +219,14 @@ def approve_command(
     # Prepare all merged values first (before creating new Manifest)
     # This ensures dependent changes (e.g., auth + AUTH_SECRET) are applied together
     merged_features = manifest.features
-    feature_changes: List[str] = []
+    feature_changes: list[str] = []
     if requests.requested.features and requests.requested.features.has_changes():
         merged_features, feature_changes = merge_features(
             manifest.features, requests.requested.features
         )
 
     merged_env = manifest.env_schema
-    added_env: List[str] = []
+    added_env: list[str] = []
     if requests.requested.env_vars:
         new_env_vars = [ev.to_env_var() for ev in requests.requested.env_vars]
         merged_env, added_env = merge_env_vars(manifest.env_schema, new_env_vars)

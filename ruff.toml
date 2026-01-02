@@ -19,9 +19,14 @@ select = [
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
+    "E402",   # module import not at top (intentional for env loading)
     "B008",   # do not perform function calls in argument defaults
     "B904",   # raise without from inside except
     "ARG001", # unused function argument
+    "ARG002", # unused method argument (needed for abstract methods)
+    "SIM102", # nested if statements (not always clearer combined)
+    "SIM105", # try-except-pass vs contextlib.suppress (style preference)
+    "SIM117", # nested with statements (style preference)
 ]
 
 [lint.isort]

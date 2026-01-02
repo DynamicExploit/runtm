@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
 
 from runtm_shared.types import CustomDomainInfo, MachineConfig, ProviderResource
 
@@ -14,8 +13,8 @@ class DeployResult:
     """Result of a deployment operation."""
 
     success: bool
-    resource: Optional[ProviderResource] = None
-    error: Optional[str] = None
+    resource: ProviderResource | None = None
+    error: str | None = None
     logs: str = ""
 
 
@@ -25,8 +24,8 @@ class ProviderStatus:
 
     state: str  # running, stopped, starting, failed
     healthy: bool
-    url: Optional[str] = None
-    error: Optional[str] = None
+    url: str | None = None
+    error: str | None = None
 
 
 class DeployProvider(ABC):

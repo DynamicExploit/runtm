@@ -9,7 +9,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional, Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 class SpanStatus(Enum):
@@ -149,8 +149,8 @@ class TelemetryEvent:
     name: str
     timestamp_ns: int = field(default_factory=_time_ns)
     attributes: dict[str, Any] = field(default_factory=dict)
-    trace_id: Optional[str] = None
-    span_id: Optional[str] = None
+    trace_id: str | None = None
+    span_id: str | None = None
 
     def __post_init__(self) -> None:
         """Validate attributes against allowlist."""
@@ -190,9 +190,9 @@ class TelemetrySpan:
     name: str
     trace_id: str
     span_id: str
-    parent_span_id: Optional[str] = None
+    parent_span_id: str | None = None
     start_time_ns: int = field(default_factory=_time_ns)
-    end_time_ns: Optional[int] = None
+    end_time_ns: int | None = None
     status: SpanStatus = SpanStatus.UNSET
     attributes: dict[str, Any] = field(default_factory=dict)
     events: list[TelemetryEvent] = field(default_factory=list)
@@ -206,7 +206,7 @@ class TelemetrySpan:
         self.end_time_ns = time.time_ns()
         self.status = status
 
-    def add_event(self, name: str, attributes: Optional[dict[str, Any]] = None) -> None:
+    def add_event(self, name: str, attributes: dict[str, Any] | None = None) -> None:
         """Add an event to the span."""
         event = TelemetryEvent(
             name=name,
@@ -222,7 +222,7 @@ class TelemetrySpan:
             self.attributes[key] = value
 
     @property
-    def duration_ms(self) -> Optional[float]:
+    def duration_ms(self) -> float | None:
         """Get duration in milliseconds."""
         if self.end_time_ns is None:
             return None

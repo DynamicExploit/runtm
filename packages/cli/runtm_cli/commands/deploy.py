@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -28,7 +27,7 @@ def deploy_command(
     wait: bool = True,
     timeout: int = 500,
     new: bool = False,
-    tier: Optional[str] = None,
+    tier: str | None = None,
     yes: bool = False,
     config_only: bool = False,
     skip_validation: bool = False,
@@ -63,9 +62,9 @@ def deploy_command(
     )
 
     deploy_start_time = time.time()
-    artifact_size: Optional[float] = None
+    artifact_size: float | None = None
 
-    with command_span("deploy", {"runtm.tier": tier or "default"}) as span:
+    with command_span("deploy", {"runtm.tier": tier or "default"}):
         # Validate tier if provided
         if tier is not None:
             try:
@@ -248,7 +247,7 @@ def deploy_command(
         client = APIClient()
 
         # Compute source hash for tracking and config-only validation
-        src_hash: Optional[str] = None
+        src_hash: str | None = None
         with phase_span("src_hash"):
             try:
                 src_hash = compute_src_hash(path)
@@ -296,7 +295,6 @@ def deploy_command(
 
         with phase_span("api_call"):
             # Emit deploy started event
-            is_redeploy = not new  # Will be updated after API call
             emit_deploy_started(
                 is_redeploy=False,
                 tier=tier,

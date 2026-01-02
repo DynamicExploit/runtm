@@ -9,7 +9,6 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 import typer
 from dotenv import dotenv_values, set_key
@@ -68,7 +67,7 @@ def ensure_cursorignore(path: Path) -> None:
     # Don't create .cursorignore if it doesn't exist - template should provide it
 
 
-def load_local_env(path: Path) -> Dict[str, str]:
+def load_local_env(path: Path) -> dict[str, str]:
     """Load environment variables from .env.local and .env files.
 
     Priority: .env.local > .env > environment
@@ -79,7 +78,7 @@ def load_local_env(path: Path) -> Dict[str, str]:
     Returns:
         Dict of env var name -> value
     """
-    env_vars: Dict[str, str] = {}
+    env_vars: dict[str, str] = {}
 
     # Load in reverse priority order (later overrides earlier)
     for env_file in reversed(ENV_FILES):
@@ -94,7 +93,7 @@ def load_local_env(path: Path) -> Dict[str, str]:
 def resolve_env_vars(
     path: Path,
     manifest: Manifest,
-) -> Tuple[Dict[str, str], List[str], List[str]]:
+) -> tuple[dict[str, str], list[str], list[str]]:
     """Resolve all env vars from schema against available sources.
 
     Resolution order:
@@ -110,9 +109,9 @@ def resolve_env_vars(
     Returns:
         Tuple of (resolved_vars, missing_required, warnings)
     """
-    resolved: Dict[str, str] = {}
-    missing_required: List[str] = []
-    warnings: List[str] = []
+    resolved: dict[str, str] = {}
+    missing_required: list[str] = []
+    warnings: list[str] = []
 
     # Load from files
     file_vars = load_local_env(path)
@@ -272,10 +271,7 @@ def secrets_list_command(
         elif name in os.environ:
             status = "[blue]env[/blue]"
         else:
-            if env_var.required:
-                status = "[red]missing[/red]"
-            else:
-                status = "[dim]unset[/dim]"
+            status = "[red]missing[/red]" if env_var.required else "[dim]unset[/dim]"
 
         row = [name, required, secret, status]
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Optional
 
 import questionary
 import typer
@@ -50,7 +49,7 @@ PROMPT_STYLE = Style(
 )
 
 
-def _find_project_root() -> Optional[Path]:
+def _find_project_root() -> Path | None:
     """Find the project root directory by looking for pyproject.toml.
 
     Returns:
@@ -102,7 +101,7 @@ def prompt_template_selection() -> str:
     return result
 
 
-def get_template_path(template: str) -> Optional[Path]:
+def get_template_path(template: str) -> Path | None:
     """Get path to template directory.
 
     Args:
@@ -133,7 +132,7 @@ def get_template_path(template: str) -> Optional[Path]:
     return None
 
 
-def _get_old_template(dest_path: Path) -> Optional[str]:
+def _get_old_template(dest_path: Path) -> str | None:
     """Detect the old template from existing runtm.yaml.
 
     Args:
@@ -216,7 +215,7 @@ def _cleanup_old_template(dest_path: Path, old_template: str) -> None:
 def copy_template(
     template_path: Path,
     dest_path: Path,
-    name: Optional[str] = None,
+    name: str | None = None,
     cleanup_old: bool = False,
 ) -> None:
     """Copy template to destination.
@@ -261,7 +260,7 @@ def copy_template(
 
 
 def init_command(
-    template: Optional[str] = typer.Argument(
+    template: str | None = typer.Argument(
         None,
         help="Template type: backend-service, static-site, or web-app",
     ),
@@ -271,7 +270,7 @@ def init_command(
         "-p",
         help="Destination directory",
     ),
-    name: Optional[str] = typer.Option(
+    name: str | None = typer.Option(
         None,
         "--name",
         "-n",
@@ -307,7 +306,7 @@ def init_command(
 
     start_time = time.time()
 
-    with command_span("init", {"runtm.template": template_name}) as span:
+    with command_span("init", {"runtm.template": template_name}):
         # Get template path
         template_path = get_template_path(template_name)
         if not template_path:

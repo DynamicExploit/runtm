@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 
 class RuntmError(Exception):
     """Base exception for all Runtm errors.
@@ -14,8 +12,8 @@ class RuntmError(Exception):
     def __init__(
         self,
         message: str,
-        recovery_hint: Optional[str] = None,
-        error_code: Optional[str] = None,
+        recovery_hint: str | None = None,
+        error_code: str | None = None,
     ):
         super().__init__(message)
         self.message = message
@@ -63,7 +61,7 @@ class ManifestNotFoundError(ManifestError):
 class ManifestValidationError(ManifestError):
     """Raised when runtm.yaml fails validation."""
 
-    def __init__(self, message: str, field: Optional[str] = None):
+    def __init__(self, message: str, field: str | None = None):
         hint = "Check your runtm.yaml for syntax errors"
         if field:
             hint = f"Fix the '{field}' field in your runtm.yaml"
@@ -202,7 +200,7 @@ class DeployTimeoutError(DeploymentError):
 class HealthCheckError(DeploymentError):
     """Raised when health check fails."""
 
-    def __init__(self, health_path: str, status_code: Optional[int] = None):
+    def __init__(self, health_path: str, status_code: int | None = None):
         if status_code:
             msg = f"Health check at {health_path} returned {status_code}"
         else:
@@ -239,7 +237,7 @@ class InvalidTokenError(AuthError):
 class RateLimitError(AuthError):
     """Raised when rate limit is exceeded."""
 
-    def __init__(self, retry_after_seconds: Optional[int] = None):
+    def __init__(self, retry_after_seconds: int | None = None):
         msg = "Rate limit exceeded"
         hint = "Wait before making more requests"
         if retry_after_seconds:
@@ -266,7 +264,7 @@ class ProviderError(RuntmError):
 class FlyError(ProviderError):
     """Raised when Fly.io API returns an error."""
 
-    def __init__(self, message: str, status_code: Optional[int] = None):
+    def __init__(self, message: str, status_code: int | None = None):
         super().__init__(
             message=f"Fly.io error: {message}",
             recovery_hint="Check your FLY_API_TOKEN and try again",

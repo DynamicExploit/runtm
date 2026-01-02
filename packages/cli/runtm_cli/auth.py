@@ -14,9 +14,9 @@ Design notes:
 
 from __future__ import annotations
 
+import contextlib
 import os
 from pathlib import Path
-from typing import Optional
 from urllib.parse import urlparse
 
 import keyring
@@ -46,7 +46,7 @@ def _keyring_key(api_url: str) -> str:
     return f"api_token@{host}"
 
 
-def get_token(api_url: Optional[str] = None) -> Optional[str]:
+def get_token(api_url: str | None = None) -> str | None:
     """Get token: env var -> file -> keychain.
 
     Args:
@@ -81,7 +81,7 @@ def get_token(api_url: Optional[str] = None) -> Optional[str]:
     return None
 
 
-def get_token_source(api_url: Optional[str] = None) -> str:
+def get_token_source(api_url: str | None = None) -> str:
     """Return which storage has the active token.
 
     Args:
@@ -113,7 +113,7 @@ def get_token_source(api_url: Optional[str] = None) -> str:
     return "none"
 
 
-def get_keyring_key(api_url: Optional[str] = None) -> str:
+def get_keyring_key(api_url: str | None = None) -> str:
     """Get the keyring key name for display purposes.
 
     Args:
@@ -126,7 +126,7 @@ def get_keyring_key(api_url: Optional[str] = None) -> str:
     return _keyring_key(api_url)
 
 
-def set_token(token: str, api_url: Optional[str] = None) -> str:
+def set_token(token: str, api_url: str | None = None) -> str:
     """Store token in file with 0o600 permissions (default, no popups).
 
     Args:
@@ -147,15 +147,13 @@ def set_token(token: str, api_url: Optional[str] = None) -> str:
             f.write(token)
     except Exception:
         # If fdopen fails, close the fd manually
-        try:
+        with contextlib.suppress(Exception):
             os.close(fd)
-        except Exception:
-            pass
         raise
     return "file"
 
 
-def clear_token(api_url: Optional[str] = None) -> None:
+def clear_token(api_url: str | None = None) -> None:
     """Remove token from both keychain and file.
 
     Args:

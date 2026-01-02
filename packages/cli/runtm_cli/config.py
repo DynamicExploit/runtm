@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import yaml
 from pydantic import BaseModel, ConfigDict
@@ -80,7 +80,7 @@ def load_config() -> CLIConfig:
     config_file = get_config_file()
 
     # Start with defaults
-    config_data: Dict[str, Any] = {}
+    config_data: dict[str, Any] = {}
 
     # Load from file if exists
     if config_file.exists():
@@ -172,7 +172,7 @@ def set_config_value(key: str, value: str) -> None:
     save_config(config)
 
 
-def get_config_value(key: str) -> Optional[str]:
+def get_config_value(key: str) -> str | None:
     """Get a single config value.
 
     Args:
@@ -202,7 +202,7 @@ def reset_config() -> None:
 # Kept for backward compatibility with older scripts
 
 
-def get_token() -> Optional[str]:
+def get_token() -> str | None:
     """Get API token (delegates to auth.py).
 
     DEPRECATED: Use runtm_cli.auth.get_token() instead.

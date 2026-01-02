@@ -10,13 +10,14 @@ Implements:
 from __future__ import annotations
 
 import atexit
+import contextlib
 import logging
 import queue
 import random
 import threading
 import time
 from dataclasses import dataclass
-from typing import Callable, Optional, Union
+from typing import Callable, Union
 
 from .base import (
     BaseExporter,
@@ -65,9 +66,9 @@ class BatchExporter:
     def __init__(
         self,
         exporter: BaseExporter,
-        config: Optional[ExporterConfig] = None,
-        on_dropped: Optional[Callable[[int], None]] = None,
-        on_flush_failure: Optional[Callable[[], None]] = None,
+        config: ExporterConfig | None = None,
+        on_dropped: Callable[[int], None] | None = None,
+        on_flush_failure: Callable[[], None] | None = None,
     ) -> None:
         """Initialize the batch exporter.
 
@@ -92,7 +93,7 @@ class BatchExporter:
 
         # Background thread
         self._shutdown_event = threading.Event()
-        self._flush_thread: Optional[threading.Thread] = None
+        self._flush_thread: threading.Thread | None = None
         self._lock = threading.Lock()
         self._started = False
 
@@ -183,10 +184,8 @@ class BatchExporter:
         except queue.Full:
             self._dropped_count += 1
             if self._on_dropped:
-                try:
+                with contextlib.suppress(Exception):
                     self._on_dropped(1)
-                except Exception:
-                    pass
             return False
 
     def _flush_loop(self) -> None:
@@ -290,12 +289,10 @@ class BatchExporter:
         )
 
         if self._on_flush_failure:
-            try:
+            with contextlib.suppress(Exception):
                 self._on_flush_failure()
-            except Exception:
-                pass
 
-    def flush(self, timeout: Optional[float] = None) -> bool:
+    def flush(self, timeout: float | None = None) -> bool:
         """Flush all pending items.
 
         Args:
@@ -338,10 +335,8 @@ class BatchExporter:
             self._started = False
 
             # Unregister atexit handler
-            try:
+            with contextlib.suppress(Exception):
                 atexit.unregister(self.shutdown)
-            except Exception:
-                pass
 
     @property
     def dropped_count(self) -> int:

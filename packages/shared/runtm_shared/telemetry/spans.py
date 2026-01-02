@@ -9,12 +9,12 @@ import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
-from typing import Any, Optional
+from typing import Any
 
 from .base import SpanStatus, TelemetrySpan
 
 # Context variable for current span
-_current_span: ContextVar[Optional[TelemetrySpan]] = ContextVar("current_span", default=None)
+_current_span: ContextVar[TelemetrySpan | None] = ContextVar("current_span", default=None)
 
 
 def generate_trace_id() -> str:
@@ -44,23 +44,23 @@ class SpanManager:
         self._completed_spans: list[TelemetrySpan] = []
 
     @property
-    def current_span(self) -> Optional[TelemetrySpan]:
+    def current_span(self) -> TelemetrySpan | None:
         """Get the current active span."""
         return _current_span.get()
 
     @property
-    def current_trace_id(self) -> Optional[str]:
+    def current_trace_id(self) -> str | None:
         """Get the current trace ID."""
         span = self.current_span
         return span.trace_id if span else None
 
     @property
-    def current_span_id(self) -> Optional[str]:
+    def current_span_id(self) -> str | None:
         """Get the current span ID."""
         span = self.current_span
         return span.span_id if span else None
 
-    def get_traceparent(self) -> Optional[str]:
+    def get_traceparent(self) -> str | None:
         """Get the W3C traceparent header value for the current span.
 
         Returns:
@@ -75,7 +75,7 @@ class SpanManager:
         return f"00-{span.trace_id}-{span.span_id}-01"
 
     @staticmethod
-    def parse_traceparent(header: str) -> Optional[tuple[str, str]]:
+    def parse_traceparent(header: str) -> tuple[str, str] | None:
         """Parse a W3C traceparent header.
 
         Args:
@@ -98,9 +98,9 @@ class SpanManager:
     def start_span(
         self,
         name: str,
-        attributes: Optional[dict[str, Any]] = None,
-        trace_id: Optional[str] = None,
-        parent_span_id: Optional[str] = None,
+        attributes: dict[str, Any] | None = None,
+        trace_id: str | None = None,
+        parent_span_id: str | None = None,
     ) -> TelemetrySpan:
         """Start a new span.
 
@@ -160,7 +160,7 @@ class SpanManager:
     def span(
         self,
         name: str,
-        attributes: Optional[dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> Generator[TelemetrySpan, None, None]:
         """Context manager for creating spans.
 
@@ -191,7 +191,7 @@ class SpanManager:
     def add_event(
         self,
         name: str,
-        attributes: Optional[dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> None:
         """Add an event to the current span.
 
@@ -227,7 +227,7 @@ class SpanManager:
     def create_child_span(
         self,
         name: str,
-        attributes: Optional[dict[str, Any]] = None,
+        attributes: dict[str, Any] | None = None,
     ) -> TelemetrySpan:
         """Create a child span of the current span.
 
@@ -256,8 +256,8 @@ class SpanManager:
         self,
         name: str,
         traceparent: str,
-        attributes: Optional[dict[str, Any]] = None,
-    ) -> Optional[TelemetrySpan]:
+        attributes: dict[str, Any] | None = None,
+    ) -> TelemetrySpan | None:
         """Start a span from a traceparent header.
 
         Used for continuing a trace from an incoming request.
