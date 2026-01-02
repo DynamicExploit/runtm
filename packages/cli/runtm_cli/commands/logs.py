@@ -53,7 +53,7 @@ def logs_command(
         False,
         "--follow",
         "-f",
-        help="Follow logs (not yet implemented)",
+        help="Follow logs in real-time (coming soon)",
     ),
 ) -> None:
     """View deployment logs.
@@ -87,7 +87,7 @@ def logs_command(
         raise typer.Exit(1)
 
     if follow and not json_output:
-        console.print("[yellow]⚠[/yellow] Log following not yet implemented. Showing current logs.")
+        console.print("[yellow]⚠[/yellow] Real-time log following coming soon. Showing current logs.")
         console.print()
 
     # Get logs

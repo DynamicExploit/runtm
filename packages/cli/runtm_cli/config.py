@@ -198,8 +198,8 @@ def reset_config() -> None:
     save_config(config)
 
 
-# Legacy compatibility - these now delegate to auth.py
-# TODO: Remove these after updating all callers to use auth.py directly
+# Legacy compatibility - these delegate to auth.py
+# Kept for backward compatibility with older scripts
 
 
 def get_token() -> Optional[str]:

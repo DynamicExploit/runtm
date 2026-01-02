@@ -1,6 +1,6 @@
 [project]
 name = "runtm"
-version = "0.2.4"
+version = "0.2.6"
 description = "The runtime + control plane for agent-built software: create, run, deploy, observe, reuse and destroy apps"
 readme = "README.md"
 license = { text = "Apache-2.0" }

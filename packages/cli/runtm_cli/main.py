@@ -242,7 +242,7 @@ def logs(
     ),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON for AI agents"),
     raw: bool = typer.Option(False, "--raw", help="Raw output for piping to grep"),
-    follow: bool = typer.Option(False, "--follow", "-f", help="Follow logs (not implemented)"),
+    follow: bool = typer.Option(False, "--follow", "-f", help="Follow logs in real-time (coming soon)"),
 ) -> None:
     """View deployment logs."""
     logs_command(
@@ -740,18 +740,11 @@ def login(
             console.print("  export RUNTM_DEVICE_AUTH_URL=https://your-auth-server/device")
             raise typer.Exit(1)
 
-        # Device flow authentication
+        # Device flow authentication (coming soon)
         emit_login_started(auth_method="device")
-        console.print("[yellow]Device flow not yet implemented[/yellow]")
+        console.print("[yellow]Device flow coming soon[/yellow]")
         console.print("Please use --token for now")
         raise typer.Exit(1)
-
-        # TODO: Implement device flow
-        # 1. POST to device_auth_url to get device_code and user_code
-        # 2. Show user_code and verification URL
-        # 3. Poll for token completion
-        # 4. Save token via set_token()
-        # emit_login_completed(auth_method="device")
     else:
         # Token-based authentication
         if token is None:

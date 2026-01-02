@@ -236,7 +236,7 @@ def validate_project(
         for warning in node_warnings:
             result.add_warning(warning)
 
-    # Fullstack (web-app) validation - check backend Python imports
+    # Fullstack (web-app) validation - check backend Python imports and frontend Node.js
     if manifest and manifest.runtime == "fullstack":
         backend_path = path / "backend"
         if backend_path.exists():
@@ -255,6 +255,17 @@ def validate_project(
             for error in import_errors:
                 result.add_error(error)
             for warning in import_warnings:
+                result.add_warning(warning)
+
+        # Validate frontend Next.js (ESLint + TypeScript)
+        frontend_path = path / "frontend"
+        if frontend_path.exists() and (frontend_path / "package.json").exists():
+            node_errors, node_warnings = validate_node_project(
+                frontend_path, manifest, skip_validation=skip_validation
+            )
+            for error in node_errors:
+                result.add_error(error)
+            for warning in node_warnings:
                 result.add_warning(warning)
 
     return result.is_valid, result.errors, result.warnings
@@ -289,6 +300,17 @@ def _run_eslint_check(path: Path) -> tuple[list[str], list[str]]:
     console.print("  Checking ESLint...")
 
     try:
+        # Check if project uses legacy .eslintrc config (ESLint 8 style)
+        # If so, tell ESLint 9+ to use legacy config format
+        eslint_env = os.environ.copy()
+        has_legacy_config = any(
+            (path / f).exists()
+            for f in [".eslintrc", ".eslintrc.js", ".eslintrc.json", ".eslintrc.yaml", ".eslintrc.yml"]
+        )
+        if has_legacy_config:
+            # ESLint 9+ requires this flag to use legacy .eslintrc configs
+            eslint_env["ESLINT_USE_FLAT_CONFIG"] = "false"
+
         # Run ESLint with compact format for easy parsing
         # --max-warnings 0 makes any warning an error (matches Next.js production behavior)
         result = subprocess.run(
@@ -306,6 +328,7 @@ def _run_eslint_check(path: Path) -> tuple[list[str], list[str]]:
             text=True,
             timeout=60,
             cwd=str(path),
+            env=eslint_env,
         )
 
         if result.returncode != 0:
