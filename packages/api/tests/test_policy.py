@@ -142,6 +142,48 @@ class TestDefaultPolicyProvider:
 
         assert result.allowed is True
 
+    def test_max_apps_allows_redeploy_when_at_limit(
+        self, mock_settings: MagicMock, mock_db: MagicMock
+    ) -> None:
+        """Should allow redeploying existing app even when at app limit."""
+        mock_settings.default_max_apps_per_tenant = 5
+
+        mock_query = MagicMock()
+        mock_db.query.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        # first() returns a deployment (app exists), count() would return 5 (at limit)
+        mock_query.first.return_value = MagicMock()  # App exists
+        mock_query.count.return_value = 5  # At limit
+
+        with patch("runtm_api.core.config.get_settings", return_value=mock_settings):
+            provider = DefaultPolicyProvider()
+            # Pass app_name to trigger redeploy detection
+            result = provider.check_deploy("tenant_1", mock_db, app_name="existing-app")
+
+        assert result.allowed is True
+        assert result.reason is None
+
+    def test_max_apps_blocks_new_app_when_at_limit(
+        self, mock_settings: MagicMock, mock_db: MagicMock
+    ) -> None:
+        """Should block new app when at limit (app doesn't exist)."""
+        mock_settings.default_max_apps_per_tenant = 5
+
+        mock_query = MagicMock()
+        mock_db.query.return_value = mock_query
+        mock_query.filter.return_value = mock_query
+        # first() returns None (app doesn't exist), count() returns 5 (at limit)
+        mock_query.first.return_value = None  # New app
+        mock_query.count.return_value = 5  # At limit
+
+        with patch("runtm_api.core.config.get_settings", return_value=mock_settings):
+            provider = DefaultPolicyProvider()
+            result = provider.check_deploy("tenant_1", mock_db, app_name="brand-new-app")
+
+        assert result.allowed is False
+        assert "App limit reached" in result.reason
+        assert "Destroy an existing app" in result.reason
+
     def test_hourly_rate_limit_blocks(self, mock_settings: MagicMock, mock_db: MagicMock) -> None:
         """Should block when hourly deploy rate exceeded."""
         mock_settings.default_deploys_per_hour = 10
