@@ -22,7 +22,7 @@ from runtm_shared import Limits, Manifest, create_validation_result
 console = Console()
 
 # Bump this when validation logic changes to invalidate cache
-VALIDATOR_VERSION = "1"
+VALIDATOR_VERSION = "2"  # v2: Added ESLint + TypeScript validation for Node.js projects
 
 # Cache location for successful validations
 VALIDATION_CACHE_DIR = Path.home() / ".cache" / "runtm" / "validation"
@@ -228,7 +228,9 @@ def validate_project(
 
     # Node.js-specific validation
     if is_node_project:
-        node_errors, node_warnings = validate_node_project(path, manifest)
+        node_errors, node_warnings = validate_node_project(
+            path, manifest, skip_validation=skip_validation
+        )
         for error in node_errors:
             result.add_error(error)
         for warning in node_warnings:
@@ -258,12 +260,162 @@ def validate_project(
     return result.is_valid, result.errors, result.warnings
 
 
-def validate_node_project(path: Path, manifest: Manifest | None) -> tuple[list[str], list[str]]:
-    """Validate Node.js project structure.
+def _run_eslint_check(path: Path) -> tuple[list[str], list[str]]:
+    """Run ESLint to catch lint errors that will fail production build.
+
+    Next.js production builds (`next build`) fail on ESLint errors, but
+    development mode (`next dev`) only shows warnings. This catches those
+    errors locally before a 4+ minute remote build fails.
+
+    Args:
+        path: Path to project directory
+
+    Returns:
+        Tuple of (errors, warnings)
+    """
+    errors = []
+    warnings = []
+
+    # Check if ESLint is available in the project
+    eslint_bin = path / "node_modules" / ".bin" / "eslint"
+    if not eslint_bin.exists():
+        # ESLint not installed - can't validate, just warn
+        warnings.append(
+            "ESLint not found in node_modules - skipping lint validation. "
+            "Run 'npm install' to enable lint checks."
+        )
+        return errors, warnings
+
+    console.print("  Checking ESLint...")
+
+    try:
+        # Run ESLint with compact format for easy parsing
+        # --max-warnings 0 makes any warning an error (matches Next.js production behavior)
+        result = subprocess.run(
+            [
+                "npx",
+                "eslint",
+                ".",
+                "--max-warnings",
+                "0",
+                "--format",
+                "stylish",
+                "--no-error-on-unmatched-pattern",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd=str(path),
+        )
+
+        if result.returncode != 0:
+            # ESLint found errors
+            output = result.stdout.strip() or result.stderr.strip()
+
+            # Format the error message nicely
+            if output:
+                # Truncate very long output but keep it useful
+                if len(output) > 2000:
+                    output = output[:2000] + "\n... (truncated)"
+
+                errors.append(
+                    f"ESLint errors (will fail production build):\n{output}\n\n"
+                    "Fix these errors or add eslint-disable comments if intentional."
+                )
+            else:
+                errors.append("ESLint failed with no output. Run 'npx eslint .' locally for details.")
+        else:
+            console.print("  [green]✓[/green] ESLint passed")
+
+    except subprocess.TimeoutExpired:
+        warnings.append("ESLint check timed out after 60s - skipping")
+    except FileNotFoundError:
+        warnings.append("npx not found - skipping ESLint validation")
+    except Exception as e:
+        warnings.append(f"ESLint check failed: {e}")
+
+    return errors, warnings
+
+
+def _run_typescript_check(path: Path) -> tuple[list[str], list[str]]:
+    """Run TypeScript type check without emitting files.
+
+    Catches type errors that will fail the production build.
+
+    Args:
+        path: Path to project directory
+
+    Returns:
+        Tuple of (errors, warnings)
+    """
+    errors = []
+    warnings = []
+
+    # Check if TypeScript is available
+    tsc_bin = path / "node_modules" / ".bin" / "tsc"
+    if not tsc_bin.exists():
+        # TypeScript not installed - project might be JS-only
+        return errors, warnings
+
+    console.print("  Checking TypeScript...")
+
+    try:
+        # Run tsc --noEmit to check types without generating files
+        result = subprocess.run(
+            ["npx", "tsc", "--noEmit"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            cwd=str(path),
+        )
+
+        if result.returncode != 0:
+            # TypeScript found errors
+            output = result.stdout.strip() or result.stderr.strip()
+
+            if output:
+                # Truncate very long output
+                if len(output) > 2000:
+                    output = output[:2000] + "\n... (truncated)"
+
+                errors.append(
+                    f"TypeScript errors (will fail production build):\n{output}\n\n"
+                    "Fix these type errors before deploying."
+                )
+            else:
+                errors.append(
+                    "TypeScript compilation failed with no output. "
+                    "Run 'npx tsc --noEmit' locally for details."
+                )
+        else:
+            console.print("  [green]✓[/green] TypeScript passed")
+
+    except subprocess.TimeoutExpired:
+        warnings.append("TypeScript check timed out after 120s - skipping")
+    except FileNotFoundError:
+        warnings.append("npx not found - skipping TypeScript validation")
+    except Exception as e:
+        warnings.append(f"TypeScript check failed: {e}")
+
+    return errors, warnings
+
+
+def validate_node_project(
+    path: Path,
+    manifest: Manifest | None,
+    skip_validation: bool = False,
+) -> tuple[list[str], list[str]]:
+    """Validate Node.js project structure and build.
+
+    Performs:
+    1. JSON validation (package.json, tsconfig.json)
+    2. ESLint check (~3s) - catches lint errors that fail production builds
+    3. TypeScript check (~5-10s) - catches type errors
 
     Args:
         path: Path to project directory
         manifest: Parsed manifest (if available)
+        skip_validation: Skip ESLint/TypeScript checks (faster but riskier)
 
     Returns:
         Tuple of (errors, warnings)
@@ -308,6 +460,30 @@ def validate_node_project(path: Path, manifest: Manifest | None) -> tuple[list[s
             config_content = next_config_path.read_text()
             if "output" not in config_content or "'export'" not in config_content:
                 warnings.append("next.config.js should have output: 'export' for static deployment")
+
+    # Skip deep validation if requested
+    if skip_validation:
+        console.print("  [yellow]⚠[/yellow] Skipping Node.js build validation (--skip-validation)")
+        return errors, warnings
+
+    # Check if node_modules exists (required for ESLint/TypeScript checks)
+    if not (path / "node_modules").exists():
+        warnings.append(
+            "node_modules not found - skipping ESLint/TypeScript validation. "
+            "Run 'npm install' for full validation."
+        )
+        return errors, warnings
+
+    # Run ESLint check (~3s) - catches lint errors that fail Next.js production builds
+    eslint_errors, eslint_warnings = _run_eslint_check(path)
+    errors.extend(eslint_errors)
+    warnings.extend(eslint_warnings)
+
+    # Run TypeScript check (~5-10s) if tsconfig.json exists
+    if (path / "tsconfig.json").exists():
+        ts_errors, ts_warnings = _run_typescript_check(path)
+        errors.extend(ts_errors)
+        warnings.extend(ts_warnings)
 
     return errors, warnings
 

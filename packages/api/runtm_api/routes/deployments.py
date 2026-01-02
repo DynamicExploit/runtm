@@ -684,9 +684,28 @@ async def create_deployment(
         # The unique constraint requires only one is_latest=True per (tenant_id, name) (excluding destroyed/failed)
         # So we need to find and mark any existing is_latest deployment BEFORE creating the new one
         previous_deployment = None
-        previous_version = 0
         is_redeploy = False
 
+        # =========================================================================
+        # Version Tracking: Get max version from ALL deployments with same name
+        # =========================================================================
+        # This ensures version always increments, even after failed deployments
+        # Version tracking is separate from infrastructure reuse (redeploy)
+        from sqlalchemy import func as sql_func
+
+        max_version_result = (
+            db.query(sql_func.max(Deployment.version))
+            .filter(
+                Deployment.tenant_id == auth.tenant_id,
+                Deployment.name == parsed_manifest.name,
+            )
+            .scalar()
+        )
+        previous_version = max_version_result or 0
+
+        # =========================================================================
+        # Infrastructure Reuse: Find deployment to redeploy from
+        # =========================================================================
         # Always check for existing is_latest deployment to avoid constraint violations
         # (even with force_new=True, we need to mark existing as not latest)
         # Build the filter within tenant scope
@@ -728,7 +747,6 @@ async def create_deployment(
 
         if existing_latest:
             previous_deployment = existing_latest
-            previous_version = existing_latest.version
 
             # Only treat as redeploy if:
             # 1. Not forcing new deployment (force_new=False)
