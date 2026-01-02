@@ -74,6 +74,7 @@ class PolicyProvider(Protocol):
         tenant_id: str,
         db: Session,
         requested_tier: Optional[str] = None,
+        app_name: Optional[str] = None,
     ) -> PolicyCheckResult:
         """Check if tenant can create a deployment.
 
@@ -87,6 +88,7 @@ class PolicyProvider(Protocol):
             tenant_id: Tenant making the request
             db: Database session for queries
             requested_tier: Machine tier being requested (optional)
+            app_name: Name of the app being deployed (for redeploy detection)
 
         Returns:
             PolicyCheckResult with allowed status, reason, expires_at, and limits
@@ -123,6 +125,7 @@ class DefaultPolicyProvider:
         tenant_id: str,
         db: Session,
         requested_tier: Optional[str] = None,
+        app_name: Optional[str] = None,
     ) -> PolicyCheckResult:
         """Check limits and return result with limits attached.
 
@@ -160,14 +163,18 @@ class DefaultPolicyProvider:
                 return PolicyCheckResult(allowed=False, reason=str(e), limits=limits)
 
         # 2. Check max apps (is_latest=True, not DESTROYED/FAILED)
+        # Skip this check if deploying an existing app (redeploy)
         if limits.max_apps is not None:
-            app_count = self._count_active_apps(tenant_id, db)
-            if app_count >= limits.max_apps:
-                return PolicyCheckResult(
-                    allowed=False,
-                    reason=f"App limit reached ({app_count}/{limits.max_apps}).",
-                    limits=limits,
-                )
+            is_redeploy = app_name and self._app_exists(tenant_id, db, app_name)
+            if not is_redeploy:
+                app_count = self._count_active_apps(tenant_id, db)
+                if app_count >= limits.max_apps:
+                    return PolicyCheckResult(
+                        allowed=False,
+                        reason=f"App limit reached ({app_count}/{limits.max_apps}). "
+                        "Destroy an existing app to deploy a new one.",
+                        limits=limits,
+                    )
 
         # 3. Check deploy rate (hourly)
         if limits.deploys_per_hour is not None:
@@ -220,6 +227,34 @@ class DefaultPolicyProvider:
                 Deployment.state.notin_([DeploymentState.DESTROYED, DeploymentState.FAILED]),
             )
             .count()
+        )
+
+    def _app_exists(self, tenant_id: str, db: Session, app_name: str) -> bool:
+        """Check if an app with this name already exists (for redeploy detection).
+
+        Returns True if there's any deployment with this name that is not DESTROYED.
+        This allows redeploys of existing apps even when at the app limit.
+
+        Args:
+            tenant_id: Tenant to check for
+            db: Database session
+            app_name: Name of the app to check
+
+        Returns:
+            True if app exists and can be redeployed
+        """
+        from runtm_api.db.models import Deployment
+        from runtm_shared.types import DeploymentState
+
+        return (
+            db.query(Deployment)
+            .filter(
+                Deployment.tenant_id == tenant_id,
+                Deployment.name == app_name,
+                Deployment.state != DeploymentState.DESTROYED,
+            )
+            .first()
+            is not None
         )
 
     def _count_deploys_in_window(self, tenant_id: str, db: Session, hours: int) -> int:

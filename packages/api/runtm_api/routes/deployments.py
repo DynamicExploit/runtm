@@ -631,7 +631,10 @@ async def create_deployment(
     tier_to_check = tier or parsed_manifest.tier or "starter"
 
     # Check policy limits (except concurrent - handled separately with atomic Redis)
-    check_result = policy.check_deploy(auth.tenant_id, db, requested_tier=tier_to_check)
+    # Pass app_name to allow redeploys when at app limit
+    check_result = policy.check_deploy(
+        auth.tenant_id, db, requested_tier=tier_to_check, app_name=parsed_manifest.name
+    )
     if not check_result.allowed:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
