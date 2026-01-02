@@ -100,6 +100,11 @@ class Deployment(Base):
     # When set, app should be stopped/destroyed by reaper job after this time
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Deployment completion timestamp (set when state transitions to 'ready')
+    # Use this for calculating actual deploy time, NOT updated_at
+    # updated_at changes when is_latest is set to false by newer deployments
+    ready_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

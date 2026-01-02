@@ -1,6 +1,6 @@
 [project]
 name = "runtm-shared"
-version = "0.1.0"
+version = "0.2.0"
 description = "Canonical contracts for Runtm: manifest schema, types, errors"
 readme = "README.md"
 license = { text = "Apache-2.0" }

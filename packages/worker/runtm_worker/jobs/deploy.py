@@ -143,6 +143,8 @@ class DeployJob:
         Raises:
             DeploymentStateError: If transition not allowed
         """
+        from datetime import datetime, timezone
+
         current_state = deployment.state
         if not can_transition(current_state, new_state):
             raise DeploymentStateError(current_state.value, new_state.value)
@@ -152,6 +154,12 @@ class DeployJob:
             deployment.error_message = error_message
         if url:
             deployment.url = url
+
+        # Capture the completion timestamp when transitioning to READY
+        # This is the actual deploy time, not affected by subsequent updates
+        if new_state == DeploymentState.READY:
+            deployment.ready_at = datetime.now(timezone.utc)
+
         self.db.commit()
 
     def _save_provider_resource(self, deployment, resource, image_label: str | None = None) -> None:

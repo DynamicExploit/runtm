@@ -93,6 +93,7 @@ class DeploymentResponse(BaseModel):
     src_hash: Optional[str] = None  # Source hash for config-only validation
     created_at: datetime
     updated_at: datetime
+    ready_at: Optional[datetime] = None  # When deployment became ready (for deploy time calc)
     # Discovery metadata (if available)
     discovery: Optional[AppDiscoveryResponse] = None
 
@@ -149,6 +150,7 @@ class DeploymentResponse(BaseModel):
             src_hash=deployment.src_hash,
             created_at=deployment.created_at,
             updated_at=deployment.updated_at,
+            ready_at=deployment.ready_at,
             discovery=discovery,
         )
 
