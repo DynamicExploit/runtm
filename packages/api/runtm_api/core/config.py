@@ -81,6 +81,13 @@ class Settings(BaseSettings):
     # Requires explicit opt-in to prevent accidental exposure.
     allow_insecure_dev_auth: bool = False
 
+    # SECURITY: Trust X-Tenant-Id header from internal proxies
+    # When True (in single-tenant mode), the API will use the X-Tenant-Id header
+    # from requests authenticated with the service token (RUNTM_API_SECRET).
+    # This enables multi-tenant data isolation when the API is fronted by a
+    # trusted internal proxy that validates user auth.
+    trust_tenant_header: bool = False
+
     # Rate limiting
     rate_limit_enabled: bool = True
     rate_limit_requests_per_hour: int = 10

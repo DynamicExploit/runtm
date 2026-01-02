@@ -206,7 +206,7 @@ async def get_auth_context(
         )
 
     if settings.auth_mode == AuthMode.SINGLE_TENANT:
-        return _authenticate_single_tenant(token, settings)
+        return _authenticate_single_tenant(token, settings, request)
 
     if settings.auth_mode == AuthMode.MULTI_TENANT:
         return await _authenticate_multi_tenant(token, db, settings, request)
@@ -217,7 +217,7 @@ async def get_auth_context(
     )
 
 
-def _authenticate_single_tenant(token: str, settings: Settings) -> AuthContext:
+def _authenticate_single_tenant(token: str, settings: Settings, request: Request) -> AuthContext:
     """Authenticate in single-tenant mode using static token.
 
     SECURITY: In production, RUNTM_API_SECRET must be set. The insecure
@@ -271,10 +271,23 @@ def _authenticate_single_tenant(token: str, settings: Settings) -> AuthContext:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Determine tenant_id and principal_id
+    tenant_id = "default"
+    principal_id = "default"
+
+    if settings.trust_tenant_header:
+        # Trust headers from authenticated internal proxy
+        header_tenant_id = request.headers.get("X-Tenant-Id")
+        header_user_id = request.headers.get("X-User-Id")
+        if header_tenant_id:
+            tenant_id = header_tenant_id
+        if header_user_id:
+            principal_id = header_user_id
+
     return AuthContext(
         token=token,
-        tenant_id="default",
-        principal_id="default",
+        tenant_id=tenant_id,
+        principal_id=principal_id,
         scopes={
             ApiKeyScope.READ.value,
             ApiKeyScope.DEPLOY.value,
