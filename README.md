@@ -298,7 +298,7 @@ Runtm is opinionated about safety:
 
 ## Environment Variables & Secrets
 
-Runtm provides a simple, secure way to manage environment variables and secrets for your deployments.
+Declare environment variables in your manifest, store secrets locally, and Runtm injects them at deploy time.
 
 ### Declaring Environment Variables
 
@@ -622,15 +622,13 @@ api_url: https://your-runtm-instance.com
 
 ## License
 
-Runtm uses split licensing to balance open-source contribution with sustainable development:
+| Component | License |
+|-----------|---------|
+| Server (api, worker, infra) | [AGPLv3](packages/api/LICENSE) |
+| CLI, Shared | [Apache-2.0](packages/cli/LICENSE) |
+| Templates | [MIT](templates/LICENSE) |
 
-| Component | License | Rationale |
-|-----------|---------|-----------|
-| Server (api, worker, infra) | [AGPLv3](packages/api/LICENSE) | Protects hosted deployments |
-| CLI, Shared | [Apache-2.0](packages/cli/LICENSE) | Maximum adoption |
-| Templates | [MIT](templates/LICENSE) | Zero friction for users |
+**For contributors:** Server changes stay AGPL (share back if you host). CLI/shared are Apache-2.0 (do what you want). Templates are MIT (copy freely into your projects).
 
-The server components are AGPL to ensure improvements to hosted deployments remain open source. The CLI and shared libraries are Apache-2.0 for broad integration. Templates are MIT for maximum flexibility.
-
-See [LICENSE](LICENSE) for the full split license explanation.
+See [LICENSE](LICENSE) for details.
 

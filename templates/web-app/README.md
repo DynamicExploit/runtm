@@ -1,6 +1,6 @@
 # My Web App - Fullstack Template
 
-A production-ready fullstack web application template with Next.js frontend and FastAPI backend, deployed as a single container on [Runtm](https://runtm.com)—the runtime + control plane for agent-built software.
+Fullstack template: Next.js frontend + FastAPI backend, deployed as a single container via [Runtm](https://runtm.com).
 
 ## What is a Web App?
 
@@ -18,7 +18,7 @@ Interactive UI + backend for real user workflows. Combines a Next.js frontend wi
 - **TypeScript** - Full type safety
 - **Zustand** - Lightweight state management
 - **Tailwind CSS** - Utility-first styling
-- **Server Actions** - Seamless backend communication
+- **Server Actions** - Backend calls from components
 
 ### Backend
 - **FastAPI** - High-performance Python API
