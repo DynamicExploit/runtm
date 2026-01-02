@@ -60,10 +60,10 @@ class TestArtifactErrors:
     def test_artifact_too_large(self) -> None:
         """ArtifactTooLargeError should show sizes in MB."""
         error = ArtifactTooLargeError(
-            size_bytes=20 * 1024 * 1024,
-            max_bytes=15 * 1024 * 1024,
+            size_bytes=25 * 1024 * 1024,
+            max_bytes=20 * 1024 * 1024,
         )
-        assert "20.0 MB" in str(error)
+        assert "25.0 MB" in str(error)
         assert "20 MB" in str(error)
 
 

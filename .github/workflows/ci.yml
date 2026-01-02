@@ -125,7 +125,8 @@ jobs:
         env:
           DATABASE_URL: postgresql://runtm:runtm@localhost:5432/runtm
           REDIS_URL: redis://localhost:6379
-          RUNTM_API_TOKEN: test-token
+          DEBUG: "true"
+          RUNTM_API_SECRET: test-secret-for-ci-at-least-32-chars
           ARTIFACT_STORAGE_PATH: /tmp/artifacts
 
   test-cli:

@@ -30,7 +30,7 @@ def test_run_with_options():
     )
     assert response.status_code == 200
     data = response.json()
-    assert data["metadata"]["options"] == {"key": "value"}
+    assert data["metadata"]["options_used"] == {"key": "value"}
 
 
 def test_run_returns_metadata():

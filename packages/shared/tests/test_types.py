@@ -57,16 +57,22 @@ class TestStateTransitions:
         """DEPLOYING can transition to FAILED."""
         assert can_transition(DeploymentState.DEPLOYING, DeploymentState.FAILED)
 
-    def test_ready_is_terminal(self) -> None:
-        """READY is a terminal state."""
-        assert is_terminal_state(DeploymentState.READY)
+    def test_ready_allows_redeploy_and_destroy(self) -> None:
+        """READY can transition to QUEUED (redeploy) or DESTROYED."""
+        assert not is_terminal_state(DeploymentState.READY)
+        assert can_transition(DeploymentState.READY, DeploymentState.QUEUED)
+        assert can_transition(DeploymentState.READY, DeploymentState.DESTROYED)
         assert not can_transition(DeploymentState.READY, DeploymentState.FAILED)
-        assert not can_transition(DeploymentState.READY, DeploymentState.QUEUED)
 
-    def test_failed_is_terminal(self) -> None:
-        """FAILED is a terminal state."""
-        assert is_terminal_state(DeploymentState.FAILED)
-        assert not can_transition(DeploymentState.FAILED, DeploymentState.QUEUED)
+    def test_failed_allows_retry_and_destroy(self) -> None:
+        """FAILED can transition to QUEUED (retry) or DESTROYED."""
+        assert not is_terminal_state(DeploymentState.FAILED)
+        assert can_transition(DeploymentState.FAILED, DeploymentState.QUEUED)
+        assert can_transition(DeploymentState.FAILED, DeploymentState.DESTROYED)
+
+    def test_destroyed_is_terminal(self) -> None:
+        """DESTROYED is the only terminal state."""
+        assert is_terminal_state(DeploymentState.DESTROYED)
 
     def test_all_states_have_transitions_defined(self) -> None:
         """Every state should have an entry in ALLOWED_TRANSITIONS."""
