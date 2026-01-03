@@ -12,7 +12,7 @@ Deploy AI-generated tools and apps to live URLs in minutes. One command → depl
 
 <sub>▶️ Demo (speedup to showcase)</sub>
 
-<video src="assets/demo.mp4" controls width="100%"></video>
+https://github.com/user-attachments/assets/8d6d5ab8-a5c4-4a3d-8ef1-5d20b67ed3ee
 
 ### Who is Runtm for?
 
