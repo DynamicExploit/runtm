@@ -1,10 +1,18 @@
 # Runtm
 
+[![License: AGPL v3](https://img.shields.io/badge/Server-AGPLv3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![License: Apache 2.0](https://img.shields.io/badge/CLI-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License: MIT](https://img.shields.io/badge/Templates-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 > **runtm is the runtime + control plane for agent-built software: create, run, deploy, observe, reuse and destroy apps with guardrails and speed.**
 
 Deploy AI-generated tools and apps to live URLs in minutes. One command → deployed URL.
 
 🌐 **Website:** [runtm.com](https://runtm.com) · **Try it free:** [app.runtm.com](https://app.runtm.com)
+
+<sub>▶️ Demo (speedup to showcase)</sub>
+
+<video src="assets/demo.mp4" controls width="100%"></video>
 
 ### Who is Runtm for?
 
