@@ -1,6 +1,6 @@
 # My Service - Backend Service Template
 
-A FastAPI-based backend service template for building and deploying APIs on [Runtm](https://runtm.com)—the runtime + control plane for agent-built software.
+A FastAPI-based backend service template for building and deploying APIs on [Runtm](https://runtm.com).
 
 ## What is a Backend Service?
 
@@ -156,7 +156,7 @@ def test_my_feature():
 
 ## Deployment
 
-Get your free API key at **[app.runtm.com](https://app.runtm.com)** and deploy:
+Get your API key at [app.runtm.com](https://app.runtm.com) and deploy:
 
 ```bash
 # Login (first time only)
@@ -228,7 +228,7 @@ env_schema:
     secret: true
 ```
 
-> ⚠️ **SQLite = single writer.** Don't scale to multiple machines. Use Postgres for horizontal scaling.
+Note: SQLite supports a single writer. For horizontal scaling, use Postgres.
 
 ## License
 

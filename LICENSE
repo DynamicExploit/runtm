@@ -35,13 +35,8 @@ See templates/LICENSE for the full license text.
 
 Why this split?
 
-The server components (API and Worker) are licensed under AGPLv3 to ensure that
-improvements to hosted deployments remain open source. This follows the pattern
-used by Grafana, MinIO, and other open-core projects.
-
-The CLI and shared libraries are Apache-2.0 licensed for maximum adoption and
-ease of integration.
-
-Templates are MIT licensed with zero friction for users to build upon.
+Server components use AGPLv3 to ensure hosted deployments share improvements.
+CLI and shared libraries use Apache-2.0 for easy integration.
+Templates use MIT so you can freely build upon them.
 
 For specific license terms, see the LICENSE file in each package directory.

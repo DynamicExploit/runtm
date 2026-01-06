@@ -33,43 +33,21 @@ npm run format   # Format code
 
 ## Deploy
 
-Get your free API key at **[app.runtm.com](https://app.runtm.com)** and deploy:
+Get your API key at [app.runtm.com](https://app.runtm.com) and deploy:
 
 ```bash
-# Step 1: Check auth status
-runtm status
-
-# Step 2: Login (required once)
-runtm login
-
-# Step 3: Validate
+runtm login     # First time only
 runtm validate
-
-# Step 4: Deploy to a live URL (uses starter tier by default)
 runtm deploy
-
-# Or deploy with a specific tier
-runtm deploy --tier standard      # Medium tier (512MB RAM)
-runtm deploy --tier performance  # High tier (1GB RAM, 2 CPUs)
 ```
 
-### Machine Tiers
-
-All deployments use **auto-stop** for cost savings (machines stop when idle and start automatically on traffic).
-
-- **starter** (default): 1 shared CPU, 256MB RAM (~$2/month*)
-- **standard**: 1 shared CPU, 512MB RAM (~$5/month*)
-- **performance**: 2 shared CPUs, 1GB RAM (~$10/month*)
-
-*Costs are estimates for 24/7 operation. With auto-stop, costs are much lower for low-traffic services.
-
-You can also set the tier in `runtm.yaml`:
+You can set the tier in `runtm.yaml`:
 
 ```yaml
 name: my-site
 template: static-site
 runtime: node
-tier: starter  # Options: starter, standard, performance
+tier: starter  # starter, standard, performance
 ```
 
 ## Project Structure

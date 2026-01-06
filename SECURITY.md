@@ -2,9 +2,9 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
+| Version | Supported |
+| ------- | --------- |
+| 0.1.x   | Yes       |
 
 ## Reporting a Vulnerability
 
@@ -38,10 +38,7 @@ We will respond within 48 hours and work with you to understand and address the 
 ### Build/Deploy Limits
 - Build timeout: 10 minutes
 - Deploy timeout: 5 minutes
-- Machine tiers with resource limits:
-  - Starter: 1 shared CPU, 256 MB memory
-  - Standard: 1 shared CPU, 512 MB memory
-  - Performance: 2 shared CPUs, 1 GB memory
+- Machine tiers with resource limits (starter, standard, performance)
 
 ### Secrets Management
 - Secrets stored locally in `.env.local` (never on Runtm servers)

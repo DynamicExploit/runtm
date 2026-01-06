@@ -4,32 +4,30 @@
 [![License: Apache 2.0](https://img.shields.io/badge/CLI-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![License: MIT](https://img.shields.io/badge/Templates-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **runtm is the runtime + control plane for agent-built software: create, run, deploy, observe, reuse and destroy apps with guardrails and speed.**
+runtm is the runtime and control plane for agent-built software. Deploy AI-generated tools and apps to live URLs in minutes.
 
-Deploy AI-generated tools and apps to live URLs in minutes. One command → deployed URL.
+[runtm.com](https://runtm.com) | [app.runtm.com](https://app.runtm.com)
 
-🌐 **Website:** [runtm.com](https://runtm.com) · **Try it free:** [app.runtm.com](https://app.runtm.com)
-
-<sub>▶️ Demo (speedup to showcase)</sub>
+**Demo**
 
 https://github.com/user-attachments/assets/8d6d5ab8-a5c4-4a3d-8ef1-5d20b67ed3ee
 
 ### Who is Runtm for?
 
-- **AI-assisted developers** who want fast, safe deployments for code they're building with agents
-- **Teams building internal tools** generated partially or fully by AI
-- **OSS hackers** who want a reproducible runtime for agent-built apps  
-- **Infra-curious founders** who want control without rebuilding a PaaS
+- Developers building with AI assistants who want fast, safe deployments
+- Teams building internal tools generated partially or fully by AI
+- OSS hackers who want a reproducible runtime for agent-built apps
+- Founders who want control without rebuilding a PaaS
 
 ## Design Principles
 
-1. **Simplify to the most basic primitives** – Remove complexity, not add it
-2. **Make it extremely easy to use** – One command should do the job
-3. **Make it versatile and scalable** – Entire ecosystems can be built on top
-4. **Optimize for tight, closed feedback loops** – Fast iteration over perfect planning
-5. **Design for agents first, then for humans** – AI should be the primary user
-6. **Agents propose, humans set guardrails** – Freedom with governance
-7. **Make behavior explicit, observable, and reproducible** – No magic
+1. **Simplify to the most basic primitives** - Remove complexity, not add it
+2. **Make it extremely easy to use** - One command should do the job
+3. **Make it versatile and scalable** - Entire ecosystems can be built on top
+4. **Optimize for tight, closed feedback loops** - Fast iteration over perfect planning
+5. **Design for agents first, then for humans** - AI should be the primary user
+6. **Agents propose, humans set guardrails** - Freedom with governance
+7. **Make behavior explicit, observable, and reproducible** - No magic
 
 ## Installation
 
@@ -171,7 +169,7 @@ pytest packages/api/tests
 
 ## CLI Commands
 
-> **Most users only need:** `login`, `init`, `run`, `deploy`, `logs`, `destroy`
+Most users only need: `login`, `init`, `run`, `deploy`, `logs`, `destroy`
 
 ### Essential Commands
 
@@ -231,26 +229,20 @@ For self-hosting operators with direct database access:
 
 ### Machine Tiers
 
-Runtm supports three machine tiers, all with **auto-stop enabled** for cost savings (machines stop when idle and start automatically on traffic):
+Runtm supports three machine tiers, all with auto-stop enabled (machines stop when idle and start automatically on traffic):
 
-| Tier | CPUs | Memory | Est. Cost | Use Case |
-|------|------|--------|-----------|----------|
-| **starter** (default) | 1 shared | 256MB | ~$2/month* | Simple tools, APIs |
-| **standard** | 1 shared | 512MB | ~$5/month* | Most workloads |
-| **performance** | 2 shared | 1GB | ~$10/month* | Full-stack apps |
-
-*Costs are estimates for 24/7 operation. With auto-stop, costs are much lower for low-traffic services.
-
-**Usage:**
+| Tier | CPUs | Memory | Use Case |
+|------|------|--------|----------|
+| **starter** (default) | 1 shared | 256MB | Simple tools, APIs |
+| **standard** | 1 shared | 512MB | Most workloads |
+| **performance** | 2 shared | 1GB | Full-stack apps |
 
 ```bash
 # Deploy with default starter tier
 runtm deploy
 
-# Deploy with standard tier
+# Deploy with a specific tier
 runtm deploy --tier standard
-
-# Deploy with performance tier for full-stack apps
 runtm deploy --tier performance
 ```
 
@@ -260,7 +252,7 @@ You can also set the tier in `runtm.yaml`:
 name: my-service
 template: backend-service
 runtime: python
-tier: standard  # Options: starter, standard, performance
+tier: standard  # starter, standard, performance
 ```
 
 ### Deploy Options Reference
@@ -354,10 +346,10 @@ runtm secrets unset DATABASE_URL
 
 ### Security Features
 
-- **`.env.local` is auto-gitignored** - Secrets never get committed
-- **`.env.local` is auto-cursorignored** - AI agents can't see secret values
-- **Secrets are redacted from logs** - Values marked `secret: true` are replaced with `[REDACTED]`
-- **Deploy-time validation** - Missing required env vars block deployment
+- `.env.local` is auto-gitignored so secrets never get committed
+- `.env.local` is auto-cursorignored so AI agents can't see secret values
+- Secrets marked `secret: true` are redacted from logs
+- Missing required env vars block deployment
 
 ### Connections (Named Secret Bundles)
 
@@ -568,7 +560,7 @@ def get_items(db: Session = Depends(get_db)):
 
 **External PostgreSQL:** Set `DATABASE_URL` env var to use external Postgres instead of SQLite.
 
-> ⚠️ **SQLite limitation:** Single writer only. For horizontal scaling, use external PostgreSQL.
+Note: SQLite supports a single writer only. For horizontal scaling, use external PostgreSQL.
 
 ### Authentication (web-app only)
 
@@ -635,8 +627,6 @@ api_url: https://your-runtm-instance.com
 | Server (api, worker, infra) | [AGPLv3](packages/api/LICENSE) |
 | CLI, Shared | [Apache-2.0](packages/cli/LICENSE) |
 | Templates | [MIT](templates/LICENSE) |
-
-**For contributors:** Server changes stay AGPL (share back if you host). CLI/shared are Apache-2.0 (do what you want). Templates are MIT (copy freely into your projects).
 
 See [LICENSE](LICENSE) for details.
 

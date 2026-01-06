@@ -1,24 +1,20 @@
 # Contributing to Runtm
 
-Thank you for your interest in contributing to Runtm—the runtime + control plane for agent-built software!
+Thanks for your interest in contributing to Runtm.
 
-🌐 **Website:** [runtm.com](https://runtm.com) · **Try it free:** [app.runtm.com](https://app.runtm.com)
-
----
+[runtm.com](https://runtm.com) | [app.runtm.com](https://app.runtm.com)
 
 ## Design Principles
 
-These principles guide all decisions in Runtm. Please keep them in mind when contributing:
+These principles guide all decisions. Keep them in mind when contributing:
 
-1. **Simplify to the most basic primitives** 
-2. **Make it extremely easy to use** – One command should do the job
-3. **Make it versatile and scalable** – Entire ecosystems can be built on top
-4. **Optimize for tight, closed feedback loops** – Fast iteration over perfect planning
-5. **Design for agents first, then for humans** – AI should be the primary user
-6. **Agents propose, humans set guardrails** – Freedom with governance
-7. **Make behavior explicit, observable, and reproducible** – No magic
-
----
+1. **Simplify to the most basic primitives** - Remove complexity, not add it
+2. **Make it extremely easy to use** - One command should do the job
+3. **Make it versatile and scalable** - Entire ecosystems can be built on top
+4. **Optimize for tight, closed feedback loops** - Fast iteration over perfect planning
+5. **Design for agents first, then for humans** - AI should be the primary user
+6. **Agents propose, humans set guardrails** - Freedom with governance
+7. **Make behavior explicit, observable, and reproducible** - No magic
 
 ## For AI Assistants (Cursor, Claude Code, etc.)
 
@@ -30,8 +26,6 @@ If you're using an AI assistant to contribute, the `.cursor/rules/` directory co
 | `.cursor/rules/templates.mdc` | Template creation and maintenance guidelines |
 
 These files are automatically loaded by Cursor and provide essential context for AI-assisted development. You can replicate them to fit with Claude Code: CLAUDE.md.
-
----
 
 ## Development Setup
 
@@ -93,6 +87,7 @@ Start the full local stack (API, worker, database, Redis):
 ```
 
 Configure CLI to use local API:
+
 ```bash
 export RUNTM_API_URL=http://localhost:8000
 export RUNTM_API_KEY=dev-token-change-in-production
@@ -113,8 +108,6 @@ The `./scripts/dev.sh` helper automatically loads your `.env` file:
 | `./scripts/dev.sh test` | Run tests |
 | `./scripts/dev.sh lint` | Run linter |
 | `./scripts/dev.sh format` | Format code |
-
----
 
 ## Project Structure
 
@@ -143,8 +136,6 @@ infra/
 | `worker` | Build/deploy pipeline | Provider abstraction for Fly.io/Cloud Run |
 | `cli` | User interface | Wraps API client, never contains business logic |
 
----
-
 ## Code Style
 
 We use [Ruff](https://github.com/astral-sh/ruff) for linting and formatting:
@@ -164,13 +155,11 @@ ruff check --fix .
 
 ### Code Quality Standards
 
-- **Structured logging everywhere** – No print statements
-- **Clean error messages** – Explain how to recover
-- **Idempotency** – Retries create same result
-- **Type hints** – All functions typed
-- **Tests** – Real tests for critical paths
-
----
+- Structured logging everywhere, no print statements
+- Clean error messages that explain how to recover
+- Idempotency: retries create same result
+- Type hints on all functions
+- Real tests for critical paths
 
 ## Testing
 
@@ -191,8 +180,6 @@ pytest packages/cli/tests
 # With coverage
 pytest --cov=runtm_api packages/api/tests
 ```
-
----
 
 ## Architecture Guidelines
 
@@ -238,8 +225,6 @@ pytest --cov=runtm_api packages/api/tests
 
 See `.cursor/rules/templates.mdc` for comprehensive template guidelines.
 
----
-
 ## Pull Request Process
 
 1. Create a feature branch from `main`:
@@ -270,10 +255,6 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 - `refactor:` Code refactoring
 - `test:` Test additions/changes
 
----
-
 ## Questions?
 
-- Open a GitHub issue or discussion for any questions about contributing
-- Visit [runtm.com](https://runtm.com) to learn more about Runtm
-- Try Runtm for free at [app.runtm.com](https://app.runtm.com)
+Open a GitHub issue or discussion for any questions about contributing.

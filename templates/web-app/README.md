@@ -240,7 +240,7 @@ export async function getMyPageData(): Promise<MyData> {
 
 ## Deployment
 
-Get your free API key at **[app.runtm.com](https://app.runtm.com)** and deploy:
+Get your API key at [app.runtm.com](https://app.runtm.com) and deploy:
 
 ```bash
 # Login (first time only)
@@ -255,13 +255,7 @@ runtm deploy
 
 ### Resource Requirements
 
-Fullstack apps run both Next.js and FastAPI simultaneously, requiring at least the **standard** tier (512MB RAM). The `runtm.yaml` is pre-configured with `tier: standard`.
-
-| Tier | RAM | Use Case |
-|------|-----|----------|
-| starter | 256MB | ❌ Not supported for fullstack |
-| standard | 512MB | ✅ Recommended for most apps |
-| performance | 1GB | For heavier workloads |
+Fullstack apps run both Next.js and FastAPI simultaneously, requiring at least the standard tier (512MB RAM). The `runtm.yaml` is pre-configured with `tier: standard`.
 
 ## Customization
 
@@ -306,7 +300,7 @@ def get_users(db: Session = Depends(get_db)):
 - Auto-migration on startup via Alembic
 - Data persists across redeploys
 
-> ⚠️ **SQLite = single writer.** Don't scale to multiple machines. Use external Postgres via `DATABASE_URL` for horizontal scaling.
+Note: SQLite supports a single writer. For horizontal scaling, use external Postgres via `DATABASE_URL`.
 
 ## Authentication (Optional)
 
