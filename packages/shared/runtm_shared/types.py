@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Dict, List, Optional, Set
 
 
 class MachineTier(str, Enum):
@@ -39,7 +40,7 @@ class MachineTierSpec:
 
 
 # Tier specifications - all use auto-stop
-MACHINE_TIER_SPECS: dict[MachineTier, MachineTierSpec] = {
+MACHINE_TIER_SPECS: Dict[MachineTier, MachineTierSpec] = {
     MachineTier.STARTER: MachineTierSpec(
         tier=MachineTier.STARTER,
         memory_mb=256,
@@ -107,7 +108,7 @@ class DeploymentState(str, Enum):
 
 
 # Allowed state transitions
-ALLOWED_TRANSITIONS: dict[DeploymentState, set[DeploymentState]] = {
+ALLOWED_TRANSITIONS: Dict[DeploymentState, Set[DeploymentState]] = {
     # DEPLOYING allowed from QUEUED for config-only deploys (skip build)
     DeploymentState.QUEUED: {
         DeploymentState.BUILDING,
@@ -183,7 +184,7 @@ class ApiKeyScope(str, Enum):
 
 
 # Scope hierarchy: higher scopes include lower ones
-SCOPE_HIERARCHY: dict[ApiKeyScope, set[ApiKeyScope]] = {
+SCOPE_HIERARCHY: Dict[ApiKeyScope, Set[ApiKeyScope]] = {
     ApiKeyScope.ADMIN: {ApiKeyScope.READ, ApiKeyScope.DEPLOY, ApiKeyScope.DELETE},
     ApiKeyScope.DEPLOY: {ApiKeyScope.READ},
     ApiKeyScope.DELETE: {ApiKeyScope.READ},
@@ -194,7 +195,7 @@ SCOPE_HIERARCHY: dict[ApiKeyScope, set[ApiKeyScope]] = {
 VALID_SCOPES = frozenset(s.value for s in ApiKeyScope)
 
 
-def validate_scopes(scopes: list[str]) -> list[str]:
+def validate_scopes(scopes: List[str]) -> List[str]:
     """Validate and normalize scopes on write.
 
     Args:
@@ -213,7 +214,7 @@ def validate_scopes(scopes: list[str]) -> list[str]:
     return sorted(scope_set)  # Dedupe and sort for consistency
 
 
-def has_scope(granted_scopes: set[str], required_scope: ApiKeyScope) -> bool:
+def has_scope(granted_scopes: Set[str], required_scope: ApiKeyScope) -> bool:
     """Check if granted scopes include the required scope.
 
     Respects scope hierarchy (e.g., ADMIN includes all scopes).
@@ -263,8 +264,8 @@ class AuthContext:
     token: str
     tenant_id: str = "default"
     principal_id: str = "default"
-    api_key_id: str | None = None
-    scopes: set[str] = field(
+    api_key_id: Optional[str] = None
+    scopes: Set[str] = field(
         default_factory=lambda: {
             ApiKeyScope.READ.value,
             ApiKeyScope.DEPLOY.value,
@@ -293,18 +294,18 @@ class MachineConfig:
     This is passed to the DeployProvider to create a machine.
     All deployments use auto-stop to minimize costs.
     """
-
+ 
     image: str
     memory_mb: int = 256
     cpus: int = 1
     cpu_kind: str = "shared"
     region: str = "iad"
-    env: dict[str, str] = field(default_factory=dict)
+    env: Dict[str, str] = field(default_factory=dict)
     health_check_path: str = "/health"
     internal_port: int = 8080
     auto_stop: bool = True  # Always enabled for cost savings
     auto_stop_timeout: str = "5m"  # Stop after 5 minutes of no traffic
-    volumes: list[VolumeConfig] = field(default_factory=list)  # Persistent volumes
+    volumes: List[VolumeConfig] = field(default_factory=list)  # Persistent volumes
 
     @classmethod
     def from_tier(
@@ -314,8 +315,8 @@ class MachineConfig:
         health_check_path: str = "/health",
         internal_port: int = 8080,
         region: str = "iad",
-        env: dict[str, str] | None = None,
-        volumes: list[VolumeConfig] | None = None,
+        env: Optional[Dict[str, str]] = None,
+        volumes: Optional[List[VolumeConfig]] = None,
     ) -> MachineConfig:
         """Create a MachineConfig from a tier specification.
 
@@ -371,10 +372,10 @@ class DeploymentInfo:
     deployment_id: str
     name: str
     state: DeploymentState
-    url: str | None = None
-    error_message: str | None = None
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
+    url: Optional[str] = None
+    error_message: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 @dataclass
@@ -452,8 +453,8 @@ class CustomDomainInfo:
     configured: bool = False
     certificate_status: str = "pending"  # pending, issued, error
     dns_records: list[DnsRecord] = field(default_factory=list)
-    error: str | None = None
-    check_url: str | None = None  # URL to check certificate status
+    error: Optional[str] = None
+    check_url: Optional[str] = None  # URL to check certificate status
 
 
 # =============================================================================
@@ -500,9 +501,9 @@ class TenantLimits:
         allowed_tiers: List of allowed machine tiers (None = all tiers)
     """
 
-    max_apps: int | None = None
-    app_lifespan_days: int | None = None
-    deploys_per_hour: int | None = None
-    deploys_per_day: int | None = None
-    concurrent_deploys: int | None = None
-    allowed_tiers: list[str] | None = None  # None = all tiers allowed
+    max_apps: Optional[int] = None
+    app_lifespan_days: Optional[int] = None
+    deploys_per_hour: Optional[int] = None
+    deploys_per_day: Optional[int] = None
+    concurrent_deploys: Optional[int] = None
+    allowed_tiers: Optional[List[str]] = None  # None = all tiers allowed

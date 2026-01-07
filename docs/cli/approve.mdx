@@ -1,0 +1,180 @@
+---
+title: approve
+description: "Approve agent-proposed changes"
+---
+
+# runtm approve
+
+Apply agent-proposed changes from `runtm.requests.yaml` to your manifest.
+
+```bash
+runtm approve [path]
+```
+
+## Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `path` | No | Path to project (default: `.`) |
+
+## Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--dry-run` | `-n` | Preview changes without applying |
+
+## How It Works
+
+AI agents can propose changes by creating a `runtm.requests.yaml` file:
+
+```yaml
+# runtm.requests.yaml (created by AI agent)
+requested:
+  features:
+    database: true
+    auth: true
+    reason: "Need persistence for user data and authentication"
+  
+  env_vars:
+    - name: STRIPE_API_KEY
+      type: string
+      secret: true
+      required: true
+      reason: "Payment processing integration"
+    
+    - name: WEBHOOK_SECRET
+      type: string
+      secret: true
+      required: true
+      reason: "Verify Stripe webhook signatures"
+  
+  egress_allowlist:
+    - "api.stripe.com"
+
+notes:
+  - "Adding Stripe payment integration"
+  - "Database needed for order history"
+```
+
+When you run `runtm approve`, the CLI:
+
+1. Reads `runtm.requests.yaml`
+2. Merges changes into `runtm.yaml`
+3. Deletes `runtm.requests.yaml`
+
+## Examples
+
+### Preview Changes
+
+```bash
+runtm approve --dry-run
+```
+
+Output:
+```
+Proposed changes from runtm.requests.yaml:
+
+Features:
+  + database: true (Need persistence for user data and authentication)
+  + auth: true (Need persistence for user data and authentication)
+
+Environment Variables:
+  + STRIPE_API_KEY (string, secret, required)
+    Reason: Payment processing integration
+  + WEBHOOK_SECRET (string, secret, required)
+    Reason: Verify Stripe webhook signatures
+
+Egress Allowlist:
+  + api.stripe.com
+
+Notes:
+  - Adding Stripe payment integration
+  - Database needed for order history
+
+Run without --dry-run to apply changes.
+```
+
+### Apply Changes
+
+```bash
+runtm approve
+```
+
+Output:
+```
+Applying changes from runtm.requests.yaml...
+
+✓ Added feature: database
+✓ Added feature: auth
+✓ Added env var: STRIPE_API_KEY
+✓ Added env var: WEBHOOK_SECRET
+✓ Added to egress allowlist: api.stripe.com
+
+Updated runtm.yaml
+Deleted runtm.requests.yaml
+
+Next steps:
+  1. Set required secrets:
+     runtm secrets set STRIPE_API_KEY=sk_xxx
+     runtm secrets set WEBHOOK_SECRET=whsec_xxx
+     runtm secrets set AUTH_SECRET=$(openssl rand -base64 32)
+  
+  2. Deploy:
+     runtm deploy
+```
+
+## Requests File Format
+
+```yaml
+# runtm.requests.yaml
+requested:
+  # Enable features
+  features:
+    database: true
+    auth: true
+    reason: "Human-readable explanation"
+  
+  # Add environment variables
+  env_vars:
+    - name: VAR_NAME
+      type: string|url|number|boolean
+      secret: true|false
+      required: true|false
+      reason: "Why this is needed"
+  
+  # Add to egress allowlist
+  egress_allowlist:
+    - "api.example.com"
+    - "webhooks.service.com"
+
+# Optional notes for the human reviewer
+notes:
+  - "Context about changes"
+  - "Why these changes are needed"
+```
+
+## Agent Workflow
+
+The typical workflow:
+
+1. **Agent creates requests** - AI proposes changes via `runtm.requests.yaml`
+2. **Human reviews** - Use `runtm approve --dry-run` to preview
+3. **Human approves** - Run `runtm approve` to apply
+4. **Human sets secrets** - Use `runtm secrets set` for any new secrets
+5. **Deploy** - Run `runtm deploy`
+
+This ensures humans stay in the loop while agents can propose infrastructure changes.
+
+## v1 Note
+
+<Note>
+  In v1, `runtm approve` is informational. Deploys work without approval. 
+  Future versions will enforce policy compliance for org deployments.
+</Note>
+
+## Related
+
+- [Agent Workflow Guide](/guides/agent-workflow) - Complete agent integration guide
+- [`runtm secrets`](/cli/secrets) - Set required secrets
+- [`runtm deploy`](/cli/deploy) - Deploy after approval
+

@@ -1,0 +1,189 @@
+---
+title: logs
+description: "View deployment logs with search and filtering"
+---
+
+# runtm logs
+
+View build, deploy, and runtime logs for a deployment.
+
+```bash
+runtm logs <deployment_id>
+```
+
+## Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `deployment_id` | Yes | Deployment ID (e.g., `dep_abc123xyz`) |
+
+## Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--type TYPE` | `-t` | Log type: `build`, `deploy`, `runtime` |
+| `--lines N` | `-n` | Number of runtime log lines (default: 20) |
+| `--search TEXT` | `-s` | Filter logs by text, comma-separated, or regex |
+| `--json` | | Output as JSON for AI agents |
+| `--raw` | | Raw output for piping to grep |
+| `--follow` | `-f` | Follow logs in real-time (coming soon) |
+
+## Examples
+
+### Basic Usage
+
+```bash
+# View all logs (build + deploy + runtime)
+runtm logs dep_abc123xyz
+
+# View only runtime logs
+runtm logs dep_abc123xyz --type runtime
+
+# View only build logs
+runtm logs dep_abc123xyz --type build
+
+# More runtime lines
+runtm logs dep_abc123xyz --lines 100
+```
+
+### Searching Logs
+
+```bash
+# Single keyword
+runtm logs dep_abc123xyz --search "error"
+
+# Multiple keywords (OR logic)
+runtm logs dep_abc123xyz --search "error,warning,failed"
+
+# Regex pattern
+runtm logs dep_abc123xyz --search "HTTP.*[45]\d\d"
+```
+
+### Pipe-Friendly Output
+
+```bash
+# Raw output for grep
+runtm logs dep_abc123xyz --raw | grep "error"
+
+# Filter by type AND keyword
+runtm logs dep_abc123xyz --raw | grep "\[RUNTIME\]" | grep -i "database"
+```
+
+### JSON Output (for AI Agents)
+
+```bash
+runtm logs dep_abc123xyz --json
+```
+
+```json
+{
+  "deployment_id": "dep_abc123xyz",
+  "logs": [
+    {
+      "type": "build",
+      "content": "Step 1/12: FROM python:3.11-slim...",
+      "created_at": "2024-01-15T10:30:45Z"
+    },
+    {
+      "type": "runtime",
+      "content": "INFO: Application startup complete.",
+      "created_at": "2024-01-15T10:32:00Z"
+    }
+  ]
+}
+```
+
+## Log Types
+
+### Build Logs
+
+Docker build output:
+
+```
+[BUILD] Step 1/12: FROM python:3.11-slim
+[BUILD] Step 2/12: WORKDIR /app
+[BUILD] Step 3/12: COPY pyproject.toml .
+[BUILD] Step 4/12: RUN pip install -e .
+...
+```
+
+### Deploy Logs
+
+Fly.io deployment output:
+
+```
+[DEPLOY] Creating machine...
+[DEPLOY] Machine created: 4d89e4f2
+[DEPLOY] Waiting for health check...
+[DEPLOY] Health check passed
+[DEPLOY] Machine is running
+```
+
+### Runtime Logs
+
+Application output (stdout/stderr):
+
+```
+[RUNTIME] INFO:     Started server process [1]
+[RUNTIME] INFO:     Waiting for application startup.
+[RUNTIME] INFO:     Application startup complete.
+[RUNTIME] INFO:     Uvicorn running on http://0.0.0.0:8080
+```
+
+## Advanced Filtering
+
+### Using jq with JSON
+
+```bash
+# Extract only errors
+runtm logs dep_abc123xyz --json | jq '.logs[] | select(.content | test("error"; "i"))'
+
+# Get runtime logs only
+runtm logs dep_abc123xyz --json | jq '.logs[] | select(.type == "runtime")'
+```
+
+### Python Script Example
+
+```python
+import subprocess
+import json
+
+result = subprocess.run(
+    ['runtm', 'logs', 'dep_abc123xyz', '--json'],
+    capture_output=True, text=True
+)
+logs = json.loads(result.stdout)
+
+for log in logs['logs']:
+    if 'error' in log['content'].lower():
+        print(f"Error in {log['type']}: {log['content'][:100]}...")
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="'No logs available'">
+    The deployment may still be in progress. Check status:
+    ```bash
+    runtm status dep_abc123xyz
+    ```
+  </Accordion>
+  <Accordion title="Runtime logs empty">
+    Runtime logs are only available for `ready` deployments. Check if the app is running:
+    ```bash
+    curl https://your-app.fly.dev/health
+    ```
+  </Accordion>
+  <Accordion title="Logs are truncated">
+    Increase the line limit:
+    ```bash
+    runtm logs dep_abc123xyz --lines 500
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Commands
+
+- [`runtm status`](/cli/status) - Check deployment status
+- [`runtm deploy`](/cli/deploy) - Deploy a new version
+

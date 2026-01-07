@@ -1,0 +1,100 @@
+---
+title: fix
+description: "Auto-fix common project issues"
+---
+
+# runtm fix
+
+Automatically fix common project issues like missing or drifted lockfiles.
+
+```bash
+runtm fix [path]
+```
+
+## Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `path` | No | Path to project (default: `.`) |
+
+## What Gets Fixed
+
+### Lockfiles
+
+- **Python**: Runs `uv lock` or `pip-compile` to generate/update lockfile
+- **Node.js**: Runs `bun install` or `npm install` to update lockfile
+
+## Examples
+
+```bash
+# Fix current directory
+runtm fix
+
+# Fix specific project
+runtm fix ./my-project
+```
+
+## Output
+
+```
+Checking project...
+
+Issues found:
+  ⚠ bun.lockb is out of sync with package.json
+
+Fixing...
+  ✓ Ran 'bun install' to update lockfile
+
+All issues fixed!
+```
+
+## When to Use
+
+Use `runtm fix` when:
+
+- `runtm validate` reports lockfile drift
+- `runtm deploy` fails with lockfile error
+- You've manually edited `package.json` or `pyproject.toml`
+
+## Automatic Fix During Deploy
+
+You can auto-fix during deploy:
+
+```bash
+runtm deploy --yes
+```
+
+This runs the equivalent of `runtm fix` before deploying.
+
+## Manual Alternatives
+
+If `runtm fix` doesn't work, try manually:
+
+<Tabs>
+  <Tab title="Node.js (Bun)">
+    ```bash
+    bun install
+    ```
+  </Tab>
+  <Tab title="Node.js (npm)">
+    ```bash
+    npm install
+    ```
+  </Tab>
+  <Tab title="Python (uv)">
+    ```bash
+    uv lock
+    ```
+  </Tab>
+  <Tab title="Python (pip-tools)">
+    ```bash
+    pip-compile pyproject.toml
+    ```
+  </Tab>
+</Tabs>
+
+## Related Commands
+
+- [`runtm validate`](/cli/validate) - Check for issues
+- [`runtm deploy`](/cli/deploy) - Deploy (with `--yes` to auto-fix)
+

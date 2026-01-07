@@ -1,0 +1,110 @@
+---
+title: status
+description: "Check deployment status"
+---
+
+# runtm status
+
+Check the current status of a deployment.
+
+```bash
+runtm status <deployment_id>
+```
+
+## Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `deployment_id` | Yes | Deployment ID (e.g., `dep_abc123xyz`) |
+
+## Examples
+
+```bash
+runtm status dep_abc123xyz
+```
+
+## Output
+
+### Ready Deployment
+
+```
+Deployment: dep_abc123xyz
+
+  Name:     my-api
+  Status:   ● ready
+  URL:      https://my-api-xyz123.fly.dev
+  Version:  3
+  Template: backend-service
+  Runtime:  python
+  Tier:     standard
+
+  Created:  2024-01-15 10:30:00 UTC
+  Ready:    2024-01-15 10:32:15 UTC (2m 15s)
+```
+
+### Building Deployment
+
+```
+Deployment: dep_abc123xyz
+
+  Name:     my-api
+  Status:   ◐ building
+  Version:  4
+
+  Created:  2024-01-15 14:20:00 UTC
+
+  Building... 45s elapsed
+```
+
+### Failed Deployment
+
+```
+Deployment: dep_abc123xyz
+
+  Name:     my-api
+  Status:   ✗ failed
+  Version:  4
+  Error:    Health check failed after 10 attempts
+
+  View logs: runtm logs dep_abc123xyz
+```
+
+## Deployment States
+
+| State | Description |
+|-------|-------------|
+| `queued` | Waiting for worker |
+| `building` | Docker build in progress |
+| `deploying` | Deploying to Fly.io |
+| `ready` | Live and healthy |
+| `failed` | Build or deploy failed |
+| `destroyed` | Deployment removed |
+
+## Programmatic Usage
+
+For scripts and CI/CD, use with `--json` output:
+
+```bash
+runtm status dep_abc123xyz --json
+```
+
+```json
+{
+  "deployment_id": "dep_abc123xyz",
+  "name": "my-api",
+  "state": "ready",
+  "url": "https://my-api-xyz123.fly.dev",
+  "version": 3,
+  "template": "backend-service",
+  "runtime": "python",
+  "created_at": "2024-01-15T10:30:00Z",
+  "ready_at": "2024-01-15T10:32:15Z"
+}
+```
+
+## Related Commands
+
+- [`runtm logs`](/cli/logs) - View deployment logs
+- [`runtm list`](/cli/list) - List all deployments
+- [`runtm destroy`](/cli/destroy) - Remove a deployment
+

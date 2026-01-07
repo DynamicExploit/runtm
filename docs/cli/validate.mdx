@@ -1,0 +1,162 @@
+---
+title: validate
+description: "Validate project before deployment"
+---
+
+# runtm validate
+
+Validate your project before deployment to catch issues early.
+
+```bash
+runtm validate [path]
+```
+
+## Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `path` | No | Path to project (default: `.`) |
+
+## What Gets Validated
+
+### 1. Manifest (runtm.yaml)
+
+- Required fields present (`name`, `template`, `runtime`)
+- Valid template type
+- Valid runtime type
+- Valid port number
+- Tier requirements (fullstack needs standard+)
+- Feature requirements (auth needs database)
+
+### 2. Lockfile
+
+- Lockfile exists and matches dependencies
+- No drift between `pyproject.toml`/`package.json` and lockfile
+
+### 3. Python Imports (for Python projects)
+
+- All imports in production code are resolvable
+- Dependencies are in `[project] dependencies`, not dev deps
+
+### 4. Artifact Size
+
+- Project zips to under 20MB (respecting `.runtmignore`)
+
+## Examples
+
+```bash
+# Validate current directory
+runtm validate
+
+# Validate specific project
+runtm validate ./my-project
+```
+
+## Output
+
+### Success
+
+```
+✓ Manifest valid
+✓ Lockfile in sync
+✓ Python imports verified
+✓ Artifact size: 2.1 MB
+
+Ready to deploy!
+```
+
+### Failure
+
+```
+✗ Validation failed
+
+Errors:
+  • Manifest: tier must be 'standard' or higher for fullstack runtime
+  • Lockfile: bun.lockb is out of sync. Run 'runtm fix' or 'bun install'
+  • Import: Cannot import 'httpx' - add to [project] dependencies
+```
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Lockfile drift">
+    **Fix:**
+    ```bash
+    runtm fix
+    ```
+    Or manually:
+    ```bash
+    bun install  # Node.js
+    uv lock      # Python
+    ```
+  </Accordion>
+  <Accordion title="Missing dependencies">
+    Ensure runtime dependencies are in the correct section of `pyproject.toml`:
+    ```toml
+    # ✓ Correct
+    [project]
+    dependencies = [
+        "httpx>=0.24",
+    ]
+
+    # ✗ Wrong - these won't be installed in production
+    [project.optional-dependencies]
+    dev = [
+        "httpx>=0.24",
+    ]
+    ```
+  </Accordion>
+  <Accordion title="Fullstack tier error">
+    Web apps need at least `standard` tier:
+    ```yaml
+    # runtm.yaml
+    tier: standard  # Not starter
+    ```
+  </Accordion>
+  <Accordion title="Auth without database">
+    Authentication requires database feature:
+    ```yaml
+    # runtm.yaml
+    features:
+      database: true  # Required
+      auth: true
+    ```
+  </Accordion>
+  <Accordion title="Artifact too large">
+    Update `.runtmignore`:
+    ```gitignore
+    node_modules/
+    .venv/
+    __pycache__/
+    .git/
+    dist/
+    build/
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Validation Cache
+
+Import validation results are cached to speed up subsequent runs. Force re-validation with:
+
+```bash
+runtm deploy --force-validation
+```
+
+## Skip Validation
+
+In rare cases, you may need to skip validation:
+
+```bash
+runtm deploy --skip-validation
+```
+
+<Warning>
+  Use `--skip-validation` with caution. It may result in failed builds or runtime errors.
+</Warning>
+
+## Related Commands
+
+- [`runtm fix`](/cli/fix) - Auto-fix common issues
+- [`runtm deploy`](/cli/deploy) - Deploy after validation
+

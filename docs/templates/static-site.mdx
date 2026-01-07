@@ -1,0 +1,279 @@
+---
+title: static-site
+description: "Next.js static site template for landing pages and docs"
+---
+
+# static-site Template
+
+A Next.js template optimized for static sites, landing pages, documentation, and marketing sites.
+
+## Quick Start
+
+```bash
+runtm init static-site
+cd static-site
+runtm run
+```
+
+Visit `http://localhost:3000` to see your site.
+
+## Specifications
+
+| Property | Value |
+|----------|-------|
+| Runtime | Node.js 20 |
+| Framework | Next.js 14 (App Router) |
+| Port | 3000 |
+| Minimum Tier | starter |
+| Health Endpoint | `/health` (static file) |
+| Export | Static (no server required) |
+
+## Project Structure
+
+```
+static-site/
+├── runtm.yaml              # Deployment manifest
+├── runtm.discovery.yaml    # Search metadata
+├── Dockerfile              # Container build
+├── package.json            # Node dependencies
+├── app/
+│   ├── layout.tsx          # Root layout
+│   ├── page.tsx            # Home page
+│   └── globals.css         # Global styles
+├── components/
+│   ├── layout/
+│   │   ├── Header.tsx
+│   │   └── Footer.tsx
+│   ├── pages/              # Page-specific components
+│   └── sections/           # Reusable sections
+├── public/
+│   ├── health              # Static health file
+│   └── images/
+├── tailwind.config.js
+├── next.config.js
+├── README.md
+├── AGENT.md
+└── CLAUDE.md
+```
+
+## Key Files
+
+### next.config.js
+
+The template is configured for static export:
+
+```javascript
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  output: 'export',
+  trailingSlash: true,
+  images: {
+    unoptimized: true,
+  },
+};
+
+module.exports = nextConfig;
+```
+
+### Health Endpoint
+
+The health check is a static file at `public/health`:
+
+```
+OK
+```
+
+This ensures health checks work without a Node.js server.
+
+## Adding Pages
+
+Create new pages in `app/`:
+
+```tsx
+// app/about/page.tsx
+export default function AboutPage() {
+  return (
+    <main className="container mx-auto px-4 py-8">
+      <h1 className="text-4xl font-bold">About Us</h1>
+      <p>Your content here...</p>
+    </main>
+  );
+}
+```
+
+## Styling
+
+The template uses Tailwind CSS:
+
+```tsx
+<div className="bg-gradient-to-r from-purple-500 to-pink-500">
+  <h1 className="text-4xl font-bold text-white">
+    Welcome
+  </h1>
+</div>
+```
+
+### Custom Styles
+
+Add custom CSS in `app/globals.css`:
+
+```css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles */
+.hero-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+```
+
+## Components
+
+### Creating Components
+
+```tsx
+// components/ui/Button.tsx
+interface ButtonProps {
+  children: React.ReactNode;
+  variant?: 'primary' | 'secondary';
+}
+
+export function Button({ children, variant = 'primary' }: ButtonProps) {
+  const styles = {
+    primary: 'bg-blue-600 text-white hover:bg-blue-700',
+    secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300',
+  };
+
+  return (
+    <button className={`px-4 py-2 rounded ${styles[variant]}`}>
+      {children}
+    </button>
+  );
+}
+```
+
+### Using Components
+
+```tsx
+import { Button } from '@/components/ui/Button';
+
+export default function Page() {
+  return <Button variant="primary">Get Started</Button>;
+}
+```
+
+## Local Development
+
+```bash
+# Run with hot reload
+runtm run
+
+# Or manually with Bun (faster)
+bun install
+bun run dev
+
+# Or with npm
+npm install
+npm run dev
+```
+
+## Building
+
+```bash
+# Build static export
+npm run build
+
+# Output is in 'out/' directory
+```
+
+## Deployment
+
+```bash
+# Validate
+runtm validate
+
+# Deploy
+runtm deploy
+```
+
+The Dockerfile serves the static files with a lightweight server:
+
+```dockerfile
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/out /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/nginx.conf
+EXPOSE 3000
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Landing Page" icon="browser">
+    Fast, SEO-friendly marketing pages
+  </Card>
+  <Card title="Documentation" icon="book">
+    Static docs with search capability
+  </Card>
+  <Card title="Portfolio" icon="images">
+    Personal or agency portfolios
+  </Card>
+  <Card title="Blog" icon="pen">
+    Static blog with MDX support
+  </Card>
+</CardGroup>
+
+## SEO Optimization
+
+### Metadata
+
+```tsx
+// app/layout.tsx
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'My Site',
+  description: 'A great website',
+  openGraph: {
+    title: 'My Site',
+    description: 'A great website',
+    images: ['/og-image.png'],
+  },
+};
+```
+
+### Per-Page Metadata
+
+```tsx
+// app/about/page.tsx
+export const metadata = {
+  title: 'About | My Site',
+  description: 'Learn more about us',
+};
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Optimize images">
+    Use Next.js Image component or optimized formats (WebP, AVIF).
+  </Accordion>
+  <Accordion title="Minimize JavaScript">
+    Use Server Components by default. Add `'use client'` only when needed.
+  </Accordion>
+  <Accordion title="Use static data">
+    Fetch data at build time, not runtime, for faster loads.
+  </Accordion>
+  <Accordion title="Add caching headers">
+    Configure nginx/CDN caching for static assets.
+  </Accordion>
+</AccordionGroup>
+

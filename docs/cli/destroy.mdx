@@ -1,0 +1,104 @@
+---
+title: destroy
+description: "Destroy a deployment"
+---
+
+# runtm destroy
+
+Stop and remove a deployment, freeing all resources.
+
+```bash
+runtm destroy <deployment_id>
+```
+
+## Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `deployment_id` | Yes | Deployment ID to destroy |
+
+## Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--force` | `-f` | Skip confirmation prompt |
+
+## Examples
+
+```bash
+# Destroy with confirmation
+runtm destroy dep_abc123xyz
+
+# Skip confirmation
+runtm destroy dep_abc123xyz --force
+```
+
+## What Gets Destroyed
+
+- **Machine** - Fly.io machine is stopped and removed
+- **DNS** - Custom domain records are cleaned up
+- **State** - Deployment marked as `destroyed`
+
+<Note>
+  Destroying a deployment does **not** delete:
+  - Build logs (kept for audit)
+  - Previous version records
+  - Your local source code
+</Note>
+
+## Confirmation
+
+By default, you'll be asked to confirm:
+
+```
+Destroy deployment dep_abc123xyz?
+
+  Name:     my-api
+  Status:   ● ready
+  URL:      https://my-api-xyz.fly.dev
+
+  This will:
+  • Stop and remove the machine
+  • Delete custom domain configuration
+  • Make the URL unavailable
+
+Continue? [y/N]: 
+```
+
+Skip with `--force`:
+
+```bash
+runtm destroy dep_abc123xyz --force
+```
+
+## Destroyable States
+
+You can destroy deployments in these states:
+
+| State | Destroyable |
+|-------|-------------|
+| `queued` | ✓ Yes |
+| `building` | ✗ No (wait for build to complete/fail) |
+| `deploying` | ✗ No (wait for deploy to complete/fail) |
+| `ready` | ✓ Yes |
+| `failed` | ✓ Yes |
+| `destroyed` | ✗ Already destroyed |
+
+## After Destruction
+
+```
+✓ Deployment dep_abc123xyz destroyed
+
+  The URL https://my-api-xyz.fly.dev is no longer available.
+
+  To redeploy, run: runtm deploy
+```
+
+If you deploy again with the same project name, a **new** deployment will be created with a new URL.
+
+## Related Commands
+
+- [`runtm list`](/cli/list) - List all deployments
+- [`runtm status`](/cli/status) - Check deployment status
+- [`runtm deploy`](/cli/deploy) - Deploy a new version
+

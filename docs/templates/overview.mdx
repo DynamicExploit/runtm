@@ -1,0 +1,75 @@
+---
+title: Templates
+description: "Production-ready starting points"
+---
+
+Templates are production-ready projects that deploy without configuration. Pick one based on what you're building.
+
+## Available templates
+
+<CardGroup cols={3}>
+  <Card title="backend-service" icon="server" href="/templates/backend-service">
+    Python FastAPI for APIs, webhooks, and agent backends.
+  </Card>
+  <Card title="static-site" icon="file-code" href="/templates/static-site">
+    Next.js static export for landing pages and docs.
+  </Card>
+  <Card title="web-app" icon="browser" href="/templates/web-app">
+    Fullstack app with Next.js frontend and FastAPI backend.
+  </Card>
+</CardGroup>
+
+## Choosing a template
+
+| Building | Use |
+|----------|-----|
+| REST API, webhook handler, agent backend | `backend-service` |
+| Landing page, documentation, marketing site | `static-site` |
+| Dashboard, SaaS app, admin panel | `web-app` |
+
+## Getting started
+
+```bash
+runtm init backend-service
+cd backend-service
+runtm deploy
+```
+
+Every template deploys without edits. Add your code, then redeploy.
+
+## What's included
+
+```
+my-project/
+├── runtm.yaml              # Deployment manifest
+├── runtm.discovery.yaml    # Search metadata
+├── Dockerfile              # Build configuration
+├── .runtmignore            # Artifact exclusions
+├── README.md               # Documentation
+├── AGENT.md                # AI assistant instructions
+└── [application code]
+```
+
+## Optional features
+
+Enable features in your `runtm.yaml`:
+
+```yaml
+features:
+  database: true   # SQLite with persistent storage
+  auth: true       # Better Auth (web-app only)
+```
+
+<Note>
+Auth requires database to be enabled. Only available on `web-app` template.
+</Note>
+
+## Template requirements
+
+| Template | Min tier | Port |
+|----------|----------|------|
+| `backend-service` | starter | 8080 |
+| `static-site` | starter | 3000 |
+| `web-app` | standard | 3000 |
+
+The `web-app` template requires `standard` tier because it runs both Node.js and Python.

@@ -1,0 +1,157 @@
+---
+title: CLI Overview
+description: "Install and configure the Runtm command-line interface"
+---
+
+# CLI Overview
+
+The Runtm CLI is the primary interface for deploying and managing your applications.
+
+## Installation
+
+<CodeGroup>
+
+```bash uv (recommended)
+uv tool install runtm
+```
+
+```bash pipx
+pipx install runtm
+```
+
+```bash pip
+pip install runtm
+```
+
+</CodeGroup>
+
+## Upgrading
+
+<CodeGroup>
+
+```bash uv
+uv tool upgrade runtm
+```
+
+```bash pipx
+pipx upgrade runtm
+```
+
+```bash pip
+pip install --upgrade runtm
+```
+
+</CodeGroup>
+
+## Command Reference
+
+### Essential Commands
+
+Most users only need these commands:
+
+| Command | Description |
+|---------|-------------|
+| [`runtm login`](/cli/auth) | Authenticate with Runtm |
+| [`runtm init`](/cli/init) | Initialize a new project from template |
+| [`runtm run`](/cli/run) | Run project locally |
+| [`runtm deploy`](/cli/deploy) | Deploy to a live URL |
+| [`runtm logs`](/cli/logs) | View deployment logs |
+| [`runtm destroy`](/cli/destroy) | Destroy a deployment |
+
+### All Commands
+
+<AccordionGroup>
+  <Accordion title="Project Commands">
+    | Command | Description |
+    |---------|-------------|
+    | [`runtm init`](/cli/init) | Initialize from template |
+    | [`runtm run`](/cli/run) | Run locally |
+    | [`runtm validate`](/cli/validate) | Validate before deploy |
+    | [`runtm fix`](/cli/fix) | Fix common issues |
+    | [`runtm deploy`](/cli/deploy) | Deploy to production |
+  </Accordion>
+  <Accordion title="Deployment Commands">
+    | Command | Description |
+    |---------|-------------|
+    | [`runtm status`](/cli/status) | Check deployment status |
+    | [`runtm logs`](/cli/logs) | View logs |
+    | [`runtm list`](/cli/list) | List all deployments |
+    | [`runtm search`](/cli/search) | Search deployments |
+    | [`runtm destroy`](/cli/destroy) | Destroy deployment |
+  </Accordion>
+  <Accordion title="Configuration Commands">
+    | Command | Description |
+    |---------|-------------|
+    | [`runtm secrets`](/cli/secrets) | Manage secrets |
+    | [`runtm domain`](/cli/domain) | Manage custom domains |
+    | [`runtm config`](/cli/config) | CLI configuration |
+    | [`runtm approve`](/cli/approve) | Approve agent proposals |
+  </Accordion>
+  <Accordion title="Authentication Commands">
+    | Command | Description |
+    |---------|-------------|
+    | [`runtm login`](/cli/auth) | Authenticate |
+    | [`runtm logout`](/cli/auth#logout) | Clear credentials |
+    | [`runtm doctor`](/cli/auth#doctor) | Diagnose setup |
+    | [`runtm version`](/cli/auth#version) | Show version |
+  </Accordion>
+</AccordionGroup>
+
+## Global Options
+
+These options work with most commands:
+
+| Option | Description |
+|--------|-------------|
+| `--help` | Show help for any command |
+| `--version` | Show CLI version |
+
+## Configuration
+
+The CLI stores configuration in `~/.runtm/config.yaml`:
+
+```yaml
+api_url: https://app.runtm.com/api
+default_template: backend-service
+```
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `RUNTM_API_URL` | API endpoint (for self-hosting) |
+| `RUNTM_API_KEY` | API key (alternative to `runtm login`) |
+
+## Authentication Storage
+
+The CLI stores your API key securely:
+
+1. **macOS**: System Keychain (preferred)
+2. **Linux**: File at `~/.runtm/credentials` (mode 600)
+3. **Environment**: `RUNTM_API_KEY` variable
+
+Check your setup with:
+
+```bash
+runtm doctor
+```
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | General error |
+| `2` | Invalid arguments |
+
+## Getting Help
+
+```bash
+# General help
+runtm --help
+
+# Command-specific help
+runtm deploy --help
+runtm logs --help
+```
+

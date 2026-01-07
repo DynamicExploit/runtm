@@ -1,0 +1,86 @@
+---
+title: "Get Current User"
+api: "GET /v1/me"
+description: "Get information about the authenticated user"
+---
+
+Retrieve information about the currently authenticated user or service account. Useful for validating API keys and checking permissions.
+
+## Response
+
+<ResponseField name="tenant_id" type="string">
+  The tenant/organization ID
+</ResponseField>
+
+<ResponseField name="principal_id" type="string">
+  The user or service account ID
+</ResponseField>
+
+<ResponseField name="scopes" type="array">
+  List of API key scopes: `read`, `deploy`, `delete`, `admin`
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://app.runtm.com/api/v1/me" \
+  -H "Authorization: Bearer runtm_xxx"
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://app.runtm.com/api/v1/me",
+    headers={"Authorization": "Bearer runtm_xxx"}
+)
+
+if response.status_code == 200:
+    data = response.json()
+    print(f"Tenant: {data['tenant_id']}")
+    print(f"Scopes: {', '.join(data['scopes'])}")
+else:
+    print("Invalid API key")
+```
+
+```javascript JavaScript
+const response = await fetch(
+  "https://app.runtm.com/api/v1/me",
+  {
+    headers: {
+      "Authorization": "Bearer runtm_xxx"
+    }
+  }
+);
+
+if (response.ok) {
+  const data = await response.json();
+  console.log(`Tenant: ${data.tenant_id}`);
+  console.log(`Scopes: ${data.scopes.join(", ")}`);
+} else {
+  console.log("Invalid API key");
+}
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "tenant_id": "tenant_abc123",
+  "principal_id": "user_xyz789",
+  "scopes": ["read", "deploy", "delete"]
+}
+```
+
+```json 401
+{
+  "detail": {
+    "error": "Invalid or expired API key"
+  }
+}
+```
+</ResponseExample>
+
+<Info>
+This endpoint is commonly used to verify API key validity and check available permissions before making other API calls.
+</Info>
+

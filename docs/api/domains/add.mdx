@@ -1,0 +1,149 @@
+---
+title: "Add Domain"
+api: "POST /v0/deployments/{deployment_id}/domains"
+description: "Add a custom domain to a deployment"
+---
+
+Add a custom domain to a deployment. Automatically provisions an SSL certificate via Let's Encrypt.
+
+## Path Parameters
+
+<ParamField path="deployment_id" type="string" required>
+  The deployment ID (e.g., `dep_abc123xyz`)
+</ParamField>
+
+## Request Body
+
+<ParamField body="hostname" type="string" required>
+  The custom domain hostname (e.g., `api.example.com`)
+</ParamField>
+
+## Response
+
+<ResponseField name="hostname" type="string">
+  The configured hostname
+</ResponseField>
+
+<ResponseField name="configured" type="boolean">
+  Whether the domain is fully configured
+</ResponseField>
+
+<ResponseField name="certificate_status" type="string">
+  Certificate status: `pending`, `issued`, `failed`
+</ResponseField>
+
+<ResponseField name="dns_records" type="array">
+  DNS records to configure at your registrar
+  <Expandable title="DNS record object">
+    <ResponseField name="record_type" type="string">
+      Record type (e.g., `CNAME`)
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Record name
+    </ResponseField>
+    <ResponseField name="value" type="string">
+      Record value (the Fly.io app URL)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="check_url" type="string">
+  URL to check domain status
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://app.runtm.com/api/v0/deployments/dep_abc123xyz/domains" \
+  -H "Authorization: Bearer runtm_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{"hostname": "api.example.com"}'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    "https://app.runtm.com/api/v0/deployments/dep_abc123xyz/domains",
+    headers={
+        "Authorization": "Bearer runtm_xxx",
+        "Content-Type": "application/json"
+    },
+    json={"hostname": "api.example.com"}
+)
+
+data = response.json()
+print(f"Domain: {data['hostname']}")
+print(f"Certificate: {data['certificate_status']}")
+
+for record in data["dns_records"]:
+    print(f"Add {record['record_type']} record: {record['name']} -> {record['value']}")
+```
+
+```javascript JavaScript
+const response = await fetch(
+  "https://app.runtm.com/api/v0/deployments/dep_abc123xyz/domains",
+  {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer runtm_xxx",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      hostname: "api.example.com"
+    })
+  }
+);
+
+const data = await response.json();
+console.log(`Domain: ${data.hostname}`);
+console.log(`Certificate: ${data.certificate_status}`);
+
+data.dns_records.forEach(record => {
+  console.log(`Add ${record.record_type} record: ${record.name} -> ${record.value}`);
+});
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "hostname": "api.example.com",
+  "configured": false,
+  "certificate_status": "pending",
+  "dns_records": [
+    {
+      "record_type": "CNAME",
+      "name": "api",
+      "value": "my-api-abc123.fly.dev"
+    }
+  ],
+  "check_url": "https://app.runtm.com/api/v0/deployments/dep_abc123xyz/domains/api.example.com"
+}
+```
+
+```json 409
+{
+  "detail": {
+    "error": "Cannot add domain to deployment in 'building' state",
+    "recovery_hint": "Wait for the deployment to be ready, then try again."
+  }
+}
+```
+</ResponseExample>
+
+<Warning>
+The deployment must be in `ready` state before adding a custom domain.
+</Warning>
+
+<Steps>
+  <Step title="Add the domain">
+    Call this endpoint to register the domain
+  </Step>
+  <Step title="Configure DNS">
+    Add the CNAME record at your domain registrar
+  </Step>
+  <Step title="Wait for certificate">
+    Certificate is issued automatically after DNS propagates (usually 1-5 minutes)
+  </Step>
+</Steps>
+

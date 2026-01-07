@@ -1,0 +1,154 @@
+---
+title: "Create Deployment"
+api: "POST /v0/deployments"
+description: "Create a new deployment or redeploy an existing one"
+---
+
+Deploy a new application or update an existing one. Accepts a multipart form with the manifest and artifact.
+
+## Request Body
+
+<ParamField body="manifest" type="file" required>
+  Your `runtm.yaml` manifest file
+</ParamField>
+
+<ParamField body="artifact" type="file" required>
+  Zip file containing your project files (max 20MB)
+</ParamField>
+
+<ParamField body="secrets" type="string">
+  JSON string of secrets to inject (e.g., `{"API_KEY": "xxx"}`)
+</ParamField>
+
+<ParamField body="src_hash" type="string">
+  Source hash for tracking changes
+</ParamField>
+
+## Query Parameters
+
+<ParamField query="new" type="boolean" default="false">
+  Force new deployment instead of redeploying existing
+</ParamField>
+
+<ParamField query="tier" type="string">
+  Override machine tier: `starter`, `standard`, `performance`
+</ParamField>
+
+<ParamField query="config_only" type="boolean" default="false">
+  Skip Docker build, reuse previous image (for env/tier changes only)
+</ParamField>
+
+## Headers
+
+<ParamField header="Idempotency-Key" type="string">
+  Unique key for idempotent requests. Same key returns existing deployment.
+</ParamField>
+
+## Response
+
+<ResponseField name="deployment_id" type="string">
+  Unique deployment identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Project name
+</ResponseField>
+
+<ResponseField name="state" type="string">
+  Initial state (usually `queued`)
+</ResponseField>
+
+<ResponseField name="version" type="integer">
+  Deployment version number
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X POST "https://app.runtm.com/api/v0/deployments" \
+  -H "Authorization: Bearer runtm_xxx" \
+  -F "manifest=@runtm.yaml" \
+  -F "artifact=@artifact.zip" \
+  -F 'secrets={"DATABASE_URL": "postgres://..."}'
+```
+
+```python Python
+import requests
+
+with open("runtm.yaml", "rb") as manifest, open("artifact.zip", "rb") as artifact:
+    response = requests.post(
+        "https://app.runtm.com/api/v0/deployments",
+        headers={"Authorization": "Bearer runtm_xxx"},
+        files={
+            "manifest": ("runtm.yaml", manifest),
+            "artifact": ("artifact.zip", artifact),
+        },
+        data={
+            "secrets": '{"DATABASE_URL": "postgres://..."}'
+        }
+    )
+
+data = response.json()
+print(f"Deployment {data['deployment_id']} created")
+```
+
+```javascript JavaScript
+const formData = new FormData();
+formData.append("manifest", manifestFile);
+formData.append("artifact", artifactZip);
+formData.append("secrets", JSON.stringify({
+  DATABASE_URL: "postgres://..."
+}));
+
+const response = await fetch(
+  "https://app.runtm.com/api/v0/deployments",
+  {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer runtm_xxx"
+    },
+    body: formData
+  }
+);
+
+const data = await response.json();
+console.log(`Deployment ${data.deployment_id} created`);
+```
+</RequestExample>
+
+<ResponseExample>
+```json 201
+{
+  "deployment_id": "dep_abc123xyz",
+  "name": "my-api",
+  "state": "queued",
+  "url": null,
+  "version": 1,
+  "is_latest": true,
+  "previous_deployment_id": null,
+  "template": "backend-service",
+  "runtime": "python",
+  "created_at": "2024-01-15T10:30:00Z",
+  "updated_at": "2024-01-15T10:30:00Z"
+}
+```
+
+```json 400
+{
+  "detail": {
+    "error": "Invalid manifest",
+    "message": "Missing required field: name"
+  }
+}
+```
+
+```json 413
+{
+  "detail": {
+    "error": "Artifact too large",
+    "size_bytes": 25000000,
+    "max_bytes": 20971520
+  }
+}
+```
+</ResponseExample>
+

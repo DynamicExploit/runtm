@@ -1,0 +1,299 @@
+---
+title: Discovery Metadata
+description: "Make your deployments searchable with discovery files"
+---
+
+# Discovery Metadata
+
+The `runtm.discovery.yaml` file makes your deployments searchable by description, tags, and capabilities.
+
+## Why Discovery?
+
+As you deploy more apps, finding them becomes challenging. Discovery metadata lets you:
+
+- Search by description: `runtm search "payment webhook"`
+- Filter by tags: `runtm search "api" --template backend-service`
+- Document capabilities for future reference
+- Enable agent-to-agent discovery
+
+## Creating Discovery Files
+
+Every template includes a `runtm.discovery.yaml` with TODO placeholders:
+
+```yaml
+# runtm.discovery.yaml
+# Fill this in before deploying!
+
+description: |
+  Stripe webhook handler that processes payment events
+  in real-time. Supports all standard Stripe events including
+  charges, subscriptions, and customer updates.
+
+summary: "Real-time Stripe payment webhook processor"
+
+capabilities:
+  - "Process Stripe webhook events"
+  - "Update order status in database"
+  - "Send email notifications on payment"
+  - "Handle subscription lifecycle events"
+
+use_cases:
+  - "E-commerce payment tracking"
+  - "Subscription billing management"
+  - "Payment failure alerting"
+
+tags:
+  - stripe
+  - webhook
+  - payments
+  - api
+  - backend
+
+# For backend-service: API endpoints
+api:
+  openapi_path: /openapi.json
+  endpoints:
+    - POST /webhook
+    - GET /health
+    - GET /status
+
+# For web-app: App URLs
+app:
+  login_url: /login
+  onboarding_url: /onboarding
+```
+
+## Field Reference
+
+### description (required)
+
+Multi-line description explaining what the app does:
+
+```yaml
+description: |
+  2-3 sentences explaining:
+  - What the app does
+  - How it works
+  - What problem it solves
+```
+
+### summary (required)
+
+One-line tagline shown in search results:
+
+```yaml
+summary: "Real-time Stripe payment webhook processor"
+```
+
+### capabilities
+
+List of what the app can do:
+
+```yaml
+capabilities:
+  - "Process webhook events"
+  - "Send notifications"
+  - "Update database records"
+```
+
+### use_cases
+
+Who should use this app and for what:
+
+```yaml
+use_cases:
+  - "E-commerce stores"
+  - "Subscription services"
+  - "Payment tracking"
+```
+
+### tags
+
+Keywords for search and categorization:
+
+```yaml
+tags:
+  - stripe
+  - webhook
+  - payments
+  - api
+```
+
+### api (backend-service)
+
+API-specific metadata:
+
+```yaml
+api:
+  openapi_path: /openapi.json
+  endpoints:
+    - POST /webhook
+    - GET /health
+    - GET /api/v1/items
+```
+
+### app (web-app)
+
+App-specific URLs:
+
+```yaml
+app:
+  login_url: /login
+  onboarding_url: /onboarding
+  dashboard_url: /dashboard
+```
+
+### generated
+
+Auto-generated metadata (by AI agents):
+
+```yaml
+generated:
+  by: "cursor-agent-v1"
+  at: "2024-01-15T10:30:00Z"
+```
+
+## Searching Deployments
+
+### Basic Search
+
+```bash
+runtm search "payment"
+```
+
+### With Filters
+
+```bash
+# Filter by template
+runtm search "api" --template backend-service
+
+# Filter by state
+runtm search "dashboard" --state ready
+
+# JSON output
+runtm search "webhook" --json
+```
+
+### Search Results
+
+```
+Search: "stripe"
+
+  ID              NAME              MATCH   STATUS    TEMPLATE
+  dep_abc123xyz   stripe-webhook    1.8     ● ready   backend-service
+  dep_def456uvw   payment-api       0.6     ● ready   backend-service
+
+Found 2 results
+```
+
+The `MATCH` score indicates relevance (higher is better).
+
+## Search Ranking
+
+Fields are searched in order of importance:
+
+| Field | Weight | Example Match |
+|-------|--------|---------------|
+| `tags` (exact) | 1.0 | Tag "stripe" matches search "stripe" |
+| `tags` (partial) | 0.5 | Tag "stripe-webhook" matches "stripe" |
+| `summary` | 0.8 | Summary contains search term |
+| `description` | 0.6 | Description contains search term |
+| `capabilities` | 0.4 | Capability contains search term |
+| `use_cases` | 0.3 | Use case contains search term |
+| `name` | 0.2 | Deployment name contains search term |
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Write specific descriptions">
+    Bad: "An API service"
+    Good: "Stripe webhook handler that processes payment events and updates order status"
+  </Accordion>
+  <Accordion title="Use relevant tags">
+    Include technology (stripe, postgres), type (api, webhook), domain (payments, auth)
+  </Accordion>
+  <Accordion title="List concrete capabilities">
+    Bad: "Does things"
+    Good: "Process webhooks", "Send emails", "Update database"
+  </Accordion>
+  <Accordion title="Update when features change">
+    Keep discovery metadata in sync with actual functionality.
+  </Accordion>
+</AccordionGroup>
+
+## Template Examples
+
+### Backend Service
+
+```yaml
+description: |
+  REST API for managing inventory across multiple warehouses.
+  Supports real-time stock updates, low-stock alerts, and
+  integration with e-commerce platforms.
+
+summary: "Multi-warehouse inventory management API"
+
+capabilities:
+  - "Track stock levels across warehouses"
+  - "Generate low-stock alerts"
+  - "Sync with Shopify/WooCommerce"
+  - "Generate inventory reports"
+
+use_cases:
+  - "E-commerce inventory tracking"
+  - "Warehouse management"
+  - "Multi-location retail"
+
+tags:
+  - inventory
+  - api
+  - warehouse
+  - ecommerce
+  - backend
+
+api:
+  openapi_path: /openapi.json
+  endpoints:
+    - GET /api/v1/products
+    - POST /api/v1/stock/update
+    - GET /api/v1/alerts
+```
+
+### Web App
+
+```yaml
+description: |
+  Customer portal for SaaS subscription management.
+  Users can view usage, manage billing, and access support.
+
+summary: "SaaS customer subscription portal"
+
+capabilities:
+  - "View subscription status"
+  - "Update payment methods"
+  - "Download invoices"
+  - "Submit support tickets"
+
+use_cases:
+  - "SaaS customer self-service"
+  - "Subscription management"
+  - "Support ticket portal"
+
+tags:
+  - portal
+  - saas
+  - billing
+  - subscriptions
+  - dashboard
+
+app:
+  login_url: /login
+  dashboard_url: /dashboard
+  billing_url: /billing
+```
+
+## Related
+
+- [`runtm search`](/cli/search) - Search CLI command
+- [Search API](/api/search) - Search API endpoint
+

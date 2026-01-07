@@ -1,0 +1,200 @@
+---
+title: domain
+description: "Manage custom domains"
+---
+
+# runtm domain
+
+Manage custom domains for your deployments.
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `runtm domain add` | Add custom domain |
+| `runtm domain status` | Check domain status |
+| `runtm domain remove` | Remove custom domain |
+
+---
+
+## domain add
+
+Add a custom domain to a deployment.
+
+```bash
+runtm domain add <deployment_id> <hostname>
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `deployment_id` | Yes | Deployment ID |
+| `hostname` | Yes | Custom domain (e.g., `api.example.com`) |
+
+### Examples
+
+```bash
+runtm domain add dep_abc123xyz api.example.com
+```
+
+### Output
+
+```
+Adding domain api.example.com to dep_abc123xyz...
+
+✓ Certificate created
+
+Configure DNS:
+
+  Record Type  Name              Value
+  CNAME        api.example.com   dep_abc123xyz.fly.dev
+
+After DNS propagates, your domain will be active with HTTPS.
+
+Check status: runtm domain status dep_abc123xyz api.example.com
+```
+
+<Note>
+  Custom domains only work with `ready` deployments.
+</Note>
+
+---
+
+## domain status
+
+Check the status of a custom domain.
+
+```bash
+runtm domain status <deployment_id> <hostname>
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `deployment_id` | Yes | Deployment ID |
+| `hostname` | Yes | Custom domain to check |
+
+### Examples
+
+```bash
+runtm domain status dep_abc123xyz api.example.com
+```
+
+### Output
+
+```
+Domain: api.example.com
+
+  Status:       ● configured
+  Certificate:  ● issued
+  Expires:      2025-04-15
+
+  DNS Record:
+    Type:   CNAME
+    Name:   api.example.com
+    Value:  dep_abc123xyz.fly.dev
+    Status: ✓ Verified
+```
+
+### Certificate Status
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Waiting for DNS verification |
+| `issued` | Certificate active |
+| `failed` | Certificate issuance failed |
+
+---
+
+## domain remove
+
+Remove a custom domain from a deployment.
+
+```bash
+runtm domain remove <deployment_id> <hostname>
+```
+
+### Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `deployment_id` | Yes | Deployment ID |
+| `hostname` | Yes | Custom domain to remove |
+
+### Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--force` | `-f` | Skip confirmation |
+
+### Examples
+
+```bash
+# With confirmation
+runtm domain remove dep_abc123xyz api.example.com
+
+# Skip confirmation
+runtm domain remove dep_abc123xyz api.example.com --force
+```
+
+---
+
+## DNS Configuration
+
+### CNAME Record (Subdomains)
+
+For subdomains like `api.example.com`:
+
+| Type | Name | Value |
+|------|------|-------|
+| CNAME | `api` | `your-app.fly.dev` |
+
+### A Record (Apex Domains)
+
+For apex domains like `example.com`, you'll need to use Fly.io's dedicated IPs. Contact support for apex domain setup.
+
+### DNS Propagation
+
+DNS changes can take up to 48 hours to propagate globally, though most propagate within minutes.
+
+Check propagation with:
+
+```bash
+dig api.example.com CNAME
+```
+
+---
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="'Certificate pending' for too long">
+    Verify DNS is configured correctly:
+    ```bash
+    dig api.example.com CNAME
+    ```
+    The output should show your Fly.io URL.
+  </Accordion>
+  <Accordion title="'Deployment not ready'">
+    Custom domains only work with `ready` deployments:
+    ```bash
+    runtm status dep_abc123xyz
+    ```
+  </Accordion>
+  <Accordion title="'Domain already in use'">
+    The domain may be configured on another deployment. Remove it first:
+    ```bash
+    runtm domain remove dep_old123 api.example.com
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Related
+
+- [Custom Domains Feature](/features/custom-domains) - Detailed guide
+- [`runtm status`](/cli/status) - Check deployment status
+

@@ -1,0 +1,132 @@
+---
+title: "List Deployments"
+api: "GET /v0/deployments"
+description: "Retrieve a list of all deployments"
+---
+
+List all deployments for your account, with optional filtering and pagination.
+
+## Query Parameters
+
+<ParamField query="state" type="string">
+  Filter by deployment state. One of: `queued`, `building`, `deploying`, `ready`, `failed`, `destroyed`
+</ParamField>
+
+<ParamField query="name" type="string">
+  Filter by project name (exact match)
+</ParamField>
+
+<ParamField query="limit" type="integer" default="50">
+  Maximum number of results (1-100)
+</ParamField>
+
+<ParamField query="offset" type="integer" default="0">
+  Pagination offset
+</ParamField>
+
+## Response
+
+<ResponseField name="deployments" type="array">
+  List of deployment objects
+  <Expandable title="Deployment object">
+    <ResponseField name="deployment_id" type="string">
+      Unique deployment identifier (e.g., `dep_abc123xyz`)
+    </ResponseField>
+    <ResponseField name="name" type="string">
+      Project name from manifest
+    </ResponseField>
+    <ResponseField name="state" type="string">
+      Current state: `queued`, `building`, `deploying`, `ready`, `failed`, `destroyed`
+    </ResponseField>
+    <ResponseField name="url" type="string">
+      Live URL (only when `ready`)
+    </ResponseField>
+    <ResponseField name="template" type="string">
+      Template type: `backend-service`, `static-site`, `web-app`
+    </ResponseField>
+    <ResponseField name="version" type="integer">
+      Deployment version number
+    </ResponseField>
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="total" type="integer">
+  Total count of matching deployments
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://app.runtm.com/api/v0/deployments?state=ready&limit=10" \
+  -H "Authorization: Bearer runtm_xxx"
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://app.runtm.com/api/v0/deployments",
+    headers={"Authorization": "Bearer runtm_xxx"},
+    params={"state": "ready", "limit": 10}
+)
+
+data = response.json()
+for dep in data["deployments"]:
+    print(f"{dep['name']}: {dep['url']}")
+```
+
+```javascript JavaScript
+const response = await fetch(
+  "https://app.runtm.com/api/v0/deployments?state=ready&limit=10",
+  {
+    headers: {
+      "Authorization": "Bearer runtm_xxx"
+    }
+  }
+);
+
+const data = await response.json();
+data.deployments.forEach(dep => {
+  console.log(`${dep.name}: ${dep.url}`);
+});
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "deployments": [
+    {
+      "deployment_id": "dep_abc123xyz",
+      "name": "my-api",
+      "state": "ready",
+      "url": "https://my-api-abc123.fly.dev",
+      "template": "backend-service",
+      "runtime": "python",
+      "version": 3,
+      "is_latest": true,
+      "created_at": "2024-01-15T10:30:00Z",
+      "updated_at": "2024-01-15T10:32:45Z",
+      "ready_at": "2024-01-15T10:32:45Z"
+    },
+    {
+      "deployment_id": "dep_def456uvw",
+      "name": "landing-page",
+      "state": "ready",
+      "url": "https://landing-page-def456.fly.dev",
+      "template": "static-site",
+      "runtime": "node",
+      "version": 1,
+      "is_latest": true,
+      "created_at": "2024-01-14T15:20:00Z",
+      "updated_at": "2024-01-14T15:22:30Z",
+      "ready_at": "2024-01-14T15:22:30Z"
+    }
+  ],
+  "total": 2
+}
+```
+</ResponseExample>
+

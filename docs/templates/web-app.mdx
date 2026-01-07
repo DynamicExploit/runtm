@@ -1,0 +1,325 @@
+---
+title: web-app
+description: "Fullstack Next.js + FastAPI template for interactive apps"
+---
+
+# web-app Template
+
+A fullstack template combining Next.js frontend with FastAPI backend for building interactive applications, dashboards, and SaaS products.
+
+## Quick Start
+
+```bash
+runtm init web-app
+cd web-app
+runtm run
+```
+
+Visit `http://localhost:3000` for the frontend and `http://localhost:8080/docs` for the API docs.
+
+## Specifications
+
+| Property | Value |
+|----------|-------|
+| Frontend | Next.js 14 (App Router) |
+| Backend | Python FastAPI |
+| Port | 3000 (frontend proxies to backend) |
+| **Minimum Tier** | **standard** (512MB required) |
+| Health Endpoint | `/health` |
+
+<Warning>
+  This template requires at least `standard` tier because it runs both Node.js and Python simultaneously. The `starter` tier (256MB) is insufficient.
+</Warning>
+
+## Project Structure
+
+```
+web-app/
+├── runtm.yaml              # Deployment manifest
+├── runtm.discovery.yaml    # Search metadata
+├── Dockerfile              # Multi-stage build
+├── frontend/
+│   ├── package.json
+│   ├── app/
+│   │   ├── layout.tsx
+│   │   ├── page.tsx
+│   │   └── api/auth/[...all]/route.ts  # Auth routes (if enabled)
+│   ├── components/
+│   │   ├── auth/           # Auth components (if enabled)
+│   │   └── ui/             # UI components
+│   ├── lib/
+│   │   ├── api.ts          # API client
+│   │   ├── auth.ts         # Auth server (if enabled)
+│   │   └── auth-client.ts  # Auth client (if enabled)
+│   └── types/
+├── backend/
+│   ├── pyproject.toml
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── api/v1/
+│   │   ├── services/
+│   │   ├── core/
+│   │   └── db/             # Database (if enabled)
+│   └── tests/
+├── README.md
+├── AGENT.md
+└── CLAUDE.md
+```
+
+## Frontend
+
+### API Client
+
+```typescript
+// frontend/lib/api.ts
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+export async function fetchItems() {
+  const response = await fetch(`${API_URL}/v1/items`);
+  return response.json();
+}
+```
+
+### React Components
+
+```tsx
+// frontend/components/ItemList.tsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { fetchItems } from '@/lib/api';
+
+export function ItemList() {
+  const [items, setItems] = useState([]);
+
+  useEffect(() => {
+    fetchItems().then(setItems);
+  }, []);
+
+  return (
+    <ul>
+      {items.map((item) => (
+        <li key={item.id}>{item.name}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+## Backend
+
+The backend follows the same structure as `backend-service`:
+
+```python
+# backend/app/api/v1/items.py
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from app.db import get_db
+
+router = APIRouter(prefix="/items", tags=["items"])
+
+@router.get("/")
+def list_items(db: Session = Depends(get_db)):
+    # Your logic here
+    return []
+```
+
+## Database
+
+Enable SQLite persistence:
+
+```yaml
+# runtm.yaml
+features:
+  database: true
+```
+
+### Shared Types
+
+Keep frontend and backend types in sync:
+
+```typescript
+// frontend/types/index.ts
+export interface Item {
+  id: number;
+  name: string;
+  created_at: string;
+}
+```
+
+```python
+# backend/app/schemas/item.py
+from pydantic import BaseModel
+from datetime import datetime
+
+class Item(BaseModel):
+    id: int
+    name: str
+    created_at: datetime
+```
+
+## Authentication
+
+Enable Better Auth integration:
+
+```yaml
+# runtm.yaml
+features:
+  database: true  # Required
+  auth: true
+
+env_schema:
+  - name: AUTH_SECRET
+    type: string
+    required: true
+    secret: true
+```
+
+### Generate Secret
+
+```bash
+runtm secrets set AUTH_SECRET=$(openssl rand -base64 32)
+```
+
+### Protected Routes
+
+```tsx
+// frontend/app/dashboard/page.tsx
+import { AuthGuard } from '@/components/auth/AuthGuard';
+import { Dashboard } from '@/components/Dashboard';
+
+export default function DashboardPage() {
+  return (
+    <AuthGuard>
+      <Dashboard />
+    </AuthGuard>
+  );
+}
+```
+
+### Auth Hooks
+
+```tsx
+'use client';
+
+import { useSession, signIn, signOut } from '@/lib/auth-client';
+
+export function UserMenu() {
+  const { data: session, status } = useSession();
+
+  if (status === 'loading') return <span>Loading...</span>;
+  if (!session) return <button onClick={() => signIn()}>Sign In</button>;
+
+  return (
+    <div>
+      <span>{session.user.email}</span>
+      <button onClick={() => signOut()}>Sign Out</button>
+    </div>
+  );
+}
+```
+
+## Local Development
+
+```bash
+# Run both frontend and backend
+runtm run
+```
+
+This starts:
+- Frontend at `http://localhost:3000`
+- Backend at `http://localhost:8080`
+
+The frontend proxies `/api/*` requests to the backend.
+
+## Deployment
+
+```bash
+# Set tier to standard (required)
+# This is already set in runtm.yaml
+
+# Deploy
+runtm deploy
+```
+
+The Dockerfile builds both applications:
+
+```dockerfile
+# Build frontend
+FROM node:20-alpine AS frontend-builder
+WORKDIR /frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend .
+RUN npm run build
+
+# Build backend
+FROM python:3.11-slim AS backend-builder
+WORKDIR /backend
+COPY backend/pyproject.toml .
+RUN pip install -e .
+COPY backend .
+
+# Runtime
+FROM python:3.11-slim
+# ... serves both frontend static files and backend API
+```
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Dashboard" icon="chart-line">
+    Analytics dashboards with real-time data
+  </Card>
+  <Card title="SaaS App" icon="cloud">
+    Multi-tenant applications with auth
+  </Card>
+  <Card title="Admin Panel" icon="gear">
+    Internal tools and admin interfaces
+  </Card>
+  <Card title="Portal" icon="door-open">
+    Customer portals with account management
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep types in sync">
+    When you change a backend model, update the frontend types too.
+  </Accordion>
+  <Accordion title="Use Server Components">
+    Fetch data in Server Components when possible for better performance.
+  </Accordion>
+  <Accordion title="Separate concerns">
+    Frontend handles UI, backend handles data and business logic.
+  </Accordion>
+  <Accordion title="Test both layers">
+    Write tests for both frontend components and backend APIs.
+  </Accordion>
+</AccordionGroup>
+
+## Environment Variables
+
+```yaml
+# runtm.yaml
+env_schema:
+  - name: AUTH_SECRET
+    type: string
+    required: true
+    secret: true
+    description: "Session signing secret"
+  
+  - name: DATABASE_URL
+    type: url
+    required: false
+    secret: true
+    description: "External PostgreSQL (optional)"
+```
+
+Set locally:
+
+```bash
+runtm secrets set AUTH_SECRET=$(openssl rand -base64 32)
+```
+

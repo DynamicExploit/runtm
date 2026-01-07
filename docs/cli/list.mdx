@@ -1,0 +1,66 @@
+---
+title: list
+description: "List all deployments"
+---
+
+# runtm list
+
+List all your deployments.
+
+```bash
+runtm list
+```
+
+## Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--state STATE` | `-s` | Filter by state |
+| `--limit N` | `-n` | Maximum results (default: 50) |
+
+## Examples
+
+```bash
+# List all deployments
+runtm list
+
+# List only ready deployments
+runtm list --state ready
+
+# List failed deployments
+runtm list --state failed
+
+# Limit results
+runtm list --limit 10
+```
+
+## Output
+
+```
+Deployments
+
+  ID              NAME          STATUS    VERSION  URL                              CREATED
+  dep_abc123xyz   my-api        ● ready   3        https://my-api-xyz.fly.dev       2h ago
+  dep_def456uvw   my-site       ● ready   1        https://my-site-abc.fly.dev      1d ago
+  dep_ghi789rst   test-app      ✗ failed  2        -                                3d ago
+
+Total: 3 deployments
+```
+
+## State Filters
+
+| State | Description |
+|-------|-------------|
+| `queued` | Waiting for worker |
+| `building` | Docker build in progress |
+| `deploying` | Deploying to Fly.io |
+| `ready` | Live and healthy |
+| `failed` | Build or deploy failed |
+| `destroyed` | Deployment removed |
+
+## Related Commands
+
+- [`runtm search`](/cli/search) - Search by description/tags
+- [`runtm status`](/cli/status) - Detailed status for one deployment
+- [`runtm destroy`](/cli/destroy) - Remove a deployment
+

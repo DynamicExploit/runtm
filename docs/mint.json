@@ -1,0 +1,194 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "Runtm",
+  "logo": {
+    "dark": "/images/logo-dark.svg",
+    "light": "/images/logo-light.svg"
+  },
+  "favicon": "/images/favicon.svg",
+  "colors": {
+    "primary": "#18181b",
+    "light": "#71717a",
+    "dark": "#18181b",
+    "anchors": {
+      "from": "#18181b",
+      "to": "#3f3f46"
+    },
+    "background": {
+      "light": "#fafafa",
+      "dark": "#18181b"
+    }
+  },
+  "theme": "quill",
+  "modeToggle": {
+    "default": "light"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "Dashboard",
+        "href": "https://app.runtm.com"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get Started",
+      "href": "https://app.runtm.com"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "icon": "book-open",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Templates",
+            "pages": [
+              "templates/overview",
+              "templates/backend-service",
+              "templates/static-site",
+              "templates/web-app"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/machine-tiers",
+              "features/secrets",
+              "features/database",
+              "features/auth",
+              "features/custom-domains"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/agent-workflow",
+              "guides/discovery",
+              "guides/logs-debugging",
+              "guides/troubleshooting"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "icon": "code",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/overview"
+            ]
+          },
+          {
+            "group": "Deployments",
+            "pages": [
+              "api/deployments/list",
+              "api/deployments/create",
+              "api/deployments/get",
+              "api/deployments/delete",
+              "api/deployments/search"
+            ]
+          },
+          {
+            "group": "Logs",
+            "pages": [
+              "api/logs"
+            ]
+          },
+          {
+            "group": "Domains",
+            "pages": [
+              "api/domains/add",
+              "api/domains/get",
+              "api/domains/remove"
+            ]
+          },
+          {
+            "group": "User",
+            "pages": [
+              "api/user/me"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI",
+        "icon": "terminal",
+        "groups": [
+          {
+            "group": "CLI Reference",
+            "pages": [
+              "cli/overview",
+              "cli/auth",
+              "cli/init",
+              "cli/run",
+              "cli/deploy",
+              "cli/validate",
+              "cli/fix",
+              "cli/status",
+              "cli/logs",
+              "cli/list",
+              "cli/search",
+              "cli/destroy",
+              "cli/secrets",
+              "cli/domain",
+              "cli/config",
+              "cli/approve"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Self-Hosting",
+        "icon": "server",
+        "groups": [
+          {
+            "group": "Self-Hosting",
+            "pages": [
+              "self-hosting/overview",
+              "self-hosting/requirements",
+              "self-hosting/docker-compose",
+              "self-hosting/configuration",
+              "self-hosting/admin-commands"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "anchors": [
+    {
+      "name": "GitHub",
+      "icon": "github",
+      "url": "https://github.com/runtm-ai/runtm"
+    },
+    {
+      "name": "Discord",
+      "icon": "discord",
+      "url": "https://discord.gg/runtm"
+    }
+  ],
+  "footer": {
+    "socials": {
+      "github": "https://github.com/runtm-ai/runtm",
+      "x": "https://twitter.com/runtm_ai",
+      "discord": "https://discord.gg/runtm"
+    }
+  },
+  "api": {
+    "baseUrl": "https://app.runtm.com/api",
+    "auth": {
+      "method": "bearer"
+    }
+  }
+}

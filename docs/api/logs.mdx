@@ -1,0 +1,156 @@
+---
+title: "Get Logs"
+api: "GET /v0/deployments/{deployment_id}/logs"
+description: "Retrieve build, deploy, and runtime logs"
+---
+
+Get logs for a deployment. Supports filtering by log type and searching within logs.
+
+## Path Parameters
+
+<ParamField path="deployment_id" type="string" required>
+  The deployment ID (e.g., `dep_abc123xyz`)
+</ParamField>
+
+## Query Parameters
+
+<ParamField query="type" type="string">
+  Log type: `build`, `deploy`, or `runtime`. If omitted, returns all types.
+</ParamField>
+
+<ParamField query="lines" type="integer" default="20">
+  Number of runtime log lines to include (1-500)
+</ParamField>
+
+<ParamField query="search" type="string">
+  Filter logs containing this text. Supports:
+  - Single term: `error`
+  - Multiple terms (OR): `error,warning,failed`
+  - Regex patterns: `HTTP.*[45]\d\d`
+</ParamField>
+
+## Response
+
+<ResponseField name="deployment_id" type="string">
+  The deployment ID
+</ResponseField>
+
+<ResponseField name="logs" type="array">
+  List of log entries
+  <Expandable title="Log entry object">
+    <ResponseField name="log_type" type="string">
+      Type: `build`, `deploy`, or `runtime`
+    </ResponseField>
+    <ResponseField name="content" type="string">
+      Log content
+    </ResponseField>
+    <ResponseField name="created_at" type="string">
+      ISO 8601 timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="source" type="string">
+  Log source: `stored` (database) or `fly` (live from Fly.io)
+</ResponseField>
+
+<ResponseField name="instructions" type="string">
+  Instructions for getting logs if unavailable via API
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+# Get all logs
+curl -X GET "https://app.runtm.com/api/v0/deployments/dep_abc123xyz/logs" \
+  -H "Authorization: Bearer runtm_xxx"
+
+# Get only build logs
+curl -X GET "https://app.runtm.com/api/v0/deployments/dep_abc123xyz/logs?type=build" \
+  -H "Authorization: Bearer runtm_xxx"
+
+# Search for errors
+curl -X GET "https://app.runtm.com/api/v0/deployments/dep_abc123xyz/logs?search=error,failed" \
+  -H "Authorization: Bearer runtm_xxx"
+```
+
+```python Python
+import requests
+
+# Get runtime logs with search
+response = requests.get(
+    "https://app.runtm.com/api/v0/deployments/dep_abc123xyz/logs",
+    headers={"Authorization": "Bearer runtm_xxx"},
+    params={
+        "type": "runtime",
+        "lines": 100,
+        "search": "error"
+    }
+)
+
+data = response.json()
+for log in data["logs"]:
+    print(f"[{log['log_type']}] {log['content']}")
+```
+
+```javascript JavaScript
+const params = new URLSearchParams({
+  type: "runtime",
+  lines: "100",
+  search: "error"
+});
+
+const response = await fetch(
+  `https://app.runtm.com/api/v0/deployments/dep_abc123xyz/logs?${params}`,
+  {
+    headers: {
+      "Authorization": "Bearer runtm_xxx"
+    }
+  }
+);
+
+const data = await response.json();
+data.logs.forEach(log => {
+  console.log(`[${log.log_type}] ${log.content}`);
+});
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200
+{
+  "deployment_id": "dep_abc123xyz",
+  "logs": [
+    {
+      "log_type": "build",
+      "content": "Step 1/12: FROM python:3.11-slim...\nStep 2/12: WORKDIR /app...",
+      "created_at": "2024-01-15T10:30:45Z"
+    },
+    {
+      "log_type": "deploy",
+      "content": "Creating machine... done\nWaiting for health check... passed",
+      "created_at": "2024-01-15T10:31:30Z"
+    },
+    {
+      "log_type": "runtime",
+      "content": "INFO: Application startup complete.\nINFO: Uvicorn running on http://0.0.0.0:8080",
+      "created_at": "2024-01-15T10:32:00Z"
+    }
+  ],
+  "source": "stored"
+}
+```
+
+```json 200 Runtime unavailable
+{
+  "deployment_id": "dep_abc123xyz",
+  "logs": [],
+  "source": "fly",
+  "instructions": "Runtime logs are available via the Fly.io CLI:\n\n  fly logs -a my-api-abc123\n\nInstall flyctl: curl -L https://fly.io/install.sh | sh"
+}
+```
+</ResponseExample>
+
+<Info>
+Build and deploy logs are stored permanently. Runtime logs are fetched live from Fly.io and may not be available if the app is not running.
+</Info>
+

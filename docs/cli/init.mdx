@@ -1,0 +1,174 @@
+---
+title: init
+description: "Initialize a new project from a template"
+---
+
+# runtm init
+
+Initialize a new project from a template.
+
+```bash
+runtm init <template>
+```
+
+## Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `template` | Yes* | Template type: `backend-service`, `static-site`, or `web-app` |
+
+*If not provided, you'll be prompted to choose interactively.
+
+## Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--path PATH` | `-p` | Directory to create project in (default: `.`) |
+| `--name NAME` | `-n` | Project name (default: directory name) |
+
+## Templates
+
+<CardGroup cols={3}>
+  <Card title="backend-service" icon="server">
+    Python FastAPI backend for APIs, webhooks, and agent backends
+  </Card>
+  <Card title="static-site" icon="file-code">
+    Next.js static site for landing pages and documentation
+  </Card>
+  <Card title="web-app" icon="browser">
+    Fullstack Next.js + FastAPI for interactive applications
+  </Card>
+</CardGroup>
+
+## Examples
+
+### Basic Usage
+
+```bash
+# Initialize backend service in current directory
+runtm init backend-service
+
+# Initialize with project name
+runtm init backend-service --name my-api
+
+# Initialize in specific directory
+runtm init static-site --path ./my-site
+```
+
+### Interactive Mode
+
+```bash
+# Prompts you to choose a template
+runtm init
+```
+
+## What Gets Created
+
+### backend-service
+
+```
+my-project/
+├── runtm.yaml           # Deployment manifest
+├── runtm.discovery.yaml # Search metadata
+├── Dockerfile           # Container build
+├── pyproject.toml       # Python dependencies
+├── app/
+│   ├── main.py          # FastAPI entry point
+│   ├── api/v1/          # API endpoints
+│   ├── services/        # Business logic
+│   └── core/            # Config and logging
+├── tests/               # Pytest tests
+├── README.md            # Documentation
+├── AGENT.md             # AI IDE instructions
+└── CLAUDE.md            # Claude Code instructions
+```
+
+### static-site
+
+```
+my-project/
+├── runtm.yaml
+├── runtm.discovery.yaml
+├── Dockerfile
+├── package.json
+├── app/
+│   ├── layout.tsx
+│   ├── page.tsx
+│   └── globals.css
+├── components/
+├── public/
+│   └── health           # Static health file
+├── README.md
+├── AGENT.md
+└── CLAUDE.md
+```
+
+### web-app
+
+```
+my-project/
+├── runtm.yaml
+├── runtm.discovery.yaml
+├── Dockerfile
+├── frontend/            # Next.js frontend
+│   ├── package.json
+│   ├── app/
+│   └── components/
+├── backend/             # FastAPI backend
+│   ├── pyproject.toml
+│   └── app/
+├── README.md
+├── AGENT.md
+└── CLAUDE.md
+```
+
+## After Initialization
+
+```bash
+# Enter the project directory
+cd my-project
+
+# Run locally
+runtm run
+
+# Deploy when ready
+runtm deploy
+```
+
+## Template Selection Guide
+
+<AccordionGroup>
+  <Accordion title="When to use backend-service">
+    - REST APIs
+    - Webhooks
+    - AI agent backends
+    - Data processing services
+    - Scrapers and crawlers
+    - Background job runners
+  </Accordion>
+  <Accordion title="When to use static-site">
+    - Landing pages
+    - Marketing sites
+    - Documentation
+    - Portfolios
+    - Simple content sites
+  </Accordion>
+  <Accordion title="When to use web-app">
+    - Interactive dashboards
+    - SaaS applications
+    - Admin panels
+    - Apps with user authentication
+    - Full-stack applications with database
+  </Accordion>
+</AccordionGroup>
+
+## Customizing Templates
+
+After initialization, customize your project by editing:
+
+1. **`runtm.yaml`** - Add environment variables, features, policy
+2. **`runtm.discovery.yaml`** - Add description, tags for searchability
+3. **Application code** - Implement your features
+
+See [Templates Overview](/templates/overview) for detailed documentation.
+

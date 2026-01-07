@@ -1,0 +1,152 @@
+---
+title: Quick Start
+description: "Deploy your first app in 5 minutes"
+---
+
+## Prerequisites
+
+- Python 3.9+
+- A [Runtm account](https://app.runtm.com)
+
+## Install the CLI
+
+<CodeGroup>
+
+```bash uv (recommended)
+uv tool install runtm
+```
+
+```bash pipx
+pipx install runtm
+```
+
+```bash pip
+pip install runtm
+```
+
+</CodeGroup>
+
+Verify installation:
+
+```bash
+runtm version
+```
+
+## Authenticate
+
+```bash
+runtm login
+```
+
+You'll be prompted for your API key from [app.runtm.com](https://app.runtm.com).
+
+<Tip>
+Pass the token directly with `runtm login --token runtm_xxx`
+</Tip>
+
+## Create a project
+
+<Tabs>
+  <Tab title="Backend API">
+    ```bash
+    runtm init backend-service
+    cd backend-service
+    ```
+    Python FastAPI with health endpoint, example routes, and optional database.
+  </Tab>
+  <Tab title="Static Site">
+    ```bash
+    runtm init static-site
+    cd static-site
+    ```
+    Next.js static export with Tailwind CSS.
+  </Tab>
+  <Tab title="Full-Stack">
+    ```bash
+    runtm init web-app
+    cd web-app
+    ```
+    Next.js frontend + FastAPI backend with optional auth and database.
+  </Tab>
+</Tabs>
+
+## Test locally
+
+```bash
+runtm run
+```
+
+The CLI detects your runtime and starts the right dev server.
+
+## Deploy
+
+```bash
+runtm deploy
+```
+
+First deploy takes 2-3 minutes. Subsequent deploys are faster.
+
+```
+✓ Validated project
+✓ Created artifact (2.1 MB)
+✓ Building...
+✓ Deploying...
+
+🚀 Deployed!
+
+   URL: https://my-app-xyz123.fly.dev
+   ID:  dep_abc123xyz
+```
+
+## View logs
+
+```bash
+runtm logs dep_abc123xyz
+```
+
+Filter by type:
+
+```bash
+runtm logs dep_abc123xyz --type build
+runtm logs dep_abc123xyz --type runtime
+```
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Enable database" icon="database" href="/features/database">
+    Persistent SQLite storage
+  </Card>
+  <Card title="Custom domain" icon="globe" href="/features/custom-domains">
+    Connect your domain
+  </Card>
+  <Card title="Machine tiers" icon="microchip" href="/features/machine-tiers">
+    Scale resources
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/cli/overview">
+    All commands
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Command not found">
+    Ensure the CLI is in your PATH:
+    ```bash
+    uv tool install runtm --force
+    ```
+  </Accordion>
+  <Accordion title="Authentication failed">
+    Check your API key:
+    ```bash
+    runtm doctor
+    ```
+  </Accordion>
+  <Accordion title="Lockfile error">
+    Auto-fix:
+    ```bash
+    runtm deploy --yes
+    ```
+  </Accordion>
+</AccordionGroup>

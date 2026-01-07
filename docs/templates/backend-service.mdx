@@ -1,0 +1,267 @@
+---
+title: backend-service
+description: "Python FastAPI template for APIs and backends"
+---
+
+# backend-service Template
+
+A Python FastAPI template for building APIs, webhooks, agent backends, and data processing services.
+
+## Quick Start
+
+```bash
+runtm init backend-service
+cd backend-service
+runtm run
+```
+
+Visit `http://localhost:8080/docs` to see the OpenAPI documentation.
+
+## Specifications
+
+| Property | Value |
+|----------|-------|
+| Runtime | Python 3.11 |
+| Framework | FastAPI |
+| Port | 8080 |
+| Minimum Tier | starter |
+| Health Endpoint | `/health` |
+
+## Project Structure
+
+```
+backend-service/
+├── runtm.yaml              # Deployment manifest
+├── runtm.discovery.yaml    # Search metadata
+├── Dockerfile              # Container build
+├── pyproject.toml          # Python dependencies
+├── app/
+│   ├── main.py             # FastAPI entry point
+│   ├── api/
+│   │   └── v1/
+│   │       ├── health.py   # Health endpoint
+│   │       └── routes.py   # Your API routes
+│   ├── services/           # Business logic
+│   │   └── processor.py    # Example service
+│   ├── core/
+│   │   ├── config.py       # Settings
+│   │   └── logging.py      # Structured logging
+│   └── db/                 # Database (if enabled)
+│       ├── __init__.py
+│       ├── base.py
+│       ├── session.py
+│       ├── migrations.py
+│       └── models/
+├── tests/
+│   └── test_health.py
+├── README.md
+├── AGENT.md
+└── CLAUDE.md
+```
+
+## Key Files
+
+### main.py
+
+```python
+from fastapi import FastAPI
+from app.api.v1 import health, routes
+from app.core.logging import setup_logging
+
+setup_logging()
+
+app = FastAPI(
+    title="My API",
+    version="1.0.0",
+    docs_url="/docs",
+    openapi_url="/openapi.json",
+)
+
+app.include_router(health.router)
+app.include_router(routes.router, prefix="/api/v1")
+```
+
+### Adding Routes
+
+Create new routes in `app/api/v1/`:
+
+```python
+# app/api/v1/items.py
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/items", tags=["items"])
+
+@router.get("/")
+async def list_items():
+    return {"items": []}
+
+@router.post("/")
+async def create_item(name: str):
+    return {"id": 1, "name": name}
+```
+
+Register in `main.py`:
+
+```python
+from app.api.v1 import items
+app.include_router(items.router, prefix="/api/v1")
+```
+
+### Business Logic
+
+Keep business logic in `app/services/`:
+
+```python
+# app/services/processor.py
+class Processor:
+    def process(self, data: dict) -> dict:
+        # Your logic here
+        return {"result": data}
+```
+
+Use in routes:
+
+```python
+from app.services.processor import Processor
+
+processor = Processor()
+
+@router.post("/process")
+async def process_data(data: dict):
+    return processor.process(data)
+```
+
+## Database Integration
+
+Enable SQLite persistence:
+
+```yaml
+# runtm.yaml
+features:
+  database: true
+```
+
+This adds:
+- Persistent volume at `/data`
+- SQLAlchemy with SQLite
+- Auto-migrations on startup
+
+### Creating Models
+
+```python
+# app/db/models/item.py
+from sqlalchemy import Column, Integer, String
+from app.db import Base
+
+class Item(Base):
+    __tablename__ = "items"
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+```
+
+### Using the Database
+
+```python
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from app.db import get_db
+from app.db.models.item import Item
+
+@router.get("/items")
+def list_items(db: Session = Depends(get_db)):
+    return db.query(Item).all()
+```
+
+## Environment Variables
+
+Declare required env vars in `runtm.yaml`:
+
+```yaml
+env_schema:
+  - name: DATABASE_URL
+    type: url
+    required: false
+    secret: true
+    description: "External PostgreSQL (optional, uses SQLite by default)"
+  
+  - name: API_KEY
+    type: string
+    required: true
+    secret: true
+    description: "External API key"
+```
+
+Set secrets locally:
+
+```bash
+runtm secrets set API_KEY=xxx
+```
+
+## Local Development
+
+```bash
+# Run with hot reload
+runtm run
+
+# Or manually
+uvicorn app.main:app --port 8080 --reload
+```
+
+## Testing
+
+```bash
+# Run tests
+pytest
+
+# With coverage
+pytest --cov=app
+```
+
+## Deployment
+
+```bash
+# Validate first
+runtm validate
+
+# Deploy
+runtm deploy
+
+# View logs
+runtm logs dep_xxx --type runtime
+```
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="REST API" icon="code">
+    Build JSON APIs with automatic OpenAPI documentation
+  </Card>
+  <Card title="Webhook Handler" icon="webhook">
+    Process webhooks from Stripe, GitHub, etc.
+  </Card>
+  <Card title="AI Agent Backend" icon="robot">
+    LLM integration, tool execution, agent orchestration
+  </Card>
+  <Card title="Data Processing" icon="gears">
+    ETL pipelines, data transformation, batch jobs
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep routes thin">
+    Routes should only handle HTTP concerns. Put business logic in `services/`.
+  </Accordion>
+  <Accordion title="Use dependency injection">
+    Use FastAPI's `Depends()` for database sessions, auth, etc.
+  </Accordion>
+  <Accordion title="Type everything">
+    Use Pydantic models for request/response validation.
+  </Accordion>
+  <Accordion title="Log structured data">
+    Use the provided `app.core.logging` for JSON logs.
+  </Accordion>
+</AccordionGroup>
+

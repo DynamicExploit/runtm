@@ -1,0 +1,254 @@
+---
+title: Database
+description: "Persistent SQLite storage for your applications"
+---
+
+# Database Feature
+
+Enable persistent SQLite storage for your deployments with automatic migrations and volume management.
+
+## Enabling Database
+
+Add to your `runtm.yaml`:
+
+```yaml
+features:
+  database: true
+```
+
+This automatically:
+- Creates a persistent Fly volume at `/data`
+- Initializes SQLite with optimal settings
+- Runs migrations on startup
+
+## How It Works
+
+```mermaid
+flowchart TB
+    subgraph app[Your Application]
+        FastAPI[FastAPI] --> ORM[SQLAlchemy] --> SQLite[SQLite]
+    end
+    
+    SQLite --> Volume[Fly Volume]
+    
+    style app fill:#f4f4f5,stroke:#18181b,stroke-width:2px
+    style FastAPI fill:#ffffff,stroke:#18181b,stroke-width:1px,color:#18181b
+    style ORM fill:#ffffff,stroke:#18181b,stroke-width:1px,color:#18181b
+    style SQLite fill:#ffffff,stroke:#18181b,stroke-width:1px,color:#18181b
+    style Volume fill:#18181b,stroke:#18181b,stroke-width:2px,color:#fafafa
+```
+
+## SQLite Configuration
+
+The database is configured with optimal settings:
+
+```python
+# WAL mode for better performance
+PRAGMA journal_mode=WAL;
+
+# Faster writes (data integrity maintained)
+PRAGMA synchronous=NORMAL;
+
+# Enable foreign keys
+PRAGMA foreign_keys=ON;
+```
+
+## Creating Models
+
+### Define Your Models
+
+```python
+# app/db/models/item.py
+from sqlalchemy import Column, Integer, String, DateTime, func
+from app.db import Base
+
+class Item(Base):
+    __tablename__ = "items"
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String, nullable=False)
+    description = Column(String)
+    created_at = Column(DateTime, server_default=func.now())
+```
+
+### Register Models
+
+Models must be imported in `models/__init__.py`:
+
+```python
+# app/db/models/__init__.py
+from app.db.models.item import Item
+
+__all__ = ["Item"]
+```
+
+## Using the Database
+
+### In Route Handlers
+
+```python
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from app.db import get_db
+from app.db.models import Item
+
+router = APIRouter()
+
+@router.get("/items")
+def list_items(db: Session = Depends(get_db)):
+    return db.query(Item).all()
+
+@router.post("/items")
+def create_item(name: str, db: Session = Depends(get_db)):
+    item = Item(name=name)
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+```
+
+### In Services
+
+```python
+# app/services/item_service.py
+from sqlalchemy.orm import Session
+from app.db.models import Item
+
+class ItemService:
+    def __init__(self, db: Session):
+        self.db = db
+    
+    def create(self, name: str) -> Item:
+        item = Item(name=name)
+        self.db.add(item)
+        self.db.commit()
+        self.db.refresh(item)
+        return item
+    
+    def get_all(self) -> list[Item]:
+        return self.db.query(Item).all()
+```
+
+## Migrations
+
+### Automatic Migrations
+
+The template runs migrations automatically on startup:
+
+```python
+# app/db/migrations.py
+from app.db import Base, engine
+from app.db.models import *  # Import all models
+
+def run_migrations():
+    Base.metadata.create_all(bind=engine)
+```
+
+This creates tables that don't exist. It's safe to run multiple times.
+
+### Manual Migrations
+
+For complex schema changes, use Alembic:
+
+```bash
+# Initialize Alembic
+alembic init migrations
+
+# Generate migration
+alembic revision --autogenerate -m "add status column"
+
+# Apply migrations
+alembic upgrade head
+```
+
+## External PostgreSQL
+
+For production workloads or horizontal scaling, use external PostgreSQL:
+
+```yaml
+# runtm.yaml
+env_schema:
+  - name: DATABASE_URL
+    type: url
+    required: true
+    secret: true
+    description: "PostgreSQL connection string"
+```
+
+```bash
+runtm secrets set DATABASE_URL=postgres://user:pass@host:5432/dbname
+```
+
+The application automatically uses `DATABASE_URL` if set, otherwise falls back to SQLite.
+
+## Volume Management
+
+### Volume Size
+
+Default volume size is 1GB. Configure in manifest:
+
+```yaml
+volumes:
+  - name: data
+    path: /data
+    size_gb: 5  # Up to 100GB
+```
+
+### Data Location
+
+| File | Path |
+|------|------|
+| Main database | `/data/app.db` |
+| Auth database (if enabled) | `/data/auth.db` |
+
+## Limitations
+
+<Warning>
+  SQLite supports only **single writer**. For horizontal scaling (multiple machines), use external PostgreSQL.
+</Warning>
+
+| Limitation | Solution |
+|------------|----------|
+| Single writer | Use PostgreSQL for multiple instances |
+| No remote connections | Use PostgreSQL for external access |
+| Limited concurrent writes | Adequate for most single-instance apps |
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use WAL mode">
+    Already configured by default. Allows concurrent reads during writes.
+  </Accordion>
+  <Accordion title="Keep transactions short">
+    Commit quickly to avoid blocking other operations.
+  </Accordion>
+  <Accordion title="Use indexes">
+    Add indexes for frequently queried columns.
+  </Accordion>
+  <Accordion title="Backup regularly">
+    For critical data, copy `/data/app.db` to external storage.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="'Database is locked' errors">
+    SQLite can only have one writer. Check for:
+    - Long-running transactions
+    - Multiple processes writing simultaneously
+    
+    Consider using PostgreSQL for write-heavy workloads.
+  </Accordion>
+  <Accordion title="Data not persisting">
+    Verify the volume is mounted:
+    ```bash
+    runtm logs dep_xxx --type deploy
+    ```
+    Look for volume creation messages.
+  </Accordion>
+  <Accordion title="Migrations not running">
+    Ensure models are imported in `models/__init__.py` and `migrations.py` imports them.
+  </Accordion>
+</AccordionGroup>
+

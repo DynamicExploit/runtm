@@ -1,0 +1,124 @@
+---
+title: search
+description: "Search deployments by description and tags"
+---
+
+# runtm search
+
+Search your deployments by description, tags, and capabilities.
+
+```bash
+runtm search <query>
+```
+
+## Arguments
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `query` | Yes | Search query (e.g., "stripe webhook") |
+
+## Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--state STATE` | `-s` | Filter by state |
+| `--template TEMPLATE` | `-t` | Filter by template type |
+| `--limit N` | `-n` | Maximum results (default: 20) |
+| `--json` | | Output as JSON |
+
+## Examples
+
+```bash
+# Search by keyword
+runtm search "payment"
+
+# Search with filters
+runtm search "api" --template backend-service --state ready
+
+# JSON output for scripts
+runtm search "webhook" --json
+```
+
+## How Search Works
+
+Search looks across the `runtm.discovery.yaml` metadata:
+
+- **Description** - Full description of the app
+- **Summary** - One-line tagline
+- **Tags** - Keywords for categorization
+- **Capabilities** - What the app can do
+- **Use cases** - Who should use it
+- **Name** - Deployment name
+
+Results are ranked by relevance with exact tag matches scoring highest.
+
+## Discovery File Example
+
+```yaml
+# runtm.discovery.yaml
+description: |
+  Stripe webhook handler that processes payment events
+  and updates our database in real-time.
+
+summary: "Real-time Stripe payment webhook processor"
+
+capabilities:
+  - "Process Stripe webhooks"
+  - "Update payment status"
+  - "Send email notifications"
+
+use_cases:
+  - "E-commerce payment tracking"
+  - "Subscription billing"
+
+tags:
+  - stripe
+  - webhook
+  - payments
+  - api
+```
+
+## Output
+
+```
+Search: "stripe"
+
+  ID              NAME              MATCH   STATUS    TEMPLATE          URL
+  dep_abc123xyz   stripe-webhook    1.8     ● ready   backend-service   https://stripe-wh.fly.dev
+  dep_def456uvw   payment-api       0.6     ● ready   backend-service   https://payment.fly.dev
+
+Found 2 results
+```
+
+## JSON Output
+
+```bash
+runtm search "payment" --json
+```
+
+```json
+{
+  "query": "payment",
+  "total": 2,
+  "results": [
+    {
+      "deployment_id": "dep_abc123xyz",
+      "name": "stripe-webhook",
+      "state": "ready",
+      "url": "https://stripe-wh.fly.dev",
+      "template": "backend-service",
+      "match_score": 1.8,
+      "discovery": {
+        "summary": "Real-time Stripe payment webhook processor",
+        "tags": ["stripe", "webhook", "payments"]
+      }
+    }
+  ]
+}
+```
+
+## Related Commands
+
+- [`runtm list`](/cli/list) - List all deployments
+- [`runtm status`](/cli/status) - Detailed status for one deployment
+

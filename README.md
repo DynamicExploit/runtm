@@ -4,621 +4,127 @@
 [![License: Apache 2.0](https://img.shields.io/badge/CLI-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![License: MIT](https://img.shields.io/badge/Templates-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-runtm is the runtime and control plane for agent-built software. Deploy AI-generated tools and apps to live URLs in minutes.
+Runtime and control plane for agent-built software. Deploy AI-generated tools and apps to live URLs in minutes.
 
-[runtm.com](https://runtm.com) | [app.runtm.com](https://app.runtm.com)
+This repo powers our [hosted services](https://runtm.com/docs). Sign up at [app.runtm.com](https://app.runtm.com).
 
-**Demo**
+## Demo
 
 https://github.com/user-attachments/assets/8d6d5ab8-a5c4-4a3d-8ef1-5d20b67ed3ee
 
-### Who is Runtm for?
-
-- Developers building with AI assistants who want fast, safe deployments
-- Teams building internal tools generated partially or fully by AI
-- OSS hackers who want a reproducible runtime for agent-built apps
-- Founders who want control without rebuilding a PaaS
-
-## Design Principles
-
-1. **Simplify to the most basic primitives** - Remove complexity, not add it
-2. **Make it extremely easy to use** - One command should do the job
-3. **Make it versatile and scalable** - Entire ecosystems can be built on top
-4. **Optimize for tight, closed feedback loops** - Fast iteration over perfect planning
-5. **Design for agents first, then for humans** - AI should be the primary user
-6. **Agents propose, humans set guardrails** - Freedom with governance
-7. **Make behavior explicit, observable, and reproducible** - No magic
-
 ## Installation
 
-**Recommended (uv):**
 ```bash
+# Recommended
 uv tool install runtm
-```
 
-**Alternative (pipx):**
-```bash
+# Alternative
 pipx install runtm
-```
 
-**From PyPI (pip):**
-```bash
+# Or with pip
 pip install runtm
-```
-
-### Upgrading
-
-```bash
-# Upgrade to latest version (uv)
-uv tool upgrade runtm
-
-# Or force reinstall
-uv tool install runtm --force
-
-# With pipx
-pipx upgrade runtm
-
-# With pip
-pip install --upgrade runtm
 ```
 
 ## Quick Start
 
 ```bash
-# Get your free API key at app.runtm.com
+# Authenticate (get your free key at app.runtm.com)
 runtm login
 
-# Initialize a new backend service project
+# Create a new project from a template
 runtm init backend-service
 
-# Run locally (auto-detects runtime)
+# Run locally (auto-detects runtime, uses Bun if available)
 runtm run
 
 # Deploy to a live URL
 runtm deploy
 ```
 
-**That's it.** You now have a live HTTPS endpoint on auto-stopping infrastructure, ready to share.
+You get a live HTTPS endpoint on auto-stopping infrastructure. Machines spin down when idle and wake up on traffic.
 
-## Architecture
+## Templates
 
-The **CLI** talks to the **API** control plane, which coordinates **workers** that build and deploy artifacts to Fly.io.
+Runtm ships with three templates. Each deploys without edits out of the box.
+
+| Template | Runtime | What it's for |
+|----------|---------|---------------|
+| `backend-service` | Python (FastAPI) | APIs, webhooks, agent backends |
+| `static-site` | Node (Next.js) | Landing pages, docs, static content |
+| `web-app` | Fullstack (Next.js + FastAPI) | Dashboards, portals, interactive apps |
+
+```bash
+runtm init backend-service   # or static-site, web-app
+```
+
+All templates include SQLite database support and can connect to external services via environment variables. The `web-app` template also supports authentication via Better Auth.
+
+See the [templates docs](https://runtm.com/docs/templates/overview) for details.
+
+## Key Commands
+
+| Command | Description |
+|---------|-------------|
+| `runtm login` | Authenticate with your API key |
+| `runtm init <template>` | Scaffold a new project |
+| `runtm run` | Run locally |
+| `runtm deploy` | Deploy to production |
+| `runtm logs <id>` | View build, deploy, and runtime logs |
+| `runtm status <id>` | Check deployment status |
+| `runtm destroy <id>` | Tear down a deployment |
+
+See the [CLI docs](https://runtm.com/docs/cli/overview) for the full command reference.
+
+## How It Works
+
+The CLI packages your project and sends it to the API. The API queues a build job, and a worker builds a container image and deploys it to Fly.io.
+
+```
+┌─────┐      ┌─────┐      ┌────────┐      ┌────────┐
+│ CLI │ ──▶  │ API │ ──▶  │ Worker │ ──▶  │Provider│
+└─────┘      └─────┘      └────────┘      └────────┘
+```
+
+Deployments go through states: `queued` → `building` → `deploying` → `ready` (or `failed`).
+
+## Project Structure
 
 ```
 packages/
-  shared/     # Canonical contracts: manifest schema, types, errors
+  shared/     # Types, manifest schema, errors
   api/        # FastAPI control plane
-  worker/     # Build + deploy worker (Fly.io provider)
+  worker/     # Build + deploy pipeline
   cli/        # Python CLI (Typer)
 
 templates/
-  backend-service/  # Python FastAPI backend (API, webhooks, agents)
-  static-site/      # Next.js static site (landing pages, docs)
-  web-app/          # Fullstack Next.js + FastAPI (dashboards, apps)
-
-infra/
-  docker-compose.yml  # Local development stack
+  backend-service/
+  static-site/
+  web-app/
 ```
-
-## Development
-
-### Prerequisites
-
-- Python 3.9+
-- Docker & Docker Compose
-- Fly.io account + API token (for deployments)
-
-### Local Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/runtm-ai/runtm.git
-cd runtm
-
-# Copy environment template and configure
-cp infra/local.env.example .env
-# Edit .env and add your FLY_API_TOKEN
-
-# Install packages in development mode
-./scripts/dev.sh setup
-
-# Start local services (auto-loads .env)
-./scripts/dev.sh up
-
-# Configure CLI to use local API
-export RUNTM_API_URL=http://localhost:8000
-export RUNTM_API_KEY=dev-token-change-in-production
-```
-
-### Dev Script Commands
-
-The `./scripts/dev.sh` helper automatically loads your `.env` file:
-
-| Command | Description |
-|---------|-------------|
-| `./scripts/dev.sh setup` | Install all packages in dev mode |
-| `./scripts/dev.sh up` | Start local services (auto-loads .env) |
-| `./scripts/dev.sh down` | Stop local services |
-| `./scripts/dev.sh restart` | Restart services (auto-loads .env) |
-| `./scripts/dev.sh rebuild` | Rebuild images and restart (after code changes) |
-| `./scripts/dev.sh logs [service]` | View logs (e.g., `logs worker`) |
-| `./scripts/dev.sh test` | Run tests |
-| `./scripts/dev.sh lint` | Run linter |
-| `./scripts/dev.sh format` | Format code |
-
-### Running Tests
-
-```bash
-# Run all tests
-./scripts/dev.sh test
-
-# Run specific package tests
-pytest packages/shared/tests
-pytest packages/api/tests
-```
-
-### Linting
-
-```bash
-# Check code style
-./scripts/dev.sh lint
-
-# Format code
-./scripts/dev.sh format
-```
-
-## CLI Commands
-
-Most users only need: `login`, `init`, `run`, `deploy`, `logs`, `destroy`
-
-### Essential Commands
-
-| Command | Description |
-|---------|-------------|
-| `runtm login` | Authenticate with Runtm ([get your key](https://app.runtm.com)) |
-| `runtm init <template>` | Scaffold from template (backend-service, static-site, web-app) |
-| `runtm run` | Run project locally (auto-detects runtime) |
-| `runtm deploy [path]` | Deploy project to a live URL |
-| `runtm logs <id>` | View logs (build, deploy, runtime) |
-| `runtm destroy <id>` | Destroy a deployment |
-
-### Additional Commands
-
-| Command | Description |
-|---------|-------------|
-| `runtm validate` | Validate project before deployment |
-| `runtm fix` | Fix common project issues (lockfiles, etc.) |
-| `runtm status <id>` | Show deployment status |
-| `runtm list` | List all deployments |
-| `runtm search <query>` | Search deployments by description/tags |
-| `runtm logout` | Remove saved API credentials |
-| `runtm secrets set KEY=VALUE` | Set a secret in `.env.local` |
-| `runtm secrets list` | List all secrets and their status |
-| `runtm version` | Show CLI version |
-
-<details>
-<summary><strong>Advanced Commands</strong> (custom domains, agent workflow, self-hosting)</summary>
-
-### Custom Domains
-
-| Command | Description |
-|---------|-------------|
-| `runtm domain add <id> <hostname>` | Add custom domain to deployment |
-| `runtm domain status <id> <hostname>` | Check domain/certificate status |
-| `runtm domain remove <id> <hostname>` | Remove custom domain |
-
-### Agent Workflow
-
-| Command | Description |
-|---------|-------------|
-| `runtm approve` | Apply agent-proposed changes from `runtm.requests.yaml` |
-| `runtm approve --dry-run` | Preview changes without applying |
-
-### Admin Commands (Self-Hosting Only)
-
-For self-hosting operators with direct database access:
-
-| Command | Description |
-|---------|-------------|
-| `runtm admin create-token` | Create API token with specified permissions |
-| `runtm admin revoke-token <id>` | Revoke an API token |
-| `runtm admin list-tokens` | List API tokens (metadata only) |
-| `runtm admin rotate-pepper` | Guide through pepper rotation |
-
-</details>
-
-### Machine Tiers
-
-Runtm supports three machine tiers, all with auto-stop enabled (machines stop when idle and start automatically on traffic):
-
-| Tier | CPUs | Memory | Use Case |
-|------|------|--------|----------|
-| **starter** (default) | 1 shared | 256MB | Simple tools, APIs |
-| **standard** | 1 shared | 512MB | Most workloads |
-| **performance** | 2 shared | 1GB | Full-stack apps |
-
-```bash
-# Deploy with default starter tier
-runtm deploy
-
-# Deploy with a specific tier
-runtm deploy --tier standard
-runtm deploy --tier performance
-```
-
-You can also set the tier in `runtm.yaml`:
-
-```yaml
-name: my-service
-template: backend-service
-runtime: python
-tier: standard  # starter, standard, performance
-```
-
-### Deploy Options Reference
-
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--tier TIER` | | Machine tier: starter, standard, performance |
-| `--wait/--no-wait` | | Wait for deployment to complete (default: wait) |
-| `--timeout N` | `-t` | Timeout in seconds (default: 500) |
-| `--yes` | `-y` | Auto-fix lockfile issues without prompting |
-| `--config-only` | | Skip Docker build, reuse previous image (for env/tier changes) |
-| `--skip-validation` | | Skip Python import validation (use with caution) |
-| `--force-validation` | | Force re-validation even if cached |
-| `--new` | | Create new deployment (loses custom domains/secrets) |
-
-### Run Options Reference
-
-| Option | Description |
-|--------|-------------|
-| `--no-install` | Skip dependency installation |
-| `--no-autofix` | Don't auto-fix lockfile drift |
-
-The `run` command auto-detects the runtime from `runtm.yaml` and uses Bun if available (3x faster), falling back to npm for Node.js projects.
-
-### Search Options Reference
-
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--state STATE` | `-s` | Filter by state (ready, failed, etc.) |
-| `--template TEMPLATE` | `-t` | Filter by template type |
-| `--limit N` | `-n` | Maximum results (default: 20) |
-| `--json` | | Output as JSON |
-
-### Guardrails (V0)
-
-Runtm is opinionated about safety:
-
-- **Artifact size:** 20 MB max
-- **Build timeout:** 10 minutes
-- **Deploy timeout:** 5 minutes
-- **Rate limit:** 10 deployments/hour per token
-- **Auto-stop:** All machines stop when idle (cost protection)
-
-## Environment Variables & Secrets
-
-Declare environment variables in your manifest, store secrets locally, and Runtm injects them at deploy time.
-
-### Declaring Environment Variables
-
-Define required env vars in your `runtm.yaml`:
-
-```yaml
-name: my-service
-template: backend-service
-runtime: python
-tier: starter
-
-env_schema:
-  - name: DATABASE_URL
-    type: url
-    required: true
-    secret: true
-    description: "PostgreSQL connection string"
-  - name: API_KEY
-    type: string
-    required: true
-    secret: true
-  - name: LOG_LEVEL
-    type: string
-    required: false
-    default: "info"
-```
-
-**Supported types:** `string`, `url`, `number`, `boolean`
-
-### Managing Secrets
-
-```bash
-# Set a secret (stored in .env.local, gitignored)
-runtm secrets set DATABASE_URL=postgres://...
-
-# List all env vars and their status
-runtm secrets list
-
-# Get a secret value
-runtm secrets get DATABASE_URL
-
-# Remove a secret
-runtm secrets unset DATABASE_URL
-```
-
-### Security Features
-
-- `.env.local` is auto-gitignored so secrets never get committed
-- `.env.local` is auto-cursorignored so AI agents can't see secret values
-- Secrets marked `secret: true` are redacted from logs
-- Missing required env vars block deployment
-
-### Connections (Named Secret Bundles)
-
-Group related env vars as named connections:
-
-```yaml
-env_schema:
-  - name: SUPABASE_URL
-    type: url
-    required: true
-  - name: SUPABASE_ANON_KEY
-    type: string
-    required: true
-    secret: true
-
-connections:
-  - name: supabase
-    env_vars: [SUPABASE_URL, SUPABASE_ANON_KEY]
-```
-
-### Agent-Proposed Changes
-
-AI agents can propose features, env vars, and connections via `runtm.requests.yaml`:
-
-```yaml
-# runtm.requests.yaml (created by AI agent)
-requested:
-  features:
-    database: true
-    auth: true
-    reason: "Building a SaaS app with user accounts"
-  env_vars:
-    - name: AUTH_SECRET
-      type: string
-      secret: true
-      required: true
-      reason: "Required for auth session signing"
-    - name: STRIPE_API_KEY
-      secret: true
-      required: true
-      reason: "Needed for payment processing"
-  egress_allowlist:
-    - "api.stripe.com"
-notes:
-  - "Adding auth and Stripe integration"
-```
-
-Review and apply with one command:
-
-```bash
-# Preview changes
-runtm approve --dry-run
-
-# Apply changes to manifest
-runtm approve
-
-# Set required secrets
-runtm secrets set AUTH_SECRET=$(openssl rand -base64 32)
-runtm secrets set STRIPE_API_KEY=sk_xxx
-```
-
-This workflow allows agents to propose changes (including enabling database/auth features) while keeping humans in the approval loop.
-
-## Viewing Logs
-
-Runtm provides comprehensive log access for debugging and monitoring deployments.
-
-### Basic Usage
-
-```bash
-# View all logs (build + deploy + recent runtime)
-runtm logs dep_abc123
-
-# View only runtime logs
-runtm logs dep_abc123 --type runtime
-
-# View only build logs
-runtm logs dep_abc123 --type build
-
-# View more runtime log lines (default: 20)
-runtm logs dep_abc123 --lines 100
-```
-
-### Searching and Filtering
-
-```bash
-# Single keyword search
-runtm logs dep_abc123 --search "error"
-
-# Multiple keywords (OR logic)
-runtm logs dep_abc123 --search "error,warning,failed"
-
-# Regex patterns
-runtm logs dep_abc123 --search "HTTP.*[45]\d\d"
-```
-
-### Pipe-Friendly Output (Heroku-style)
-
-```bash
-# Raw output for piping to grep
-runtm logs dep_abc123 --raw | grep "error"
-
-# Filter by log type AND keyword
-runtm logs dep_abc123 --raw | grep "\[RUNTIME\]" | grep -i "database"
-
-# Advanced filtering with regex
-runtm logs dep_abc123 --raw | grep -E "error|timeout|failed"
-```
-
-### JSON Output for AI Agents
-
-```bash
-# JSON output for programmatic access
-runtm logs dep_abc123 --json
-
-# Parse with jq
-runtm logs dep_abc123 --json | jq '.logs[] | select(.type == "runtime")'
-
-# Python example
-python -c "
-import subprocess, json
-result = subprocess.run(['runtm', 'logs', 'dep_abc123', '--json'], capture_output=True, text=True)
-logs = json.loads(result.stdout)
-for log in logs['logs']:
-    if 'error' in log['content'].lower():
-        print(f'Error in {log[\"type\"]}: {log[\"content\"][:100]}...')
-"
-```
-
-### Log Options Reference
-
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--type TYPE` | `-t` | Filter by type: `build`, `deploy`, `runtime` |
-| `--lines N` | `-n` | Number of runtime log lines (default: 20) |
-| `--search TEXT` | `-s` | Filter logs by text, comma-separated, or regex |
-| `--json` | | Output as JSON for programmatic access |
-| `--raw` | | Raw output for piping to grep/awk |
-| `--follow` | `-f` | Follow logs in real-time (coming soon) |
-
-## API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/v0/deployments` | List deployments |
-| POST | `/v0/deployments` | Create deployment (supports `?tier=starter|standard|performance`) |
-| GET | `/v0/deployments/:id` | Get deployment status |
-| GET | `/v0/deployments/:id/logs` | Get build/deploy logs |
-| DELETE | `/v0/deployments/:id` | Destroy deployment |
-
-### Creating Deployments
-
-```bash
-# Create deployment with tier override
-curl -X POST "https://app.runtm.com/api/v0/deployments?tier=performance" \
-  -H "Authorization: Bearer $RUNTM_API_KEY" \
-  -F "manifest=@runtm.yaml" \
-  -F "artifact=@artifact.zip"
-```
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `RUNTM_API_SECRET` | API authentication secret (server-side) | Yes |
-| `DATABASE_URL` | PostgreSQL connection string | Yes |
-| `REDIS_URL` | Redis connection string | Yes |
-| `FLY_API_TOKEN` | Fly.io API token | Yes (worker) |
-| `ARTIFACT_STORAGE_PATH` | Local artifact storage path | Yes |
-
-## Optional Features
-
-Runtm templates support optional features that can be enabled in `runtm.yaml`.
-
-### Database (SQLite with Persistence)
-
-Enable persistent SQLite storage for your deployments:
-
-```yaml
-# runtm.yaml
-features:
-  database: true
-```
-
-This automatically:
-- Creates a persistent Fly volume at `/data`
-- Initializes SQLite with WAL mode for better performance
-- Auto-runs migrations on startup
-
-**Usage in backend code:**
-
-```python
-from fastapi import Depends
-from sqlalchemy.orm import Session
-from app.db import Base, get_db
-
-class Item(Base):
-    __tablename__ = "items"
-    id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
-
-@router.get("/items")
-def get_items(db: Session = Depends(get_db)):
-    return db.query(Item).all()
-```
-
-**External PostgreSQL:** Set `DATABASE_URL` env var to use external Postgres instead of SQLite.
-
-Note: SQLite supports a single writer only. For horizontal scaling, use external PostgreSQL.
-
-### Authentication (web-app only)
-
-Enable user authentication with Better Auth:
-
-```yaml
-# runtm.yaml
-features:
-  database: true  # Required
-  auth: true
-
-env_schema:
-  - name: AUTH_SECRET
-    type: string
-    required: true
-    secret: true
-```
-
-Generate a secret: `openssl rand -base64 32`
-
-**Frontend usage:**
-
-```tsx
-// Protect routes
-import { AuthGuard } from "@/components/auth";
-<AuthGuard><ProtectedContent /></AuthGuard>
-
-// Client-side hooks
-import { useSession, signIn, signOut } from "@/lib/auth-client";
-```
-
-**Included components:** `LoginForm`, `SocialButtons`, `MagicLinkForm`, `AuthGuard`
 
 ## Self-Hosting
 
-Runtm is fully self-hostable. Start the local stack with Docker Compose:
+Runtm can be fully self-hosted. See the [self-hosting guide](https://runtm.com/docs/self-hosting/overview) for setup instructions.
 
 ```bash
-# Clone and setup
 git clone https://github.com/runtm-ai/runtm.git
 cd runtm
 cp infra/local.env.example .env
-
-# Start services
 docker compose -f infra/docker-compose.yml up -d
 ```
 
-Configure your CLI to use your self-hosted instance:
+## Documentation
 
-```bash
-export RUNTM_API_URL=https://your-runtm-instance.com
-```
+- [Quickstart](https://runtm.com/docs/quickstart)
+- [CLI Reference](https://runtm.com/docs/cli/overview)
+- [API Reference](https://runtm.com/docs/api/overview)
+- [Templates](https://runtm.com/docs/templates/overview)
+- [Features](https://runtm.com/docs/features/database) (database, auth, custom domains, machine tiers)
+- [Self-Hosting](https://runtm.com/docs/self-hosting/overview)
 
-Or in `~/.runtm/config.yaml`:
+## Contributing
 
-```yaml
-api_url: https://your-runtm-instance.com
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
 ## License
 
@@ -628,5 +134,6 @@ api_url: https://your-runtm-instance.com
 | CLI, Shared | [Apache-2.0](packages/cli/LICENSE) |
 | Templates | [MIT](templates/LICENSE) |
 
-See [LICENSE](LICENSE) for details.
+## Support
 
+For issues, questions, or feedback, [open an issue](https://github.com/runtm-ai/runtm/issues).
