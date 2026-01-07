@@ -1,6 +1,6 @@
 # My Service - Backend Service Template
 
-A FastAPI-based backend service template for building and deploying APIs on [Runtm](https://runtm.com).
+A FastAPI-based backend service template for [Runtm](https://runtm.com). See the [template docs](https://docs.runtm.com/templates/backend-service) for more details.
 
 ## What is a Backend Service?
 

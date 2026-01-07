@@ -1,10 +1,8 @@
 # runtm
 
-> **runtm is the runtime + control plane for agent-built software: create, run, deploy, observe, reuse and destroy apps with guardrails and speed.**
+CLI for Runtm, the runtime and control plane for agent-built software.
 
-Deploy AI-generated code to live URLs in minutes.
-
-🌐 **Website:** [runtm.com](https://runtm.com) · **Try it free:** [app.runtm.com](https://app.runtm.com)
+**Website:** [runtm.com](https://runtm.com) · **Docs:** [docs.runtm.com](https://docs.runtm.com) · **Sign up:** [app.runtm.com](https://app.runtm.com)
 
 ## Installation
 

@@ -1,6 +1,6 @@
 # My Web App - Fullstack Template
 
-Fullstack template: Next.js frontend + FastAPI backend, deployed as a single container via [Runtm](https://runtm.com).
+Fullstack template: Next.js frontend + FastAPI backend for [Runtm](https://runtm.com). See the [template docs](https://docs.runtm.com/templates/web-app) for more details.
 
 ## What is a Web App?
 

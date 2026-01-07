@@ -3,10 +3,11 @@
 [![License: AGPL v3](https://img.shields.io/badge/Server-AGPLv3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![License: Apache 2.0](https://img.shields.io/badge/CLI-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![License: MIT](https://img.shields.io/badge/Templates-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Discord](https://img.shields.io/discord/1342243238748225556?logo=discord&logoColor=white&color=7289DA)](https://discord.com/invite/JUuCkUKc)
 
 Runtime and control plane for agent-built software. Deploy AI-generated tools and apps to live URLs in minutes.
 
-This repo powers our [hosted services](https://runtm.com/docs). Sign up at [app.runtm.com](https://app.runtm.com).
+This repo powers our [hosted services](https://docs.runtm.com). Sign up at [app.runtm.com](https://app.runtm.com).
 
 ## Demo
 
@@ -59,7 +60,7 @@ runtm init backend-service   # or static-site, web-app
 
 All templates include SQLite database support and can connect to external services via environment variables. The `web-app` template also supports authentication via Better Auth.
 
-See the [templates docs](https://runtm.com/docs/templates/overview) for details.
+See the [templates docs](https://docs.runtm.com/templates/overview) for details.
 
 ## Key Commands
 
@@ -73,11 +74,11 @@ See the [templates docs](https://runtm.com/docs/templates/overview) for details.
 | `runtm status <id>` | Check deployment status |
 | `runtm destroy <id>` | Tear down a deployment |
 
-See the [CLI docs](https://runtm.com/docs/cli/overview) for the full command reference.
+See the [CLI docs](https://docs.runtm.com/cli/overview) for the full command reference.
 
 ## How It Works
 
-The CLI packages your project and sends it to the API. The API queues a build job, and a worker builds a container image and deploys it to Fly.io.
+The CLI packages your project and sends it to the API. The API queues a build job, and a worker builds a container image and deploys it to the provider.
 
 ```
 ┌─────┐      ┌─────┐      ┌────────┐      ┌────────┐
@@ -104,7 +105,7 @@ templates/
 
 ## Self-Hosting
 
-Runtm can be fully self-hosted. See the [self-hosting guide](https://runtm.com/docs/self-hosting/overview) for setup instructions.
+Runtm can be fully self-hosted. See the [self-hosting guide](https://docs.runtm.com/self-hosting/overview) for setup instructions.
 
 ```bash
 git clone https://github.com/runtm-ai/runtm.git
@@ -115,12 +116,14 @@ docker compose -f infra/docker-compose.yml up -d
 
 ## Documentation
 
-- [Quickstart](https://runtm.com/docs/quickstart)
-- [CLI Reference](https://runtm.com/docs/cli/overview)
-- [API Reference](https://runtm.com/docs/api/overview)
-- [Templates](https://runtm.com/docs/templates/overview)
-- [Features](https://runtm.com/docs/features/database) (database, auth, custom domains, machine tiers)
-- [Self-Hosting](https://runtm.com/docs/self-hosting/overview)
+Full documentation at [docs.runtm.com](https://docs.runtm.com):
+
+- [Quickstart](https://docs.runtm.com/quickstart)
+- [CLI Reference](https://docs.runtm.com/cli/overview)
+- [API Reference](https://docs.runtm.com/api/overview)
+- [Templates](https://docs.runtm.com/templates/overview)
+- [Features](https://docs.runtm.com/features/database) (database, auth, custom domains, machine tiers)
+- [Self-Hosting](https://docs.runtm.com/self-hosting/overview)
 
 ## Contributing
 
@@ -136,4 +139,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
 ## Support
 
-For issues, questions, or feedback, [open an issue](https://github.com/runtm-ai/runtm/issues).
+For issues, questions, or feedback, [open an issue](https://github.com/runtm-ai/runtm/issues) or join our [Discord](https://discord.com/invite/JUuCkUKc).

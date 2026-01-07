@@ -2,7 +2,7 @@
 
 Thanks for your interest in contributing to Runtm.
 
-[runtm.com](https://runtm.com) | [app.runtm.com](https://app.runtm.com)
+[runtm.com](https://runtm.com) | [app.runtm.com](https://app.runtm.com) | [Discord](https://discord.com/invite/JUuCkUKc)
 
 ## Design Principles
 
@@ -257,4 +257,4 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ## Questions?
 
-Open a GitHub issue or discussion for any questions about contributing.
+Open a [GitHub issue](https://github.com/runtm-ai/runtm/issues) or join our [Discord](https://discord.com/invite/JUuCkUKc) for questions about contributing.

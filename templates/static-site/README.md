@@ -1,6 +1,6 @@
 # My Site - Static Site Template
 
-A static site template built with Next.js, deployed via [Runtm](https://runtm.com).
+A static site template built with Next.js for [Runtm](https://runtm.com). See the [template docs](https://docs.runtm.com/templates/static-site) for more details.
 
 ## What is a Static Site?
 

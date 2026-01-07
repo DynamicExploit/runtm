@@ -1,6 +1,6 @@
 # runtm-worker
 
-Build and deploy worker for Runtm.
+Build and deploy worker for Runtm. See the [self-hosting docs](https://docs.runtm.com/self-hosting/overview) for deployment setup.
 
 ## Pipeline
 

@@ -1,8 +1,8 @@
 # runtm-api
 
-FastAPI control plane for Runtm—the runtime + control plane for agent-built software.
+FastAPI control plane for Runtm. See the [API docs](https://docs.runtm.com/api/overview) for endpoint reference.
 
-🌐 **Hosted API:** [app.runtm.com](https://app.runtm.com)
+**Hosted API:** [app.runtm.com](https://app.runtm.com)
 
 ## Endpoints
 
