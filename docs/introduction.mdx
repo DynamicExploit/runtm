@@ -1,17 +1,16 @@
 ---
 title: Introduction
-description: "Ship AI-generated code to production in one command"
+description: "Sandboxes where coding agents build and deploy"
 ---
 
-Runtm turns AI-generated code into live, governed endpoints. One command. Live URL. Done.
+Sandboxes where coding agents build and deploy.
+
+Spin up isolated environments where Claude Code, Cursor, Codex, and other agents code and ship software. With live URLs, logs, and previews.
 
 ```bash
+runtm init
 runtm deploy
 ```
-
-<Info>
-Runtm is **bring-your-own-cloud**. We start with Fly.io as the default provider, with AWS and GCP support coming soon.
-</Info>
 
 <CardGroup cols={2}>
   <Card title="Quick Start" icon="rocket" href="/quickstart">
@@ -20,47 +19,55 @@ Runtm is **bring-your-own-cloud**. We start with Fly.io as the default provider,
   <Card title="CLI Reference" icon="terminal" href="/cli/overview">
     Complete command reference
   </Card>
-  <Card title="Templates" icon="cube" href="/templates/overview">
-    Production-ready starting points
-  </Card>
   <Card title="Self-Hosting" icon="server" href="/self-hosting/overview">
     Run on your own infrastructure
   </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Programmatic access
+  </Card>
 </CardGroup>
 
-## Who uses Runtm?
+## Why Runtm?
 
-Runtm is built for developers shipping AI-generated code—whether you're building with Cursor, Claude, or another coding agent. It's also great for teams building internal tools, OSS hackers who want reproducible runtimes, and founders who want control without rebuilding a PaaS.
+AI coding agents like Claude Code and Cursor are powerful—but they need a place to run. Runtm gives them:
+
+- **Isolated sandboxes** – Agents code with full permissions without touching your machine
+- **Real URLs** – Deploy to live HTTPS endpoints instantly
+- **Logs and previews** – See what your agent built, debug issues, iterate fast
+- **Works with any agent** – Claude Code, Cursor, Codex, Gemini CLI, and more
 
 ## How it works
 
-The CLI packages your code and sends it to the API control plane. Workers build Docker images and deploy to your cloud provider.
-
 ```mermaid
-flowchart TB
-    CLI[CLI] --> API[API] --> Worker[Worker] --> Cloud[Cloud Provider]
+flowchart LR
+    Agent[Your Agent] --> Sandbox[Sandbox] --> Runtm[Runtm] --> URL[Live URL]
     
-    style CLI fill:#f4f4f5,stroke:#18181b,stroke-width:2px,color:#18181b
-    style API fill:#f4f4f5,stroke:#18181b,stroke-width:2px,color:#18181b
-    style Worker fill:#f4f4f5,stroke:#18181b,stroke-width:2px,color:#18181b
-    style Cloud fill:#18181b,stroke:#18181b,stroke-width:2px,color:#fafafa
+    style Agent fill:#f4f4f5,stroke:#18181b,stroke-width:2px,color:#18181b
+    style Sandbox fill:#f4f4f5,stroke:#18181b,stroke-width:2px,color:#18181b
+    style Runtm fill:#f4f4f5,stroke:#18181b,stroke-width:2px,color:#18181b
+    style URL fill:#18181b,stroke:#18181b,stroke-width:2px,color:#fafafa
 ```
 
-## Templates
+1. **Spin up a sandbox** – Your agent gets an isolated workspace
+2. **Agent builds** – Full permissions to code, install deps, run tests
+3. **Deploy** – One command to a real URL with logs and previews
+4. **Iterate** – Agent sees logs, fixes bugs, redeploys
 
-Pick a template based on what you're building:
+## What you can build
 
-| Template | Runtime | Best for |
-|----------|---------|----------|
-| `backend-service` | Python | APIs, webhooks, agent backends |
-| `static-site` | Node.js | Landing pages, docs |
-| `web-app` | Fullstack | Dashboards, interactive apps |
+Agents can build and deploy any web software:
 
-All templates deploy without configuration. Just run `runtm deploy`.
+- APIs and webhooks
+- Dashboards and admin panels
+- Landing pages and docs
+- Automations and agent backends
+- Full-stack web apps
+
+<Info>
+Runtm is **bring-your-own-cloud**. We start with Fly.io as the default provider, with AWS and GCP support coming soon.
+</Info>
 
 ## Cloud providers
-
-Runtm is designed as a bring-your-own-cloud platform. Deploy to the provider that works best for you.
 
 | Provider | Status |
 |----------|--------|
@@ -91,15 +98,13 @@ Runtm enforces sensible limits by default:
     uv tool install runtm
     ```
   </Step>
-  <Step title="Authenticate">
-    Sign up at [app.runtm.com](https://app.runtm.com) and run:
+  <Step title="Spin up a sandbox">
     ```bash
-    runtm login
+    runtm init
     ```
   </Step>
   <Step title="Deploy">
     ```bash
-    runtm init backend-service
     runtm deploy
     ```
   </Step>

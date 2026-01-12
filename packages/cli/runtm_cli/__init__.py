@@ -1,3 +1,3 @@
-"""Runtm CLI: Deploy AI-generated code to live URLs."""
+"""Runtm CLI: Sandboxes where coding agents build and deploy."""
 
 __version__ = "0.2.4"

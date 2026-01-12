@@ -5,7 +5,7 @@ description: "View deployment logs with search and filtering"
 
 # runtm logs
 
-View build, deploy, and runtime logs for a deployment.
+View build, deploy, and runtime logs for a deployment. Essential for agents to debug issues and iterate on fixes.
 
 ```bash
 runtm logs <deployment_id>
@@ -70,6 +70,8 @@ runtm logs dep_abc123xyz --raw | grep "\[RUNTIME\]" | grep -i "database"
 ```
 
 ### JSON Output (for AI Agents)
+
+Perfect for agents that need to parse logs programmatically:
 
 ```bash
 runtm logs dep_abc123xyz --json

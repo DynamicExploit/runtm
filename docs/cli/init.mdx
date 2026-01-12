@@ -1,23 +1,23 @@
 ---
 title: init
-description: "Initialize a new project from a template"
+description: "Spin up a new sandbox"
 ---
 
 # runtm init
 
-Initialize a new project from a template.
+Spin up a new sandbox for your agent to build in. Optionally start from a template.
 
 ```bash
-runtm init <template>
+runtm init [template]
 ```
 
 ## Arguments
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `template` | Yes* | Template type: `backend-service`, `static-site`, or `web-app` |
+| `template` | No | Optional template: `backend-service`, `static-site`, or `web-app` |
 
-*If not provided, you'll be prompted to choose interactively.
+If not provided, you'll be prompted to choose interactively or start from scratch.
 
 ## Options
 
@@ -123,6 +123,8 @@ my-project/
 ```
 
 ## After Initialization
+
+Your agent now has an isolated sandbox to work in:
 
 ```bash
 # Enter the project directory

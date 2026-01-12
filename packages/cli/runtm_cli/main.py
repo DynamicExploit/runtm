@@ -1,4 +1,4 @@
-"""Runtm CLI - deploy AI-generated code to live URLs."""
+"""Runtm CLI - sandboxes where coding agents build and deploy."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def _telemetry_callback(ctx: typer.Context) -> None:
 # Create main app with callback
 app = typer.Typer(
     name="runtm",
-    help="Deploy AI-generated code to live URLs in minutes.",
+    help="Sandboxes where coding agents build and deploy.",
     no_args_is_help=True,
     callback=_telemetry_callback,
 )

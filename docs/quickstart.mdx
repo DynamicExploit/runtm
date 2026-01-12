@@ -32,43 +32,17 @@ Verify installation:
 runtm version
 ```
 
-## Authenticate
+## Spin up a sandbox
 
 ```bash
-runtm login
+runtm init
 ```
 
-You'll be prompted for your API key from [app.runtm.com](https://app.runtm.com).
+This creates an isolated workspace for your agent to build in. You'll be prompted to authenticate if you haven't already.
 
 <Tip>
-Pass the token directly with `runtm login --token runtm_xxx`
+Start from scratch or pick a template—your agent can build anything.
 </Tip>
-
-## Create a project
-
-<Tabs>
-  <Tab title="Backend API">
-    ```bash
-    runtm init backend-service
-    cd backend-service
-    ```
-    Python FastAPI with health endpoint, example routes, and optional database.
-  </Tab>
-  <Tab title="Static Site">
-    ```bash
-    runtm init static-site
-    cd static-site
-    ```
-    Next.js static export with Tailwind CSS.
-  </Tab>
-  <Tab title="Full-Stack">
-    ```bash
-    runtm init web-app
-    cd web-app
-    ```
-    Next.js frontend + FastAPI backend with optional auth and database.
-  </Tab>
-</Tabs>
 
 ## Test locally
 
@@ -111,6 +85,8 @@ runtm logs dep_abc123xyz --type build
 runtm logs dep_abc123xyz --type runtime
 ```
 
+Your agent can use these logs to debug and fix issues.
+
 ## Next steps
 
 <CardGroup cols={2}>
@@ -138,7 +114,7 @@ runtm logs dep_abc123xyz --type runtime
     ```
   </Accordion>
   <Accordion title="Authentication failed">
-    Check your API key:
+    Check your setup:
     ```bash
     runtm doctor
     ```

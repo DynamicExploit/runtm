@@ -1,7 +1,7 @@
 [project]
 name = "runtm"
 version = "0.1.0"
-description = "The runtime + control plane for agent-built software: create, run, deploy, observe, reuse and destroy apps with guardrails and speed"
+description = "Sandboxes where coding agents build and deploy."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.9"

@@ -1,6 +1,6 @@
 # Contributing to Runtm
 
-Thanks for your interest in contributing to Runtm.
+Thanks for your interest in contributing to Runtm – sandboxes where coding agents build and deploy.
 
 [runtm.com](https://runtm.com) | [app.runtm.com](https://app.runtm.com) | [Discord](https://discord.com/invite/JUuCkUKc)
 

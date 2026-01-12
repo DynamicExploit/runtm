@@ -1,11 +1,11 @@
 ---
 title: deploy
-description: "Deploy your project to a live URL"
+description: "Deploy to a live URL"
 ---
 
 # runtm deploy
 
-Deploy your project to a live HTTPS URL.
+Deploy your agent's work to a live HTTPS URL. Your agent can use this URL to test, share, and iterate.
 
 ```bash
 runtm deploy [path]
@@ -99,11 +99,13 @@ When you deploy a project with the same name, Runtm automatically **redeploys**:
 - Custom domains are preserved
 - Version number increments
 
+This is perfect for agent workflows—your agent can deploy, see logs, fix bugs, and redeploy in a tight loop:
+
 ```bash
 # First deploy creates dep_abc123 at https://my-app-xyz.fly.dev
 runtm deploy
 
-# Second deploy updates the same app
+# Agent fixes a bug based on logs, then redeploys
 runtm deploy
 ```
 

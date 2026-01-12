@@ -1,6 +1,6 @@
 # runtm
 
-CLI for Runtm, the runtime and control plane for agent-built software.
+CLI for Runtm – sandboxes where AI agents build and deploy.
 
 **Website:** [runtm.com](https://runtm.com) · **Docs:** [docs.runtm.com](https://docs.runtm.com) · **Sign up:** [app.runtm.com](https://app.runtm.com)
 
@@ -43,12 +43,14 @@ pip install --upgrade runtm
 # 1. Authenticate with Runtm
 runtm login
 
-# 2. Initialize a new project
+# 2. Spin up a sandbox and start building
 runtm init backend-service
 
 # 3. Deploy to a live URL
 runtm deploy
 ```
+
+You get a live HTTPS endpoint. Machines auto-stop when idle and wake on traffic.
 
 ## Commands
 
@@ -57,7 +59,7 @@ runtm deploy
 | `runtm login` | Authenticate with Runtm API |
 | `runtm logout` | Remove saved credentials |
 | `runtm doctor` | Check CLI setup and diagnose issues |
-| `runtm init <template>` | Scaffold from template |
+| `runtm init | Spin up a new sandbox |
 | `runtm run` | Run project locally (auto-detects runtime) |
 | `runtm validate` | Validate project before deployment |
 | `runtm deploy [path]` | Deploy project to a live URL |
@@ -69,17 +71,14 @@ runtm deploy
 
 ### Authentication
 
-Get your free API key at **[app.runtm.com](https://app.runtm.com)** and authenticate:
+Get your free API key at **[app.runtm.com](https://app.runtm.com)**. The CLI will prompt you to authenticate on first use.
 
 ```bash
-# Login (prompts for API key)
+# Manual login
 runtm login
 
 # Login with token directly
 runtm login --token runtm_sk_xxx
-
-# Login without validation (self-hosted/offline)
-runtm login --no-verify
 
 # Check auth status
 runtm doctor
@@ -99,8 +98,6 @@ export RUNTM_API_KEY=runtm_sk_xxx  # Overrides stored token
 ```
 
 ### Configuration
-
-Manage CLI settings with the `config` command:
 
 ```bash
 # Set API URL (for self-hosting)
@@ -131,13 +128,13 @@ runtm doctor
 
 Example output:
 ```
-runtm v0.1.0
+runtm v0.2.6
   API URL:      https://app.runtm.com/api
   Auth storage: keychain (api_token@app.runtm.com)
   Auth status:  ✓ Authenticated as user@example.com
   Connectivity: ✓ API reachable (142ms)
   
-  Ready to deploy! Run: runtm init backend-service
+  Ready to deploy! Run: runtm init
 ```
 
 ### Machine Tiers
@@ -155,8 +152,8 @@ All deployments use **auto-stop** for cost savings (machines stop when idle and 
 ## Usage
 
 ```bash
-# Initialize a new backend service project
-runtm init backend-service
+# Spin up a sandbox
+runtm init
 
 # Run locally (auto-detects runtime and port)
 runtm run
@@ -215,10 +212,10 @@ runtm deploy                   # → v2, same URL, updated code
 runtm deploy --new             # → v1, new deployment, new URL
 ```
 
-This enables CI/CD workflows where an agent or user can:
+This enables workflows where an agent can:
 1. Build code
 2. Deploy with `runtm deploy`
-3. Find and fix bugs
+3. Find and fix bugs using logs
 4. Redeploy with `runtm deploy` (same command, updates in place)
 
 ## Logs

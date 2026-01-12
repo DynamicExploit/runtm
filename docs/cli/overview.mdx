@@ -1,11 +1,11 @@
 ---
 title: CLI Overview
-description: "Install and configure the Runtm command-line interface"
+description: "Install and use the Runtm command-line interface"
 ---
 
 # CLI Overview
 
-The Runtm CLI is the primary interface for deploying and managing your applications.
+The Runtm CLI is how you spin up sandboxes and deploy your agent's work.
 
 ## Installation
 
@@ -47,12 +47,9 @@ pip install --upgrade runtm
 
 ### Essential Commands
 
-Most users only need these commands:
-
 | Command | Description |
 |---------|-------------|
-| [`runtm login`](/cli/auth) | Authenticate with Runtm |
-| [`runtm init`](/cli/init) | Initialize a new project from template |
+| [`runtm init`](/cli/init) | Spin up a new sandbox |
 | [`runtm run`](/cli/run) | Run project locally |
 | [`runtm deploy`](/cli/deploy) | Deploy to a live URL |
 | [`runtm logs`](/cli/logs) | View deployment logs |
@@ -64,7 +61,7 @@ Most users only need these commands:
   <Accordion title="Project Commands">
     | Command | Description |
     |---------|-------------|
-    | [`runtm init`](/cli/init) | Initialize from template |
+    | [`runtm init`](/cli/init) | Spin up a sandbox |
     | [`runtm run`](/cli/run) | Run locally |
     | [`runtm validate`](/cli/validate) | Validate before deploy |
     | [`runtm fix`](/cli/fix) | Fix common issues |
@@ -99,8 +96,6 @@ Most users only need these commands:
 
 ## Global Options
 
-These options work with most commands:
-
 | Option | Description |
 |--------|-------------|
 | `--help` | Show help for any command |
@@ -112,7 +107,6 @@ The CLI stores configuration in `~/.runtm/config.yaml`:
 
 ```yaml
 api_url: https://app.runtm.com/api
-default_template: backend-service
 ```
 
 ### Environment Variables
@@ -154,4 +148,3 @@ runtm --help
 runtm deploy --help
 runtm logs --help
 ```
-
