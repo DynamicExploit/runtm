@@ -116,9 +116,7 @@ class TestSessionStart:
             MockProvider.return_value = mock_provider
 
             with patch("runtm_cli.commands.session.ensure_sandbox_deps", return_value=True):
-                result = runner.invoke(
-                    app, ["session", "start", "--local", "--agent", "codex"]
-                )
+                result = runner.invoke(app, ["session", "start", "--local", "--agent", "codex"])
 
             assert result.exit_code == 0
             call_args = mock_provider.create.call_args

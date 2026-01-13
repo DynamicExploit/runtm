@@ -22,14 +22,20 @@ case "$1" in
     setup)
         echo "Setting up development environment..."
         cd "$PROJECT_ROOT"
-        
+
         # Install packages in development mode
         pip install -e packages/shared[dev]
+        pip install -e packages/sandbox[dev]
         pip install -e packages/api[dev]
         pip install -e packages/worker[dev]
         pip install -e packages/cli[dev]
-        
+
+        # Install and configure pre-commit hooks
+        pip install pre-commit
+        pre-commit install
+
         echo "Development environment ready!"
+        echo "Pre-commit hooks installed. Run 'pre-commit run --all-files' to check all files."
         ;;
     
     up)
@@ -102,9 +108,16 @@ case "$1" in
         cd "$PROJECT_ROOT"
         ruff format .
         ;;
-    
+
+    check)
+        echo "Running all pre-commit checks..."
+        cd "$PROJECT_ROOT"
+        ruff check . && ruff format --check .
+        echo "All checks passed!"
+        ;;
+
     *)
-        echo "Usage: $0 {setup|up|down|restart|rebuild|reset-db|logs|migrate|test|lint|format}"
+        echo "Usage: $0 {setup|up|down|restart|rebuild|reset-db|logs|migrate|test|lint|format|check}"
         echo ""
         echo "Commands:"
         echo "  setup    - Install packages in development mode"
@@ -118,6 +131,7 @@ case "$1" in
         echo "  test     - Run tests"
         echo "  lint     - Run linter"
         echo "  format   - Format code"
+        echo "  check    - Run all checks (lint + format check) without modifying files"
         echo ""
         echo "Note: Migrations are automatically applied when the API container starts."
         exit 1

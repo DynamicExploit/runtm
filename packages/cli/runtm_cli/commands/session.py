@@ -17,12 +17,33 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from runtm_sandbox.deps import ensure_sandbox_deps
-from runtm_sandbox.providers.local import LocalSandboxProvider
 from runtm_shared.types import AgentType, SandboxConfig, SandboxState
 
 console = Console()
 session_app = typer.Typer(name="session", help="Manage sandbox sessions.")
+
+# Sandbox package is optional - check availability
+SANDBOX_AVAILABLE = False
+try:
+    from runtm_sandbox.deps import ensure_sandbox_deps
+    from runtm_sandbox.providers.local import LocalSandboxProvider
+
+    SANDBOX_AVAILABLE = True
+except ImportError:
+    pass
+
+
+def _require_sandbox() -> None:
+    """Check if sandbox package is available, exit with helpful message if not."""
+    if not SANDBOX_AVAILABLE:
+        console.print("[red]Sandbox package not installed.[/red]")
+        console.print()
+        console.print("Install with:")
+        console.print("  [cyan]pip install runtm[sandbox][/cyan]")
+        console.print()
+        console.print("Or for development:")
+        console.print("  [cyan]pip install -e packages/sandbox[/cyan]")
+        raise typer.Exit(1)
 
 
 @session_app.command("start")
@@ -53,8 +74,10 @@ def start(
         runtm session start --template web-app # Start with template
         runtm session start --agent codex      # Use different agent
     """
+    _require_sandbox()
+
     # 1. Ensure dependencies are installed (lazy install on first run)
-    if not ensure_sandbox_deps(auto_approve=yes):
+    if not ensure_sandbox_deps(auto_approve=yes):  # type: ignore[name-defined]
         console.print("[red]Cannot start sandbox without dependencies.[/red]")
         console.print()
         console.print("Run with [cyan]--yes[/cyan] to auto-install, or install manually:")
@@ -78,7 +101,7 @@ def start(
         template=template,
     )
 
-    provider = LocalSandboxProvider()
+    provider = LocalSandboxProvider()  # type: ignore[name-defined]
 
     console.print(f"\n[dim]Creating sandbox {sandbox_id}...[/dim]")
     sandbox = provider.create(sandbox_id, config)
@@ -112,7 +135,8 @@ def list_sessions() -> None:
     Example:
         runtm session list
     """
-    provider = LocalSandboxProvider()
+    _require_sandbox()
+    provider = LocalSandboxProvider()  # type: ignore[name-defined]
     sandboxes = provider.list_sandboxes()
 
     if not sandboxes:
@@ -146,7 +170,8 @@ def attach(
     Example:
         runtm session attach sbx_abc123
     """
-    provider = LocalSandboxProvider()
+    _require_sandbox()
+    provider = LocalSandboxProvider()  # type: ignore[name-defined]
 
     sandbox = provider.state_store.load(sandbox_id)
     if sandbox is None:
@@ -170,7 +195,8 @@ def stop(
     Example:
         runtm session stop sbx_abc123
     """
-    provider = LocalSandboxProvider()
+    _require_sandbox()
+    provider = LocalSandboxProvider()  # type: ignore[name-defined]
     provider.stop(sandbox_id)
     console.print(f"[green]✓[/green] Sandbox {sandbox_id} stopped")
     console.print(
@@ -192,12 +218,14 @@ def destroy(
         runtm session destroy sbx_abc123
         runtm session destroy sbx_abc123 --force  # Skip confirmation
     """
+    _require_sandbox()
+
     if not force:
         if not typer.confirm(f"Destroy sandbox {sandbox_id} and delete all files?", default=False):
             console.print("[dim]Cancelled.[/dim]")
             raise typer.Exit(0)
 
-    provider = LocalSandboxProvider()
+    provider = LocalSandboxProvider()  # type: ignore[name-defined]
     provider.destroy(sandbox_id)
     console.print(f"[green]✓[/green] Sandbox {sandbox_id} destroyed")
 
@@ -217,7 +245,8 @@ def deploy_from_sandbox(
         runtm session deploy sbx_abc123         # Deploy specific sandbox
         runtm session deploy --path ./backend   # Deploy subdirectory
     """
-    provider = LocalSandboxProvider()
+    _require_sandbox()
+    provider = LocalSandboxProvider()  # type: ignore[name-defined]
 
     # Get sandbox
     if sandbox_id is None:

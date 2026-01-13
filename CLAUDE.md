@@ -31,6 +31,7 @@ pytest packages/api/tests           # Test specific package
 pytest packages/api/tests/test_foo.py::test_specific  # Single test
 ./scripts/dev.sh lint               # Check style (ruff)
 ./scripts/dev.sh format             # Fix style (ruff format)
+./scripts/dev.sh check              # Run all checks (REQUIRED before committing)
 
 # View logs
 ./scripts/dev.sh logs               # All services
@@ -111,3 +112,9 @@ queued → building → deploying → ready
 - Type hints on all functions
 - Idempotency – Retries create same result
 - Clean error messages that explain how to recover
+
+**IMPORTANT:** After making any code changes, always run:
+```bash
+./scripts/dev.sh check
+```
+This runs lint and format checks. Fix any issues before committing.
