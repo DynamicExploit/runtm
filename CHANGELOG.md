@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Local Sandboxes**: Isolated environments where AI coding agents can build software
+  - `runtm session start` - Create a new sandbox with OS-level isolation
+  - `runtm session list` - List all sandbox sessions
+  - `runtm session attach` - Reattach to an existing sandbox
+  - `runtm session stop` - Stop a sandbox (preserves workspace)
+  - `runtm session destroy` - Destroy a sandbox and delete workspace
+  - `runtm session deploy` - Deploy from sandbox to live URL
+- **Interactive Mode**: Running `runtm` without arguments launches an agent-friendly menu
+- **Sandbox Package** (`runtm-sandbox`): New package for sandbox management
+  - Uses Anthropic's sandbox-runtime for fast startup (<100ms)
+  - OS-level isolation via bubblewrap (Linux) / seatbelt (macOS)
+  - Automatic dependency installation on first run
+  - Support for Claude Code, Codex, and Gemini agents
+
+### Changed
+
+- `runtm list` now also available as `runtm deployments list`
+
 ## [0.1.0] - 2025-01-01
 
 ### Added

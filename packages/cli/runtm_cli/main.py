@@ -28,6 +28,7 @@ from runtm_cli.commands import (
     secrets_list_command,
     secrets_set_command,
     secrets_unset_command,
+    session_app,
     status_command,
     validate_command,
 )
@@ -36,10 +37,10 @@ from runtm_cli.commands.admin import admin_app
 console = Console()
 
 
-def _telemetry_callback(ctx: typer.Context) -> None:
-    """Typer callback to initialize telemetry for each command.
+def _main_callback(ctx: typer.Context) -> None:
+    """Typer callback for telemetry and interactive mode.
 
-    This runs before any command and ensures telemetry is set up.
+    Runs before any command. If no command specified, launches interactive menu.
     """
     # Import here to avoid circular imports and ensure lazy loading
     from runtm_cli.telemetry import get_telemetry
@@ -47,13 +48,109 @@ def _telemetry_callback(ctx: typer.Context) -> None:
     # Initialize telemetry (this handles first_run, upgrade detection)
     get_telemetry()
 
+    # If no command specified, launch interactive mode
+    if ctx.invoked_subcommand is None:
+        _interactive_menu()
+        raise typer.Exit(0)
+
+
+def _interactive_menu() -> None:
+    """Interactive menu for starting sessions (agent-friendly)."""
+    from rich.prompt import Prompt
+
+    console.print()
+    console.print("[bold]runtm[/bold] - Sandboxes where coding agents build and deploy")
+    console.print()
+
+    # Check for existing sessions
+    try:
+        from runtm_sandbox.providers.local import LocalSandboxProvider
+        from runtm_shared.types import SandboxState
+
+        provider = LocalSandboxProvider()
+        sandboxes = provider.list_sandboxes()
+        running = [s for s in sandboxes if s.state == SandboxState.RUNNING]
+
+        if running:
+            console.print(f"[dim]{len(running)} sandbox(es) running[/dim]")
+            console.print()
+    except Exception:
+        running = []
+        sandboxes = []
+
+    # Menu choices
+    choices = ["start", "list", "deploy"]
+    if running:
+        choices.insert(1, "attach")
+
+    choice = Prompt.ask(
+        "What would you like to do?",
+        choices=choices + ["quit"],
+        default="start",
+    )
+
+    if choice == "start":
+        # Sub-prompts
+        location = Prompt.ask("Where?", choices=["local", "cloud"], default="local")
+
+        if location == "cloud":
+            console.print("[yellow]Cloud sandboxes coming soon![/yellow]")
+            console.print("Using local sandbox for now.")
+
+        template = Prompt.ask(
+            "Template?",
+            choices=["none", "backend-service", "web-app", "static-site"],
+            default="none",
+        )
+
+        agent = Prompt.ask(
+            "Agent?",
+            choices=["claude-code", "codex", "gemini"],
+            default="claude-code",
+        )
+
+        # Start session
+        from runtm_cli.commands.session import start
+
+        start(
+            local=True,
+            template=template if template != "none" else None,
+            agent=agent,
+            name=None,
+            yes=False,
+        )
+
+    elif choice == "attach":
+        if len(running) == 1:
+            sandbox_id = running[0].id
+        else:
+            sandbox_id = Prompt.ask(
+                "Which sandbox?",
+                choices=[s.id for s in running],
+            )
+        from runtm_cli.commands.session import attach
+
+        attach(sandbox_id=sandbox_id)
+
+    elif choice == "list":
+        from runtm_cli.commands.session import list_sessions
+
+        list_sessions()
+
+    elif choice == "deploy":
+        deploy_command(path=".")
+
+    elif choice == "quit":
+        pass
+
 
 # Create main app with callback
 app = typer.Typer(
     name="runtm",
     help="Sandboxes where coding agents build and deploy.",
-    no_args_is_help=True,
-    callback=_telemetry_callback,
+    no_args_is_help=False,  # Allow interactive mode when no command
+    invoke_without_command=True,
+    callback=_main_callback,
 )
 
 
@@ -872,6 +969,22 @@ def logout(
 
 # Admin subcommand group (for self-host operators)
 app.add_typer(admin_app, name="admin")
+
+# Session subcommand group (sandbox management)
+app.add_typer(session_app, name="session")
+
+# Deployments subcommand group (migrate from runtm list)
+deployments_app = typer.Typer(name="deployments", help="Manage deployments.")
+app.add_typer(deployments_app, name="deployments")
+
+
+@deployments_app.command("list")
+def deployments_list(
+    state: str = typer.Option(None, "--state", "-s", help="Filter by state"),
+    limit: int = typer.Option(50, "--limit", "-n", help="Maximum results"),
+) -> None:
+    """List all deployments."""
+    list_command(state=state, limit=limit)
 
 
 @app.command("version")

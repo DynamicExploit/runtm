@@ -506,3 +506,130 @@ class TenantLimits:
     deploys_per_day: int | None = None
     concurrent_deploys: int | None = None
     allowed_tiers: list[str] | None = None  # None = all tiers allowed
+
+
+# =============================================================================
+# Sandbox Types
+# =============================================================================
+
+
+class SandboxState(str, Enum):
+    """Sandbox lifecycle states.
+
+    State machine:
+        [*] --> creating: session start
+        creating --> running: sandbox ready
+        running --> stopped: user exits or timeout
+        stopped --> running: session attach
+        stopped --> destroyed: session destroy
+        running --> destroyed: session destroy --force
+    """
+
+    CREATING = "creating"
+    RUNNING = "running"
+    STOPPED = "stopped"
+    DESTROYED = "destroyed"
+
+
+class AgentType(str, Enum):
+    """Supported AI coding agents."""
+
+    CLAUDE_CODE = "claude-code"
+    CODEX = "codex"
+    GEMINI = "gemini"
+    CUSTOM = "custom"
+
+
+# Default network allowlist for sandboxes
+DEFAULT_NETWORK_ALLOWLIST: list[str] = [
+    # Package registries
+    "pypi.org",
+    "files.pythonhosted.org",
+    "registry.npmjs.org",
+    "*.npmjs.com",
+    # Git hosting
+    "github.com",
+    "*.github.com",
+    "gitlab.com",
+    "bitbucket.org",
+    # AI APIs
+    "api.anthropic.com",
+    "api.openai.com",
+    # Runtm
+    "*.fly.io",
+    "*.fly.dev",
+    "api.runtm.dev",
+]
+
+
+@dataclass
+class NetworkConfig:
+    """Network configuration for sandbox.
+
+    Controls which domains the sandbox can access.
+    Uses a proxy with domain allowlist (same as Claude Code).
+    """
+
+    enabled: bool = True
+    allow_domains: list[str] = field(default_factory=lambda: DEFAULT_NETWORK_ALLOWLIST.copy())
+
+
+@dataclass
+class GuardrailsConfig:
+    """Guardrails configuration for sandbox.
+
+    sandbox-runtime handles filesystem isolation automatically,
+    including mandatory deny paths (.bashrc, .git/hooks, .vscode/).
+    These are additional restrictions.
+    """
+
+    network: NetworkConfig = field(default_factory=NetworkConfig)
+    allow_write_paths: list[str] = field(default_factory=lambda: ["."])
+    deny_write_paths: list[str] = field(default_factory=list)
+    timeout_minutes: int = 60  # Auto-stop after this
+
+
+@dataclass
+class SandboxConfig:
+    """Configuration for creating a sandbox."""
+
+    agent: AgentType = AgentType.CLAUDE_CODE
+    template: str | None = None
+    guardrails: GuardrailsConfig = field(default_factory=GuardrailsConfig)
+    port_mappings: dict[int, int] = field(
+        default_factory=lambda: {
+            3000: 3000,  # Frontend
+            8080: 8080,  # Backend
+        }
+    )
+
+
+@dataclass
+class Sandbox:
+    """A sandbox instance.
+
+    Represents an isolated environment where an AI agent can code.
+    Uses OS-level primitives (bubblewrap/seatbelt) via sandbox-runtime.
+    """
+
+    id: str
+    session_id: str
+    config: SandboxConfig
+    state: SandboxState
+    workspace_path: str
+    created_at: datetime = field(default_factory=lambda: datetime.now(tz=None))
+    pid: int | None = None  # Process ID when running
+
+
+@dataclass
+class Session:
+    """A coding session.
+
+    Groups one or more sandboxes together. For MVP, sessions are 1:1
+    with sandboxes, but the model supports multi-sandbox sessions later.
+    """
+
+    id: str
+    name: str | None = None
+    sandbox_ids: list[str] = field(default_factory=list)
+    created_at: datetime = field(default_factory=lambda: datetime.now(tz=None))

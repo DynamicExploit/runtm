@@ -28,6 +28,7 @@ classifiers = [
 ]
 dependencies = [
     "runtm-shared>=0.2.0",
+    "runtm-sandbox>=0.1.0",
     "typer>=0.9.0,<1.0",
     "rich>=13.0,<14.0",
     "httpx>=0.24,<1.0",

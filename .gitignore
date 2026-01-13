@@ -75,6 +75,9 @@ venv.bak/
 /artifacts/
 *.log
 
+# Internal planning docs
+.plans/
+
 # Alembic
 packages/api/alembic/versions/*.pyc
 

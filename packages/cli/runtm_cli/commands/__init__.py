@@ -20,6 +20,7 @@ from runtm_cli.commands.secrets import (
     secrets_set_command,
     secrets_unset_command,
 )
+from runtm_cli.commands.session import session_app
 from runtm_cli.commands.status import status_command
 from runtm_cli.commands.validate import validate_command
 
@@ -40,6 +41,7 @@ __all__ = [
     "secrets_list_command",
     "secrets_set_command",
     "secrets_unset_command",
+    "session_app",
     "status_command",
     "validate_command",
 ]
