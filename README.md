@@ -28,14 +28,46 @@ https://github.com/user-attachments/assets/8d6d5ab8-a5c4-4a3d-8ef1-5d20b67ed3ee
 # Install
 uv tool install runtm
 
-# Spin up a sandbox
-runtm init
+# Start a local sandbox session
+runtm session start
+
+# Your agent builds inside the sandbox...
 
 # Deploy to a live URL
-runtm deploy
+runtm session deploy
 ```
 
 You get a live HTTPS endpoint on auto-stopping infrastructure. Machines spin down when idle and wake up on traffic.
+
+## Local Sandbox Sessions
+
+Run AI agents in isolated local environments with OS-level sandboxing:
+
+```bash
+# Start a sandbox (auto-installs deps on first run)
+runtm session start
+
+# Start with a template
+runtm session start --template web-app
+
+# Use a different agent
+runtm session start --agent codex
+
+# List all sandboxes
+runtm session list
+
+# Reattach to a sandbox
+runtm session attach sbx_abc123
+
+# Deploy from sandbox to live URL
+runtm session deploy
+```
+
+**What you get:**
+- **OS-level isolation** – Uses bubblewrap (Linux) or seatbelt (macOS) for fast, secure sandboxing
+- **Instant startup** – Sandboxes start in <100ms, no containers needed
+- **Multi-agent support** – Works with Claude Code, Codex, Gemini CLI, and more
+- **Persistent workspaces** – Stop and resume sessions, files preserved
 
 ## How It Works
 
@@ -67,8 +99,13 @@ pip install runtm
 
 | Command | Description |
 |---------|-------------|
-| `runtm init` | Spin up a new sandbox |
-| `runtm run` | Run locally |
+| `runtm session start` | Start a new sandbox session |
+| `runtm session list` | List all sandboxes |
+| `runtm session attach <id>` | Reattach to a sandbox |
+| `runtm session stop <id>` | Stop a sandbox (preserves files) |
+| `runtm session destroy <id>` | Destroy sandbox and delete files |
+| `runtm session deploy` | Deploy from sandbox to live URL |
+| `runtm init` | Initialize a new project |
 | `runtm deploy` | Deploy to a live URL |
 | `runtm logs <id>` | View build, deploy, and runtime logs |
 | `runtm status <id>` | Check deployment status |
@@ -92,6 +129,7 @@ docker compose -f infra/docker-compose.yml up -d
 ```
 packages/
   shared/     # Types, manifest schema, errors
+  sandbox/    # Local sandbox runtime (OS-level isolation)
   api/        # FastAPI control plane
   worker/     # Build + deploy pipeline
   cli/        # Python CLI (Typer)
@@ -117,7 +155,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 | Component | License |
 |-----------|---------|
 | Server (api, worker, infra) | [AGPLv3](packages/api/LICENSE) |
-| CLI, Shared | [Apache-2.0](packages/cli/LICENSE) |
+| CLI, Sandbox, Shared | [Apache-2.0](packages/cli/LICENSE) |
 | Templates | [MIT](templates/LICENSE) |
 
 ## Support
