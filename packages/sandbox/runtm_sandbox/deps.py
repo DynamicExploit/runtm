@@ -200,16 +200,17 @@ def install_bwrap() -> bool:
 
 
 def ensure_sandbox_deps(
-    auto_approve: bool = False,
-    _skip_prompt: bool = False,
+    auto_install: bool = True,
+    _skip_install: bool = False,
 ) -> bool:
     """Ensure all sandbox dependencies are installed.
 
-    Checks for required dependencies and optionally installs them.
+    By default, automatically installs missing dependencies for a seamless
+    first-run experience. Use auto_install=False to check only.
 
     Args:
-        auto_approve: If True, install without prompting.
-        _skip_prompt: Internal flag for testing - skip interactive prompt.
+        auto_install: If True (default), install missing deps automatically.
+        _skip_install: Internal flag for testing - skip installation.
 
     Returns:
         True if all dependencies are available (installed or already present).
@@ -220,24 +221,21 @@ def ensure_sandbox_deps(
         logger.debug("All sandbox dependencies present")
         return True
 
-    logger.info("Missing sandbox dependencies", missing=[name for name, _ in missing])
+    missing_names = [name for name, _ in missing]
+    logger.info("Missing sandbox dependencies", missing=missing_names)
 
-    # If not auto-approving and we're skipping the prompt, return False
-    if not auto_approve and _skip_prompt:
+    # If not auto-installing, return False (caller handles the error)
+    if not auto_install or _skip_install:
         return False
 
-    # If not auto-approving, we would prompt here
-    # For now, if not auto_approve, we return False (CLI will handle prompting)
-    if not auto_approve:
-        return False
+    # Auto-install missing dependencies
+    print(f"Installing missing dependencies: {', '.join(missing_names)}...")
 
-    # Install missing dependencies
     for name, install_fn in missing:
-        logger.info("Installing dependency", name=name)
+        print(f"  Installing {name}...")
         if not install_fn():
             logger.error("Failed to install dependency", name=name)
             return False
-        logger.info("Installed dependency", name=name)
 
     # Verify all deps are now present
     still_missing = get_missing_deps()
@@ -248,5 +246,6 @@ def ensure_sandbox_deps(
         )
         return False
 
+    print("All dependencies installed successfully!")
     logger.info("All sandbox dependencies installed successfully")
     return True

@@ -7,8 +7,59 @@ from __future__ import annotations
 # - User's system environment variables
 # - User's project .env.local (via secrets commands)
 # - ~/.runtm/config.yaml for CLI config (API URL, token)
+import logging
+import os
+
 import typer
 from rich.console import Console
+
+
+def _configure_logging(verbose: bool = False) -> None:
+    """Configure logging level based on verbose flag or RUNTM_DEBUG env."""
+    level = logging.DEBUG if verbose or os.environ.get("RUNTM_DEBUG") else logging.WARNING
+    logging.basicConfig(level=level, format="%(message)s", force=True)
+
+    # Suppress noisy third-party loggers even in verbose mode
+    noisy_loggers = [
+        "httpcore",
+        "httpx",
+        "urllib3",
+        "asyncio",
+        "runtm_shared.telemetry",  # Telemetry failures shouldn't clutter output
+        "runtm_sandbox",  # Sandbox debug logs
+        "runtm_agents",  # Agent debug logs
+    ]
+    for noisy_logger in noisy_loggers:
+        logging.getLogger(noisy_logger).setLevel(logging.WARNING)
+
+    # Configure structlog to use standard library logging
+    # This ensures all structlog loggers respect the logging level
+    try:
+        import structlog
+
+        structlog.configure(
+            processors=[
+                structlog.stdlib.filter_by_level,
+                structlog.stdlib.add_logger_name,
+                structlog.stdlib.add_log_level,
+                structlog.stdlib.PositionalArgumentsFormatter(),
+                structlog.processors.TimeStamper(fmt="iso"),
+                structlog.processors.StackInfoRenderer(),
+                structlog.processors.format_exc_info,
+                structlog.processors.UnicodeDecoder(),
+                structlog.dev.ConsoleRenderer() if verbose else structlog.processors.JSONRenderer(),
+            ],
+            wrapper_class=structlog.stdlib.BoundLogger,
+            context_class=dict,
+            logger_factory=structlog.stdlib.LoggerFactory(),
+            cache_logger_on_first_use=False,  # Allow reconfiguration
+        )
+    except ImportError:
+        pass
+
+
+# Configure logging at import time (default: quiet)
+_configure_logging()
 
 from runtm_cli import __version__
 from runtm_cli.commands import (
@@ -64,19 +115,19 @@ def _interactive_menu() -> None:
 
     # Check for existing sessions
     try:
-        from runtm_sandbox.providers.local import LocalSandboxProvider
-        from runtm_shared.types import SandboxState
+        from runtm_sandbox.state import SandboxStateStore
+        from runtm_shared.types import SessionState
 
-        provider = LocalSandboxProvider()
-        sandboxes = provider.list_sandboxes()
-        running = [s for s in sandboxes if s.state == SandboxState.RUNNING]
+        state_store = SandboxStateStore()
+        sessions = state_store.list_sessions()
+        running = [s for s in sessions if s.state == SessionState.RUNNING]
 
         if running:
-            console.print(f"[dim]{len(running)} sandbox(es) running[/dim]")
+            console.print(f"[dim]{len(running)} session(s) running[/dim]")
             console.print()
     except Exception:
         running = []
-        sandboxes = []
+        sessions = []
 
     # Menu choices
     choices = ["start", "list", "deploy"]
@@ -90,12 +141,12 @@ def _interactive_menu() -> None:
     )
 
     if choice == "start":
-        # Sub-prompts
-        location = Prompt.ask("Where?", choices=["local", "cloud"], default="local")
-
-        if location == "cloud":
-            console.print("[yellow]Cloud sandboxes coming soon![/yellow]")
-            console.print("Using local sandbox for now.")
+        # Ask mode
+        mode = Prompt.ask(
+            "Mode?",
+            choices=["autopilot", "interactive"],
+            default="autopilot",
+        )
 
         template = Prompt.ask(
             "Template?",
@@ -103,34 +154,29 @@ def _interactive_menu() -> None:
             default="none",
         )
 
-        agent = Prompt.ask(
-            "Agent?",
-            choices=["claude-code", "codex", "gemini"],
-            default="claude-code",
-        )
-
         # Start session
         from runtm_cli.commands.session import start
 
         start(
+            interactive=(mode == "interactive"),
             local=True,
             template=template if template != "none" else None,
-            agent=agent,
+            agent="claude-code",
             name=None,
-            yes=False,
+            no_deploy=False,
         )
 
     elif choice == "attach":
         if len(running) == 1:
-            sandbox_id = running[0].id
+            session_id = running[0].id
         else:
-            sandbox_id = Prompt.ask(
-                "Which sandbox?",
+            session_id = Prompt.ask(
+                "Which session?",
                 choices=[s.id for s in running],
             )
         from runtm_cli.commands.session import attach
 
-        attach(sandbox_id=sandbox_id)
+        attach(sandbox_id=session_id)
 
     elif choice == "list":
         from runtm_cli.commands.session import list_sessions
@@ -972,6 +1018,136 @@ app.add_typer(admin_app, name="admin")
 
 # Session subcommand group (sandbox management)
 app.add_typer(session_app, name="session")
+
+
+# ============================================================
+# Flattened session aliases (for convenience)
+# ============================================================
+
+
+@app.command("start")
+def start_alias(
+    interactive: bool | None = typer.Option(
+        None,
+        "--interactive/--autopilot",
+        "-i/-a",
+        help="Interactive mode (manual) or autopilot mode (via prompts)",
+    ),
+    template: str | None = typer.Option(
+        None,
+        "--template",
+        "-t",
+        help="Template: backend-service, web-app, static-site",
+    ),
+    agent: str | None = typer.Option(
+        None,
+        "--agent",
+        help="Agent: claude-code, codex, gemini (default: prompt)",
+    ),
+    name: str | None = typer.Option(None, "--name", "-n", help="Session name"),
+    no_deploy: bool = typer.Option(
+        False,
+        "--no-deploy",
+        help="Disable deploy command in sandbox",
+    ),
+    local: bool = typer.Option(True, "--local/--cloud", help="Local or cloud sandbox"),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Enable verbose logging (or set RUNTM_DEBUG=1)",
+    ),
+) -> None:
+    """Start a new sandbox session.
+
+    Two modes available:
+    - Autopilot: Use `runtm prompt` to send prompts to the agent
+    - Interactive: Drop into shell and control agent manually
+
+    If no mode or agent is specified, you'll be prompted to choose.
+
+    Examples:
+        runtm start                    # Interactive selection
+        runtm start --interactive      # Interactive mode directly
+        runtm start --autopilot        # Autopilot mode directly
+        runtm start --template web-app # With template
+    """
+    if verbose:
+        _configure_logging(verbose=True)
+
+    from runtm_cli.commands.session import start
+
+    start(
+        interactive=interactive,
+        local=local,
+        template=template,
+        agent=agent,
+        name=name,
+        no_deploy=no_deploy,
+    )
+
+
+@app.command("prompt")
+def prompt_alias(
+    prompt_text: str = typer.Argument(..., help="Prompt to send to the agent"),
+    session_id: str | None = typer.Option(
+        None,
+        "--session",
+        "-s",
+        help="Target session ID (default: active session)",
+    ),
+    quiet: bool = typer.Option(False, "--quiet", "-q", help="Minimal output"),
+    continue_conversation: bool = typer.Option(
+        False,
+        "--continue",
+        "-c",
+        help="Continue previous Claude conversation",
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Enable verbose logging (or set RUNTM_DEBUG=1)",
+    ),
+) -> None:
+    """Send a prompt to the agent in a sandbox session.
+
+    Examples:
+        runtm prompt "Build a todo API with SQLite"
+        runtm prompt -s sbx_abc123 "Add tests"
+        runtm prompt --continue "Fix the bug"
+    """
+    if verbose:
+        _configure_logging(verbose=True)
+
+    from runtm_cli.commands.session import prompt
+
+    prompt(
+        prompt_text=prompt_text,
+        session_id=session_id,
+        quiet=quiet,
+        continue_conversation=continue_conversation,
+    )
+
+
+@app.command("attach")
+def attach_alias(
+    sandbox_id: str | None = typer.Argument(
+        None, help="Sandbox ID to attach to (default: last sandbox in this terminal)"
+    ),
+) -> None:
+    """Attach to an existing sandbox session.
+
+    If no sandbox ID is provided, attaches to the last sandbox created in this terminal.
+
+    Example:
+        runtm attach              # Attach to last sandbox in this terminal
+        runtm attach sbx_abc123   # Attach to specific sandbox
+    """
+    from runtm_cli.commands.session import attach
+
+    attach(sandbox_id=sandbox_id)
+
 
 # Deployments subcommand group (migrate from runtm list)
 deployments_app = typer.Typer(name="deployments", help="Manage deployments.")

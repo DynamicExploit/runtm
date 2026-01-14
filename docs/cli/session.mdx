@@ -1,0 +1,216 @@
+---
+title: Sandbox Sessions
+description: "Run AI coding agents in isolated local environments"
+---
+
+# Sandbox Sessions
+
+Spin up isolated environments where AI agents can build software with full permissions.
+
+## Quick Start
+
+```bash
+# Start a sandbox (interactive menu)
+runtm start
+
+# Or go directly to autopilot mode
+runtm start --autopilot
+
+# Send prompts to the agent
+runtm prompt "Build a REST API with SQLite"
+
+# Attach to see what's happening
+runtm attach
+```
+
+## Commands
+
+### `runtm start`
+
+Start a new sandbox session. Shows an interactive menu to select mode and agent.
+
+```bash
+# Interactive selection (default)
+runtm start
+
+# Skip to autopilot mode
+runtm start --autopilot
+runtm start -a
+
+# Skip to interactive mode
+runtm start --interactive
+runtm start -i
+
+# With a template
+runtm start --template web-app
+
+# With a specific agent
+runtm start --agent claude-code
+```
+
+**Options:**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--interactive` | `-i` | Interactive mode (manual control) |
+| `--autopilot` | `-a` | Autopilot mode (send prompts via CLI) |
+| `--template` | `-t` | Template: `backend-service`, `web-app`, `static-site` |
+| `--agent` | | Agent: `claude-code`, `codex`, `gemini` |
+| `--name` | `-n` | Session name |
+| `--no-deploy` | | Disable deploy command in sandbox |
+| `--verbose` | `-v` | Enable debug logging |
+
+### `runtm prompt`
+
+Send a prompt to the agent in autopilot mode.
+
+```bash
+# Send a prompt
+runtm prompt "Build a todo API with SQLite"
+
+# Target a specific session
+runtm prompt -s sbx_abc123 "Add authentication"
+
+# Continue previous conversation
+runtm prompt --continue "Now add tests"
+```
+
+**Options:**
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--session` | `-s` | Target session ID (default: active) |
+| `--continue` | `-c` | Continue previous Claude conversation |
+| `--quiet` | `-q` | Minimal output |
+| `--verbose` | `-v` | Enable debug logging |
+
+### `runtm attach`
+
+Attach to an existing sandbox shell.
+
+```bash
+# Attach to active session (in this terminal)
+runtm attach
+
+# Attach to specific sandbox
+runtm attach sbx_abc123
+```
+
+When attached, you'll see a custom prompt indicating you're in a sandbox:
+
+```
+[sandbox:abc123] ~/workspace $
+```
+
+Type `exit` to leave. The session persists and you can reattach later.
+
+### `runtm session list`
+
+List all sandbox sessions.
+
+```bash
+runtm session list
+```
+
+Output shows:
+- Session ID
+- Status (running/stopped)
+- Mode (autopilot/interactive)
+- Created time
+- Initial prompt
+
+Active session is marked with `*`.
+
+### `runtm session stop`
+
+Stop a sandbox without deleting files.
+
+```bash
+runtm session stop sbx_abc123
+```
+
+### `runtm session destroy`
+
+Permanently delete a sandbox and its workspace.
+
+```bash
+# With confirmation prompt
+runtm session destroy sbx_abc123
+
+# Skip confirmation
+runtm session destroy sbx_abc123 --force
+```
+
+### `runtm session deploy`
+
+Deploy the code from a sandbox to a live URL.
+
+```bash
+runtm session deploy
+```
+
+## Modes
+
+### Autopilot Mode
+
+The agent runs autonomously. You control it via `runtm prompt`:
+
+```bash
+runtm start --autopilot
+runtm prompt "Create a FastAPI backend with user authentication"
+runtm prompt --continue "Add rate limiting"
+runtm prompt --continue "Write tests"
+```
+
+Best for:
+- Automated workflows
+- CI/CD pipelines
+- Hands-off development
+
+### Interactive Mode
+
+You drop into the sandbox shell and control the agent manually:
+
+```bash
+runtm start --interactive
+# Now in sandbox shell...
+claude "Build a REST API"
+# Run commands, inspect files, etc.
+exit
+```
+
+Best for:
+- Learning and exploration
+- Debugging
+- Fine-grained control
+
+## Environment Variables
+
+Inside the sandbox, these variables are set:
+
+| Variable | Description |
+|----------|-------------|
+| `RUNTM_SANDBOX` | Full sandbox ID (e.g., `sbx_abc123def456`) |
+| `RUNTM_WORKSPACE` | Workspace path |
+
+## Terminal Tracking
+
+Each terminal tracks its own active session. This means you can:
+
+- Have multiple terminals with different sandboxes
+- Run `runtm attach` in each terminal to reconnect to that terminal's sandbox
+- `runtm prompt` targets the active session in the current terminal
+
+## Requirements
+
+For full OS-level isolation, install:
+
+```bash
+# macOS
+brew install ripgrep
+
+# Linux (Debian/Ubuntu)
+sudo apt install ripgrep bubblewrap
+```
+
+Without these, sandboxes still work but run without isolation (with a warning).

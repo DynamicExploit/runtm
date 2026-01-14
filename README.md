@@ -121,8 +121,19 @@ Runtm can be fully self-hosted. See the [self-hosting guide](https://docs.runtm.
 git clone https://github.com/runtm-ai/runtm.git
 cd runtm
 cp infra/local.env.example .env
+
+# Install packages (includes sandbox and agents)
+./scripts/dev.sh setup
+
+# Start local services
 docker compose -f infra/docker-compose.yml up -d
+
+# Use the development CLI
+runtm-dev start                    # Start a sandbox session
+runtm-dev prompt "Build an API"    # Send prompt to agent
 ```
+
+**Note:** Use `runtm-dev` (not `runtm`) when self-hosting. The dev CLI includes sandbox/agents packages.
 
 ## Project Structure
 
@@ -130,6 +141,7 @@ docker compose -f infra/docker-compose.yml up -d
 packages/
   shared/     # Types, manifest schema, errors
   sandbox/    # Local sandbox runtime (OS-level isolation)
+  agents/     # AI coding agent adapters (Claude Code, Codex, etc.)
   api/        # FastAPI control plane
   worker/     # Build + deploy pipeline
   cli/        # Python CLI (Typer)

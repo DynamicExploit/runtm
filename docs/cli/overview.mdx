@@ -49,19 +49,29 @@ pip install --upgrade runtm
 
 | Command | Description |
 |---------|-------------|
-| [`runtm init`](/cli/init) | Spin up a new sandbox |
-| [`runtm run`](/cli/run) | Run project locally |
+| [`runtm start`](/cli/session) | Start a sandbox session |
+| [`runtm prompt`](/cli/session#runtm-prompt) | Send prompt to agent |
+| [`runtm attach`](/cli/session#runtm-attach) | Attach to a sandbox |
 | [`runtm deploy`](/cli/deploy) | Deploy to a live URL |
 | [`runtm logs`](/cli/logs) | View deployment logs |
-| [`runtm destroy`](/cli/destroy) | Destroy a deployment |
 
 ### All Commands
 
 <AccordionGroup>
+  <Accordion title="Sandbox Commands" defaultOpen>
+    | Command | Description |
+    |---------|-------------|
+    | [`runtm start`](/cli/session) | Start a sandbox session |
+    | [`runtm prompt`](/cli/session#runtm-prompt) | Send prompt to agent |
+    | [`runtm attach`](/cli/session#runtm-attach) | Attach to a sandbox |
+    | [`runtm session list`](/cli/session#runtm-session-list) | List all sessions |
+    | [`runtm session stop`](/cli/session#runtm-session-stop) | Stop a session |
+    | [`runtm session destroy`](/cli/session#runtm-session-destroy) | Destroy a session |
+  </Accordion>
   <Accordion title="Project Commands">
     | Command | Description |
     |---------|-------------|
-    | [`runtm init`](/cli/init) | Spin up a sandbox |
+    | [`runtm init`](/cli/init) | Initialize from template |
     | [`runtm run`](/cli/run) | Run locally |
     | [`runtm validate`](/cli/validate) | Validate before deploy |
     | [`runtm fix`](/cli/fix) | Fix common issues |
@@ -120,8 +130,8 @@ api_url: https://app.runtm.com/api
 
 The CLI stores your API key securely:
 
-1. **macOS**: System Keychain (preferred)
-2. **Linux**: File at `~/.runtm/credentials` (mode 600)
+1. **File**: `~/.runtm/credentials` (mode 600)
+2. **Keychain**: System keychain (if `keyring` package installed)
 3. **Environment**: `RUNTM_API_KEY` variable
 
 Check your setup with:

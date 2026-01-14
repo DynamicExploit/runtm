@@ -20,6 +20,12 @@ Open-source sandboxes where coding agents build and deploy. Spin up isolated env
 ./scripts/dev.sh setup              # Install all packages in dev mode
 cp infra/local.env.example .env     # Configure environment (add FLY_API_TOKEN)
 
+# Development CLI (use runtm-dev, not runtm)
+runtm-dev start                     # Start sandbox session (autopilot mode)
+runtm-dev start --interactive       # Start sandbox session (interactive mode)
+runtm-dev prompt "Build an API"     # Send prompt to agent in sandbox
+runtm-dev list                      # List sessions
+
 # Run local services
 ./scripts/dev.sh up                 # Start API + worker + DB + Redis
 ./scripts/dev.sh down               # Stop services
@@ -42,11 +48,15 @@ export RUNTM_API_URL=http://localhost:8000
 export RUNTM_API_KEY=dev-token-change-in-production
 ```
 
+**Note:** Use `runtm-dev` (not `runtm`) when developing locally. The dev CLI includes sandbox/agents packages that aren't in the PyPI release.
+
 ## Architecture
 
 ```
 packages/
   shared/     # Canonical contracts: types, manifest schema, errors
+  sandbox/    # Local sandbox runtime (OS-level isolation)
+  agents/     # AI coding agent adapters (Claude Code, Codex, etc.)
   api/        # FastAPI control plane (deployments, auth, policy)
   worker/     # Build + deploy pipeline (Fly.io provider)
   cli/        # Python CLI (Typer) - the primary DX
@@ -57,6 +67,8 @@ infra/        # Docker compose for local development
 
 **Package responsibilities:**
 - `shared` – Types/schemas/errors that other packages import. Types flow: shared → api, worker, cli
+- `sandbox` – OS-level isolation for AI agents. Uses bubblewrap (Linux) or seatbelt (macOS)
+- `agents` – Adapters for AI coding agents (Claude Code, Codex, Gemini). Wraps CLI tools with streaming output
 - `api` – HTTP layer + orchestration. No business logic in routes - use services
 - `worker` – Build/deploy pipeline. Provider abstraction for Fly.io/Cloud Run
 - `cli` – Wraps API client, never contains business logic
@@ -105,6 +117,10 @@ queued → building → deploying → ready
 ### Shared Types
 1. Edit in `packages/shared/runtm_shared/`
 2. Update all consuming packages
+
+## Plans
+
+Store implementation plans in `.plans/PLAN_feature_name.md`. Rename to `PLAN_feature_name_DONE.md` when complete.
 
 ## Code Standards
 

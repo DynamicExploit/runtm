@@ -86,7 +86,10 @@ class LocalSandboxProvider(SandboxProvider):
     def attach(self, sandbox_id: str) -> int:
         """Attach to a sandbox.
 
-        Runs an interactive shell with sandbox-runtime isolation.
+        Runs an interactive shell, optionally with sandbox-runtime isolation.
+        The shell has a custom prompt to indicate you're in a sandbox.
+
+        Falls back to plain bash if srt dependencies are missing.
 
         Args:
             sandbox_id: ID of sandbox to attach to.
@@ -97,6 +100,8 @@ class LocalSandboxProvider(SandboxProvider):
         Raises:
             ValueError: If sandbox not found.
         """
+        import os
+
         sandbox = self.state_store.load(sandbox_id)
         if sandbox is None:
             raise ValueError(f"Sandbox not found: {sandbox_id}")
@@ -104,20 +109,93 @@ class LocalSandboxProvider(SandboxProvider):
         workspace = Path(sandbox.workspace_path)
         logger.info("Attaching to sandbox", sandbox_id=sandbox_id, workspace=str(workspace))
 
-        # Generate sandbox-runtime config
-        srt_config = generate_srt_config(sandbox.config)
-        config_path = self.sandboxes_dir / sandbox_id / "sandbox-config.json"
-        write_config_file(srt_config, config_path)
+        # Set up environment for a distinct sandbox shell experience
+        env = os.environ.copy()
 
-        # Run shell in sandbox via srt
-        # srt wraps the command with bubblewrap/seatbelt isolation
-        result = subprocess.run(
-            ["srt", "--config", str(config_path), "--", "/bin/bash"],
-            cwd=workspace,
-        )
+        # Short sandbox ID for prompt (e.g., sbx_abc123 -> abc123)
+        short_id = sandbox_id.replace("sbx_", "")[:8]
+
+        # Custom PS1 prompt: [sandbox:abc123] ~/path $
+        # Green color for sandbox indicator, reset for the rest
+        env["PS1"] = f"\\[\\033[32m\\][sandbox:{short_id}]\\[\\033[0m\\] \\w $ "
+
+        # Marker so scripts can detect sandbox environment
+        env["RUNTM_SANDBOX"] = sandbox_id
+        env["RUNTM_WORKSPACE"] = str(workspace)
+
+        # Check if srt and its dependencies are available
+        use_srt = self._check_srt_available()
+
+        # Welcome banner
+        banner = f"""
+\033[32m╭─────────────────────────────────────────────────────────────╮
+│  \033[1mRuntm Sandbox\033[0m\033[32m                                              │
+│                                                             │
+│  ID: {sandbox_id:<51} │
+│  Type 'claude' to start Claude Code                         │
+│  Type 'exit' to leave (session persists)                    │
+╰─────────────────────────────────────────────────────────────╯\033[0m
+"""
+        print(banner)
+
+        if use_srt:
+            # Generate sandbox-runtime config
+            srt_config = generate_srt_config(sandbox.config)
+            config_path = self.sandboxes_dir / sandbox_id / "sandbox-config.json"
+            write_config_file(srt_config, config_path)
+
+            # Run shell in sandbox via srt (with OS isolation)
+            result = subprocess.run(
+                ["srt", "--settings", str(config_path), "--", "/bin/bash", "--norc", "--noprofile"],
+                cwd=workspace,
+                env=env,
+            )
+        else:
+            # Fallback: run bash directly without isolation
+            # Still useful for development/testing
+            print(
+                "\033[33m⚠ Running without OS isolation (install ripgrep: brew install ripgrep)\033[0m\n"
+            )
+            result = subprocess.run(
+                ["/bin/bash", "--norc", "--noprofile"],
+                cwd=workspace,
+                env=env,
+            )
 
         logger.info("Sandbox session ended", sandbox_id=sandbox_id, exit_code=result.returncode)
         return result.returncode
+
+    def _check_srt_available(self) -> bool:
+        """Check if srt and its dependencies are available.
+
+        Returns:
+            True if srt can run, False otherwise.
+        """
+        # Check srt exists
+        if not shutil.which("srt"):
+            return False
+
+        # Check ripgrep exists (srt requires it)
+        # Note: we need the real rg binary, not Claude's alias
+        rg_path = shutil.which("rg")
+        if not rg_path:
+            return False
+
+        # Check it's the real ripgrep (not Claude's --ripgrep alias)
+        try:
+            result = subprocess.run(
+                [rg_path, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            # Real ripgrep outputs "ripgrep X.Y.Z"
+            if "ripgrep" in result.stdout:
+                return True
+        except Exception:
+            pass
+
+        return False
 
     def stop(self, sandbox_id: str) -> None:
         """Stop a sandbox.

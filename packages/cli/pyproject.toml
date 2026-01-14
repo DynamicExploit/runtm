@@ -40,10 +40,12 @@ dependencies = [
 
 [project.scripts]
 runtm = "runtm_cli.main:app"
+runtm-dev = "runtm_cli.main:app"
 
 [project.optional-dependencies]
 sandbox = [
     "runtm-sandbox>=0.1.0",
+    "runtm-agents>=0.1.0",
 ]
 dev = [
     "pytest>=7.0,<9.0",
@@ -51,6 +53,7 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.0,<2.0",
     "runtm-sandbox>=0.1.0",
+    "runtm-agents>=0.1.0",
 ]
 
 [project.urls]
@@ -65,4 +68,3 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["runtm_cli"]
-

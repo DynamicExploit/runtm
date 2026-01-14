@@ -59,7 +59,10 @@ You get a live HTTPS endpoint. Machines auto-stop when idle and wake on traffic.
 | `runtm login` | Authenticate with Runtm API |
 | `runtm logout` | Remove saved credentials |
 | `runtm doctor` | Check CLI setup and diagnose issues |
-| `runtm init | Spin up a new sandbox |
+| `runtm start` | Start a sandbox session (interactive menu) |
+| `runtm attach [id]` | Attach to a sandbox (defaults to active) |
+| `runtm prompt "..."` | Send a prompt to the agent |
+| `runtm init` | Initialize a new project from template |
 | `runtm run` | Run project locally (auto-detects runtime) |
 | `runtm validate` | Validate project before deployment |
 | `runtm deploy [path]` | Deploy project to a live URL |
@@ -88,9 +91,8 @@ runtm logout
 ```
 
 **Token storage:**
-- macOS: Keychain
-- Windows: Credential Locker
-- Linux: Secret Service (or `~/.runtm/credentials` with 0o600 permissions)
+- Primary: `~/.runtm/credentials` file (0o600 permissions)
+- Optional: System keychain (if `keyring` package installed)
 
 **Environment variable override:**
 ```bash
@@ -133,7 +135,7 @@ runtm v0.2.6
   Auth storage: keychain (api_token@app.runtm.com)
   Auth status:  ✓ Authenticated as user@example.com
   Connectivity: ✓ API reachable (142ms)
-  
+
   Ready to deploy! Run: runtm init
 ```
 
@@ -257,8 +259,15 @@ runtm logs dep_abc123 --json
 ## Development
 
 ```bash
-# Install in editable mode
-pip install -e ".[dev]"
+# Install in editable mode with sandbox support
+pip install -e ".[dev,sandbox]"
+pip install -e ../sandbox
+pip install -e ../agents
+
+# Use the development CLI (avoids conflicts with PyPI version)
+runtm-dev start                    # Start sandbox session
+runtm-dev prompt "Build an API"    # Send prompt to agent
+runtm-dev list                     # List sessions
 
 # Configure CLI to use local API (add to ~/.zshrc or ~/.bashrc)
 export RUNTM_API_URL=http://localhost:8000
@@ -267,3 +276,12 @@ export RUNTM_API_KEY=dev-token-change-in-production
 # Run tests
 pytest
 ```
+
+### `runtm` vs `runtm-dev`
+
+| CLI | Source | Use Case |
+|-----|--------|----------|
+| `runtm` | PyPI (`pip install runtm`) | Production use |
+| `runtm-dev` | Local `.venv/` | Development (includes sandbox/agents) |
+
+If you have the PyPI version installed globally, use `runtm-dev` to ensure you're running your local development code with full sandbox support.

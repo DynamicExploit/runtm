@@ -146,6 +146,7 @@
       "group": "CLI Reference",
       "pages": [
         "cli/overview",
+        "cli/session",
         "cli/auth",
         "cli/init",
         "cli/run",

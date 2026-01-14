@@ -19,8 +19,31 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
-import keyring
-import keyring.errors
+# Lazy import keyring to handle cases where it's not installed
+# This prevents CLI crashes on startup when keyring is missing
+_keyring = None
+_keyring_available: bool | None = None
+
+
+def _get_keyring():
+    """Lazy load keyring module.
+
+    Returns:
+        keyring module or None if not available
+    """
+    global _keyring, _keyring_available
+
+    if _keyring_available is None:
+        try:
+            import keyring
+
+            _keyring = keyring
+            _keyring_available = True
+        except ImportError:
+            _keyring_available = False
+
+    return _keyring
+
 
 SERVICE_NAME = "runtm"
 CREDENTIALS_FILE = Path.home() / ".runtm" / "credentials"
@@ -68,15 +91,17 @@ def get_token(api_url: str | None = None) -> str | None:
             pass  # File read error
 
     # 3. OS keychain (fallback for users who stored there previously)
-    api_url = api_url or _get_api_url()
-    key = _keyring_key(api_url)
-    try:
-        if token := keyring.get_password(SERVICE_NAME, key):
-            return token
-    except keyring.errors.KeyringError:
-        pass  # Keyring unavailable
-    except Exception:
-        pass  # Keyring backend misconfigured (common on Linux without SecretService)
+    keyring = _get_keyring()
+    if keyring is not None:
+        api_url = api_url or _get_api_url()
+        key = _keyring_key(api_url)
+        try:
+            if token := keyring.get_password(SERVICE_NAME, key):
+                return token
+        except Exception:
+            # Handle KeyringError and any other exceptions
+            # Keyring unavailable or backend misconfigured (common on Linux without SecretService)
+            pass
 
     return None
 
@@ -102,13 +127,15 @@ def get_token_source(api_url: str | None = None) -> str:
             pass
 
     # Then keychain (for users who stored there previously)
-    api_url = api_url or _get_api_url()
-    key = _keyring_key(api_url)
-    try:
-        if keyring.get_password(SERVICE_NAME, key):
-            return "keychain"
-    except Exception:
-        pass
+    keyring = _get_keyring()
+    if keyring is not None:
+        api_url = api_url or _get_api_url()
+        key = _keyring_key(api_url)
+        try:
+            if keyring.get_password(SERVICE_NAME, key):
+                return "keychain"
+        except Exception:
+            pass
 
     return "none"
 
@@ -159,14 +186,15 @@ def clear_token(api_url: str | None = None) -> None:
     Args:
         api_url: Optional API URL to clear token for. Defaults to config api_url.
     """
-    api_url = api_url or _get_api_url()
-    key = _keyring_key(api_url)
-
     # Try to remove from keychain
-    try:
-        keyring.delete_password(SERVICE_NAME, key)
-    except Exception:
-        pass  # Ignore errors - token might not exist or keyring unavailable
+    keyring = _get_keyring()
+    if keyring is not None:
+        api_url = api_url or _get_api_url()
+        key = _keyring_key(api_url)
+        try:
+            keyring.delete_password(SERVICE_NAME, key)
+        except Exception:
+            pass  # Ignore errors - token might not exist or keyring unavailable
 
     # Also remove credentials file if it exists
     if CREDENTIALS_FILE.exists():

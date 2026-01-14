@@ -621,15 +621,63 @@ class Sandbox:
     pid: int | None = None  # Process ID when running
 
 
+class SessionMode(str, Enum):
+    """Session operation mode.
+
+    Modes:
+        AUTOPILOT: Agent works autonomously via `runtm prompt` commands
+        INTERACTIVE: User controls agent directly via shell
+    """
+
+    AUTOPILOT = "autopilot"
+    INTERACTIVE = "interactive"
+
+
+class SessionState(str, Enum):
+    """Session lifecycle state.
+
+    State machine:
+        [*] --> running: session start
+        running --> stopped: user exits or timeout
+        stopped --> running: session attach
+        stopped --> destroyed: session destroy
+        running --> destroyed: session destroy --force
+    """
+
+    RUNNING = "running"
+    STOPPED = "stopped"
+    DESTROYED = "destroyed"
+
+
+@dataclass
+class SessionConstraints:
+    """Constraints on what the agent can do in a session.
+
+    Used to restrict agent capabilities for security/policy reasons.
+    """
+
+    allow_deploy: bool = True  # Can agent run runtm deploy?
+    allow_network: bool = True  # Can agent make network requests?
+    allow_install: bool = True  # Can agent install packages?
+
+
 @dataclass
 class Session:
-    """A coding session.
+    """A coding session with an AI agent.
 
-    Groups one or more sandboxes together. For MVP, sessions are 1:1
-    with sandboxes, but the model supports multi-sandbox sessions later.
+    Sessions provide a higher-level abstraction over sandboxes,
+    tracking agent state, prompts, and conversation history.
     """
 
     id: str
     name: str | None = None
-    sandbox_ids: list[str] = field(default_factory=list)
+    mode: SessionMode = SessionMode.AUTOPILOT
+    state: SessionState = SessionState.RUNNING
+    agent: AgentType = AgentType.CLAUDE_CODE
+    sandbox_id: str = ""  # 1:1 with sandbox in MVP
+    workspace_path: str = ""
+    initial_prompt: str | None = None  # First prompt given to agent
+    claude_session_id: str | None = None  # For --continue support
+    constraints: SessionConstraints = field(default_factory=SessionConstraints)
     created_at: datetime = field(default_factory=lambda: datetime.now(tz=None))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(tz=None))

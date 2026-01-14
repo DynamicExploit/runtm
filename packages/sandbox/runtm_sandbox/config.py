@@ -28,19 +28,24 @@ def generate_srt_config(config: SandboxConfig) -> dict:
         Dict suitable for writing to sandbox-config.json.
     """
     # Filesystem configuration
+    # srt expects: allowWrite, denyWrite, denyRead
     filesystem_config = {
         "allowWrite": config.guardrails.allow_write_paths.copy(),
         "denyWrite": config.guardrails.deny_write_paths.copy(),
+        "denyRead": [],  # Required by srt
     }
 
     # Network configuration
+    # srt expects: allowedDomains, deniedDomains (not allowDomains)
     if config.guardrails.network.enabled:
         network_config = {
-            "allowDomains": config.guardrails.network.allow_domains.copy(),
+            "allowedDomains": config.guardrails.network.allow_domains.copy(),
+            "deniedDomains": [],  # Required by srt
         }
     else:
         network_config = {
-            "allowDomains": [],
+            "allowedDomains": [],
+            "deniedDomains": ["*"],  # Block all when network disabled
         }
 
     return {

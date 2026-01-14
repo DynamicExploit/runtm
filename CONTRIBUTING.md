@@ -61,7 +61,9 @@ These files are automatically loaded by Cursor and provide essential context for
    uv pip install -e packages/shared[dev]
    uv pip install -e packages/api[dev]
    uv pip install -e packages/worker[dev]
-   uv pip install -e packages/cli[dev]
+   uv pip install -e "packages/cli[dev,sandbox]"
+   uv pip install -e packages/sandbox
+   uv pip install -e packages/agents
    ```
 
    Or with **pip**:
@@ -69,7 +71,9 @@ These files are automatically loaded by Cursor and provide essential context for
    pip install -e packages/shared[dev]
    pip install -e packages/api[dev]
    pip install -e packages/worker[dev]
-   pip install -e packages/cli[dev]
+   pip install -e "packages/cli[dev,sandbox]"
+   pip install -e packages/sandbox
+   pip install -e packages/agents
    ```
 
 5. Set up pre-commit hooks:
@@ -77,6 +81,28 @@ These files are automatically loaded by Cursor and provide essential context for
    pip install pre-commit
    pre-commit install
    ```
+
+### Development CLI (`runtm-dev`)
+
+After running `./scripts/dev.sh setup`, use `runtm-dev` for development:
+
+```bash
+# Activate venv (or add .venv/bin to PATH)
+source .venv/bin/activate
+
+# Use the development CLI
+runtm-dev start                    # Start a sandbox session
+runtm-dev prompt "Build an API"    # Send prompt to agent
+runtm-dev list                     # List sessions
+```
+
+**Why two CLIs?**
+| CLI | Source | Includes |
+|-----|--------|----------|
+| `runtm` | PyPI (`pip install runtm`) | Core CLI only |
+| `runtm-dev` | Local `.venv/` | CLI + sandbox + agents + all deps |
+
+The setup script installs everything (Python packages, Bun, sandbox-runtime, Claude CLI), so `runtm-dev start` just works.
 
 ### Running Local Services
 
@@ -114,6 +140,8 @@ The `./scripts/dev.sh` helper automatically loads your `.env` file:
 ```
 packages/
   shared/     # Canonical contracts: manifest schema, types, errors
+  sandbox/    # Local sandbox runtime (OS-level isolation)
+  agents/     # AI coding agent adapters (Claude Code, Codex, etc.)
   api/        # FastAPI control plane
   worker/     # Build + deploy worker (Fly.io provider)
   cli/        # Python CLI (Typer)
@@ -132,6 +160,8 @@ infra/
 | Package | Purpose | Key Principle |
 |---------|---------|---------------|
 | `shared` | Canonical contracts only | Types/schemas/errors that other packages import |
+| `sandbox` | Local sandbox runtime | OS-level isolation for AI agents |
+| `agents` | AI agent adapters | Wraps Claude Code, Codex, etc. |
 | `api` | HTTP layer + orchestration | No business logic in routes - use services |
 | `worker` | Build/deploy pipeline | Provider abstraction for Fly.io/Cloud Run |
 | `cli` | User interface | Wraps API client, never contains business logic |
