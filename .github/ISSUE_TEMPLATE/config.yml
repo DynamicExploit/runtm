@@ -1,8 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Documentation
-    url: https://docs.runtm.com
-    about: Check our documentation for guides and API reference
-  - name: Security Vulnerabilities
-    url: https://github.com/runtm-ai/runtm/security/policy
-    about: Please report security vulnerabilities privately
